@@ -1661,6 +1661,77 @@ Return ONLY valid JSON:
     return res.json({ events: events.slice(0, 15), hasData: events.length > 0 });
   });
 
+  // ===================== PARALLAX MIRROR (one-liner synopsis) =====================
+
+  app.get("/api/mirror-line", async (req, res) => {
+    const userId = getUserId(req);
+    if (!userId) return res.json({ line: null });
+
+    const writings = storage.getWritings(5, userId);
+    if (writings.length === 0) return res.json({ line: null });
+
+    // Find the latest mirror moment
+    let mirrorLine: string | null = null;
+    let mirrorInterp: string | null = null;
+    let archLean: string | null = null;
+    for (const w of writings) {
+      if (!w.analysis) continue;
+      try {
+        const a = JSON.parse(w.analysis);
+        if (a.mirror_moment?.line) {
+          mirrorLine = a.mirror_moment.line;
+          mirrorInterp = a.mirror_moment.interpretation;
+          archLean = a.archetype_lean || null;
+          break;
+        }
+      } catch {}
+    }
+
+    if (!mirrorLine) return res.json({ line: null });
+
+    // If no LLM, return a truncated version of the interpretation
+    if (!anthropic) {
+      return res.json({ line: mirrorInterp?.split(".")[0] + "." || null });
+    }
+
+    try {
+      const message = await anthropic.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 100,
+        messages: [{
+          role: "user",
+          content: `You are the Parallax Mirror. Given this mirror moment from someone's writing, distill it into a single evocative line that feels like a personal revelation — something the user would want to screenshot and share.
+
+Mirror moment line: "${mirrorLine}"
+Interpretation: ${mirrorInterp}
+Archetype lean: ${archLean || "unknown"}
+
+Rules:
+- One sentence, under 15 words
+- Start with "You" 
+- Should feel like someone just described you perfectly
+- Poetic but grounded, not flowery
+- Format: "You [verb] like someone who [insight]."
+
+Examples:
+- "You write like someone who builds their freedom in private."
+- "You listen like someone preparing to leave."
+- "You think in spirals, not lines."
+
+Return ONLY the single line, no quotes, no explanation.`
+        }],
+      });
+
+      const text = (message.content[0].type === "text" ? message.content[0].text : "").trim();
+      // Strip any surrounding quotes
+      const clean = text.replace(/^["']|["']$/g, "").trim();
+      return res.json({ line: clean || null });
+    } catch (err) {
+      console.error("Mirror line error:", err);
+      return res.json({ line: null });
+    }
+  });
+
   // ===================== HOLISTIC OVERVIEW =====================
 
   app.get("/api/holistic", async (req, res) => {

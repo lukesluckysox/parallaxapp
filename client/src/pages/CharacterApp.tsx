@@ -13,6 +13,27 @@ import { Sparkles, ArrowRight, Music, PenLine, Heart, Fingerprint, Radio, Trendi
 import { Link } from "wouter";
 import type { Writing, Checkin } from "@shared/schema";
 
+// ── Parallax Mirror (one-liner under username) ───────────────
+function ParallaxMirror() {
+  const { data } = useQuery<{ line: string | null }>({
+    queryKey: ["/api/mirror-line"],
+    staleTime: 15 * 60 * 1000,
+  });
+
+  if (!data?.line) return null;
+
+  return (
+    <div className="text-center -mt-2 mb-1" data-testid="text-parallax-mirror">
+      <p className="text-xs font-display italic text-foreground/50 leading-relaxed">
+        "{data.line}"
+      </p>
+      <p className="text-[9px] text-muted-foreground/30 font-mono mt-0.5 uppercase tracking-widest">
+        parallax mirror
+      </p>
+    </div>
+  );
+}
+
 // ── Mirror Moment Card ────────────────────────────────────────
 function MirrorMomentCard() {
   const { data: writings = [] } = useQuery<Writing[]>({
@@ -610,6 +631,9 @@ export default function CharacterApp() {
     <div className="min-h-screen bg-background pb-20 noise-overlay">
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-5">
         <Header />
+
+        {/* Parallax Mirror — one-liner identity synopsis */}
+        <ParallaxMirror />
 
         {/* Signal Forecast — today's conditions */}
         <SignalForecast />

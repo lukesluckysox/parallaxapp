@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
-import { ArrowLeft, Sparkles, ChevronDown, Trash2 } from "lucide-react";
+import { ArrowLeft, Sparkles, ChevronDown, ChevronRight, Trash2 } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import PoliticalCompass from "@/components/PoliticalCompass";
 import MbtiRadar from "@/components/MbtiRadar";
@@ -209,6 +209,38 @@ function ExtendedAnalysis({ analysis, compact }: { analysis: Partial<WritingAnal
       <AnalysisCharts analysis={analysis} />
       {analysis.quotes && <QuotesSection quotes={analysis.quotes} />}
       {analysis.recommended_reading && <ReadingSection books={analysis.recommended_reading} />}
+    </div>
+  );
+}
+
+/* ─── Collapsible Section ─── */
+function CollapsibleSection({
+  title,
+  defaultOpen = false,
+  children,
+}: {
+  title: string;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+
+  return (
+    <div data-testid={`section-${title.toLowerCase().replace(/\s+/g, "-")}`}>
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between py-2.5 px-1 group transition-colors"
+      >
+        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest group-hover:text-foreground/60 transition-colors">
+          {title}
+        </span>
+        <ChevronRight
+          className={`w-3.5 h-3.5 text-muted-foreground/40 transition-transform duration-200 ${
+            open ? "rotate-90" : ""
+          }`}
+        />
+      </button>
+      {open && <div className="pb-2">{children}</div>}
     </div>
   );
 }
@@ -572,132 +604,158 @@ export default function WritingPage() {
 
         {/* Current Analysis Result */}
         {result && (
-          <div className="space-y-4">
-            <h2 className="text-sm font-bold">Analysis</h2>
+          <div className="space-y-3">
 
-            {/* Mirror Moment */}
-            {result.mirror_moment && (
-              <div
-                data-testid="card-mirror-moment"
-                className="p-4 rounded-[10px] border-l-4 bg-card/80"
-                style={{
-                  borderLeftColor: result.archetype_lean && ARCHETYPE_MAP[result.archetype_lean]
-                    ? ARCHETYPE_MAP[result.archetype_lean].color
-                    : "hsl(var(--primary))",
-                  backgroundColor: result.archetype_lean && ARCHETYPE_MAP[result.archetype_lean]
-                    ? `${ARCHETYPE_MAP[result.archetype_lean].color}08`
-                    : undefined,
-                }}
-              >
-                <div className="flex items-center gap-1.5 mb-2">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Mirror Moment</span>
-                </div>
-                <p className="text-base italic font-serif leading-relaxed text-foreground mb-2">
-                  "{result.mirror_moment.line}"
-                </p>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  {result.mirror_moment.interpretation}
-                </p>
-              </div>
-            )}
-
-            {/* Narrative */}
-            <div
-              data-testid="card-writing-page-narrative"
-              className="p-3 rounded-[10px] border border-primary/20 bg-primary/5 text-sm leading-relaxed"
-            >
-              {result.narrative}
-            </div>
-
-            {/* Archetype lean */}
-            {result.archetype_lean && ARCHETYPE_MAP[result.archetype_lean] && (
-              <div className="flex items-center gap-3 p-3 rounded-[10px] border border-border bg-card">
-                <span className="text-lg font-display" style={{ color: ARCHETYPE_MAP[result.archetype_lean]?.color }}>{ARCHETYPE_MAP[result.archetype_lean]?.emoji}</span>
-                <div>
-                  <p className="text-xs text-muted-foreground">Archetype lean</p>
-                  <p
-                    className="text-sm font-medium"
-                    style={{ color: ARCHETYPE_MAP[result.archetype_lean]?.color }}
+            {/* ═══ PRIMARY INSIGHTS (open by default) ═══ */}
+            <CollapsibleSection title="Primary Insights" defaultOpen>
+              <div className="space-y-4">
+                {/* Mirror Moment */}
+                {result.mirror_moment && (
+                  <div
+                    data-testid="card-mirror-moment"
+                    className="p-4 rounded-[10px] bg-card/50 border border-border/40"
                   >
-                    {ARCHETYPE_MAP[result.archetype_lean]?.name}
+                    <p className="text-[10px] font-medium text-muted-foreground/50 uppercase tracking-wider mb-2">
+                      Mirror Moment
+                    </p>
+                    <p className="text-base italic font-display leading-relaxed text-foreground mb-2">
+                      "{result.mirror_moment.line}"
+                    </p>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      {result.mirror_moment.interpretation}
+                    </p>
+                  </div>
+                )}
+
+                {/* Narrative Reading */}
+                <div
+                  data-testid="card-writing-page-narrative"
+                  className="p-4 rounded-[10px] bg-card/50 border border-border/40"
+                >
+                  <p className="text-[10px] font-medium text-muted-foreground/50 uppercase tracking-wider mb-2">
+                    Narrative Reading
+                  </p>
+                  <p className="text-sm leading-relaxed text-foreground/80">
+                    {result.narrative}
                   </p>
                 </div>
-              </div>
-            )}
 
-            {/* Emotions */}
-            {result.emotions && Object.keys(result.emotions).length > 0 && (
-              <div className="space-y-2">
-                <h3 className="text-xs font-medium text-muted-foreground">Emotions</h3>
-                <div className="space-y-1.5">
-                  {Object.entries(result.emotions)
-                    .sort(([, a], [, b]) => b - a)
-                    .map(([emotion, intensity]) => (
-                      <div key={emotion} className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground w-24 capitalize">{emotion}</span>
-                        <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                {/* Emotional Tone */}
+                {result.emotions && Object.keys(result.emotions).length > 0 && (
+                  <div className="p-4 rounded-[10px] bg-card/50 border border-border/40">
+                    <p className="text-[10px] font-medium text-muted-foreground/50 uppercase tracking-wider mb-3">
+                      Emotional Tone
+                    </p>
+                    <div className="space-y-1.5">
+                      {Object.entries(result.emotions)
+                        .sort(([, a], [, b]) => b - a)
+                        .map(([emotion, intensity]) => (
+                          <div key={emotion} className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground w-24 capitalize">{emotion}</span>
+                            <div className="flex-1 h-1.5 rounded-full bg-muted/50 overflow-hidden">
+                              <div
+                                className="h-full rounded-full bg-primary/50 transition-all"
+                                style={{ width: `${Math.round(intensity * 100)}%` }}
+                              />
+                            </div>
+                            <span className="text-[10px] font-mono tabular-nums text-muted-foreground/60 w-8 text-right">
+                              {Math.round(intensity * 100)}%
+                            </span>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CollapsibleSection>
+
+            {/* ═══ SECONDARY ═══ */}
+            <CollapsibleSection title="Secondary">
+              <div className="space-y-4">
+                {/* Dimension Scores */}
+                {result.nudges && Object.keys(result.nudges).length > 0 && (
+                  <div className="p-4 rounded-[10px] bg-card/30 border border-border/30">
+                    <p className="text-[10px] font-medium text-muted-foreground/50 uppercase tracking-wider mb-3">
+                      Dimension Scores
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {DIMENSIONS.map((dim) => {
+                        const val = result.nudges[dim] || 0;
+                        if (val === 0) return null;
+                        return (
                           <div
-                            className="h-full rounded-full bg-primary/60 transition-all"
-                            style={{ width: `${Math.round(intensity * 100)}%` }}
-                          />
-                        </div>
-                        <span className="text-xs tabular-nums text-muted-foreground w-8 text-right">
-                          {Math.round(intensity * 100)}%
-                        </span>
-                      </div>
-                    ))}
-                </div>
-              </div>
-            )}
+                            key={dim}
+                            className="flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs"
+                          >
+                            <span className="text-muted-foreground/60">{DIMENSION_LABELS[dim]}</span>
+                            <span
+                              className={`font-mono font-medium tabular-nums ${
+                                val > 0 ? "text-green-600 dark:text-green-400" : "text-red-500 dark:text-red-400"
+                              }`}
+                            >
+                              {val > 0 ? "+" : ""}{val}
+                            </span>
+                          </div>
+                        );
+                      }).filter(Boolean)}
+                    </div>
+                  </div>
+                )}
 
-            {/* Dimension Nudges */}
-            {result.nudges && Object.keys(result.nudges).length > 0 && (
-              <div className="space-y-2">
-                <h3 className="text-xs font-medium text-muted-foreground">Dimension impact</h3>
-                <div className="grid grid-cols-2 gap-2">
-                  {DIMENSIONS.map((dim) => {
-                    const val = result.nudges[dim] || 0;
-                    if (val === 0) return null;
-                    return (
-                      <div
-                        key={dim}
-                        className="flex items-center justify-between px-2.5 py-1.5 rounded-lg border border-border bg-card text-xs"
-                      >
-                        <span className="text-muted-foreground">{DIMENSION_LABELS[dim]}</span>
-                        <span
-                          className={`font-medium tabular-nums ${
-                            val > 0 ? "text-green-600 dark:text-green-400" : "text-red-500 dark:text-red-400"
-                          }`}
+                {/* Archetype Lean */}
+                {result.archetype_lean && ARCHETYPE_MAP[result.archetype_lean] && (
+                  <div className="p-4 rounded-[10px] bg-card/30 border border-border/30">
+                    <p className="text-[10px] font-medium text-muted-foreground/50 uppercase tracking-wider mb-2">
+                      Archetype Lean
+                    </p>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xl font-display" style={{ color: ARCHETYPE_MAP[result.archetype_lean]?.color }}>{ARCHETYPE_MAP[result.archetype_lean]?.emoji}</span>
+                      <div>
+                        <p
+                          className="text-sm font-medium"
+                          style={{ color: ARCHETYPE_MAP[result.archetype_lean]?.color }}
                         >
-                          {val > 0 ? "+" : ""}{val}
-                        </span>
+                          {ARCHETYPE_MAP[result.archetype_lean]?.name}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground/50">
+                          {ARCHETYPE_MAP[result.archetype_lean]?.coreDrive}
+                        </p>
                       </div>
-                    );
-                  }).filter(Boolean)}
-                </div>
-              </div>
-            )}
+                    </div>
+                  </div>
+                )}
 
-            {/* Word themes */}
-            {result.word_themes && result.word_themes.length > 0 && (
-              <div className="space-y-2">
-                <h3 className="text-xs font-medium text-muted-foreground">Themes</h3>
-                <div className="flex flex-wrap gap-1.5">
-                  {result.word_themes.map((theme) => (
-                    <span
-                      key={theme}
-                      className="px-2.5 py-1 rounded-full text-xs font-medium bg-accent text-accent-foreground border border-border"
-                    >
-                      {theme}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
+                {/* Word themes */}
+                {result.word_themes && result.word_themes.length > 0 && (
+                  <div className="p-4 rounded-[10px] bg-card/30 border border-border/30">
+                    <p className="text-[10px] font-medium text-muted-foreground/50 uppercase tracking-wider mb-2">
+                      Themes
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {result.word_themes.map((theme) => (
+                        <span
+                          key={theme}
+                          className="px-2.5 py-1 rounded-full text-[11px] font-mono bg-accent/50 text-foreground/60 border border-border/40"
+                        >
+                          {theme}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-            {/* Extended analysis: Charts, Quotes, Reading */}
-            <ExtendedAnalysis analysis={result} />
+                {/* Quotes + Reading */}
+                {result.quotes && <QuotesSection quotes={result.quotes} />}
+                {result.recommended_reading && <ReadingSection books={result.recommended_reading} />}
+              </div>
+            </CollapsibleSection>
+
+            {/* ═══ HIDDEN DEEPER LAYER ═══ */}
+            {(result.mbti || result.political_compass || result.moral_foundations) && (
+              <CollapsibleSection title="Hidden Deeper Layer">
+                <AnalysisCharts analysis={result} />
+              </CollapsibleSection>
+            )}
           </div>
         )}
 
