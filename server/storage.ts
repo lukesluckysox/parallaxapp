@@ -6,6 +6,8 @@ import {
   type SpotifyListen, type InsertSpotifyListen, spotifyListens,
   type SpotifyToken, type InsertSpotifyToken, spotifyTokens,
   cachedResponses,
+  type IdentityMode, type InsertIdentityMode, identityModes,
+  type IdentityEcho, type InsertIdentityEcho, identityEchoes,
 } from "@shared/schema";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import Database from "better-sqlite3";
@@ -61,6 +63,13 @@ export interface IStorage {
 
   // Writing update method
   updateWritingAnalysis(id: number, analysis: string, nudges: string, status: string): void;
+
+  // Identity mode methods
+  getIdentityModes(userId: number): IdentityMode[];
+  saveIdentityModes(userId: number, modes: InsertIdentityMode[]): void;
+  getIdentityEchoes(userId: number, limit?: number): IdentityEcho[];
+  saveIdentityEcho(data: InsertIdentityEcho): IdentityEcho;
+  getActiveEcho(userId: number): (IdentityEcho & { mode_name: string; dominant_archetype: string }) | null;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -141,6 +150,27 @@ export class DatabaseStorage implements IStorage {
         cache_key TEXT NOT NULL,
         response_json TEXT NOT NULL,
         created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS identity_modes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        mode_name TEXT NOT NULL,
+        centroid_vec TEXT NOT NULL,
+        archetype_distribution TEXT NOT NULL,
+        dominant_archetype TEXT NOT NULL,
+        conditions TEXT,
+        first_seen TEXT NOT NULL,
+        last_seen TEXT NOT NULL,
+        occurrence_count INTEGER NOT NULL,
+        checkin_ids TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS identity_echoes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        mode_id INTEGER NOT NULL,
+        detected_at TEXT NOT NULL,
+        similarity_score INTEGER NOT NULL,
+        current_vec TEXT NOT NULL
       );
     `);
 
@@ -421,6 +451,52 @@ export class DatabaseStorage implements IStorage {
       .set({ analysis, nudges, status })
       .where(eq(writings.id, id))
       .run();
+  }
+
+  // ---- Identity Mode Methods ----
+  getIdentityModes(userId: number): IdentityMode[] {
+    return db.select().from(identityModes)
+      .where(eq(identityModes.user_id, userId))
+      .orderBy(desc(identityModes.occurrence_count))
+      .all();
+  }
+
+  saveIdentityModes(userId: number, modes: InsertIdentityMode[]): void {
+    // Clear existing modes for this user
+    db.delete(identityModes).where(eq(identityModes.user_id, userId)).run();
+    // Insert new modes
+    for (const mode of modes) {
+      db.insert(identityModes).values(mode).run();
+    }
+  }
+
+  getIdentityEchoes(userId: number, limit: number = 20): IdentityEcho[] {
+    return db.select().from(identityEchoes)
+      .where(eq(identityEchoes.user_id, userId))
+      .orderBy(desc(identityEchoes.detected_at))
+      .limit(limit)
+      .all();
+  }
+
+  saveIdentityEcho(data: InsertIdentityEcho): IdentityEcho {
+    return db.insert(identityEchoes).values(data).returning().get();
+  }
+
+  getActiveEcho(userId: number): (IdentityEcho & { mode_name: string; dominant_archetype: string }) | null {
+    // Get most recent echo from the last 24 hours
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const echo = db.select().from(identityEchoes)
+      .where(and(eq(identityEchoes.user_id, userId), gte(identityEchoes.detected_at, cutoff)))
+      .orderBy(desc(identityEchoes.detected_at))
+      .get();
+    if (!echo) return null;
+
+    const mode = db.select().from(identityModes)
+      .where(eq(identityModes.id, echo.mode_id))
+      .get();
+    if (!mode) return null;
+
+    return { ...echo, mode_name: mode.mode_name, dominant_archetype: mode.dominant_archetype };
   }
 }
 

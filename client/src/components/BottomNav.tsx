@@ -1,13 +1,12 @@
-import { Home, Music, PenLine, Compass, TrendingUp, Orbit } from "lucide-react";
+import { Home, Aperture, Layers, Radio, TrendingUp } from "lucide-react";
 import { Link, useLocation } from "wouter";
 
 const NAV_ITEMS = [
   { href: "/", icon: Home, label: "Home" },
-  { href: "/holistic", icon: Orbit, label: "Parallax" },
-  { href: "/spotify", icon: Music, label: "Music" },
-  { href: "/writing", icon: PenLine, label: "Writing" },
-  { href: "/discover", icon: Compass, label: "Discover" },
-  { href: "/trajectory", icon: TrendingUp, label: "Trajectory" },
+  { href: "/snapshot", icon: Aperture, label: "Snapshot" },
+  { href: "/mirrors", icon: Layers, label: "Mirrors" },
+  { href: "/signals", icon: Radio, label: "Signals" },
+  { href: "/motion", icon: TrendingUp, label: "Motion" },
 ];
 
 export default function BottomNav() {
@@ -22,7 +21,14 @@ export default function BottomNav() {
     >
       <div className="max-w-2xl mx-auto flex items-center justify-around px-2 py-2.5">
         {NAV_ITEMS.map(({ href, icon: Icon, label }) => {
-          const isActive = location === href || (href === "/" && location === "");
+          let isActive: boolean;
+          if (href === "/") {
+            isActive = location === href || location === "";
+          } else if (href === "/mirrors") {
+            isActive = location === href || location.startsWith("/mirrors/");
+          } else {
+            isActive = location === href;
+          }
           return (
             <Link
               key={href}

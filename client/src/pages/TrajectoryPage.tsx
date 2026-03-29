@@ -290,9 +290,9 @@ export default function TrajectoryPage() {
             data-testid="link-back-home"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            Parallax
+            Home
           </Link>
-          <h1 className="text-base font-bold" data-testid="text-page-title">Trajectory</h1>
+          <h1 className="text-base font-bold" data-testid="text-page-title">Motion</h1>
           <ThemeToggle />
         </header>
 

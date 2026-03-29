@@ -600,12 +600,12 @@ export default function WritingPage() {
         {/* Header */}
         <header className="flex items-center justify-between pt-2 pb-1">
           <Link
-            href="/"
+            href="/mirrors"
             className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
             data-testid="link-back"
           >
             <ArrowLeft className="w-4 h-4" />
-            Parallax
+            Mirrors
           </Link>
           <h1 className="text-base font-bold tracking-tight" data-testid="text-writing-title">
             Inner Mirror

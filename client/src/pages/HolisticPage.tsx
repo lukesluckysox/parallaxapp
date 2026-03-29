@@ -1,11 +1,10 @@
 import { useRef, useEffect, useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "wouter";
-import { ArrowLeft } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import { ARCHETYPES, ARCHETYPE_MAP, DIMENSIONS } from "@shared/archetypes";
 import { computeMixture } from "@shared/archetype-math";
 import type { DimensionVec } from "@shared/archetypes";
+import { ChevronRight } from "lucide-react";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -295,7 +294,96 @@ function StatRow({
   );
 }
 
+// ── About Parallax Collapsible ──────────────────────────────
+
+function AboutParallaxSection() {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <section className="border border-border/30 rounded-[10px] overflow-hidden">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between px-4 py-3 bg-card/20 hover:bg-card/40 transition-colors"
+        data-testid="button-about-parallax"
+      >
+        <span className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-widest">About Parallax</span>
+        <ChevronRight className={`w-3.5 h-3.5 text-muted-foreground/40 transition-transform duration-200 ${open ? "rotate-90" : ""}`} />
+      </button>
+
+      {open && (
+        <div className="px-4 pb-5 pt-3 space-y-6 bg-card/10">
+          {/* How gauges work */}
+          <div>
+            <h3 className="text-xs font-semibold mb-2 text-foreground/70">How the gauges work</h3>
+            <p className="text-[11px] text-muted-foreground/60 leading-relaxed">
+              Your dashboard shows two types of gauges: a <strong className="text-foreground/70">self-report gauge</strong> (what you say you are) and a <strong className="text-foreground/70">data-driven gauge</strong> (what your behavior reveals). Values come from 8 dimensions (focus, calm, discipline, health, social, creativity, exploration, ambition), each scored 0–100. Archetype alignment is computed as cosine similarity, normalized so all five sum to 100%.
+            </p>
+          </div>
+
+          {/* Archetypes */}
+          <div>
+            <h3 className="text-xs font-semibold mb-2 text-foreground/70">The five archetypes</h3>
+            <div className="space-y-2">
+              {ARCHETYPES.map(arch => (
+                <div key={arch.key} className="p-2.5 rounded-lg bg-card/50 border border-border/30">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="font-display" style={{ color: arch.color }}>{arch.emoji}</span>
+                    <span className="text-xs font-semibold" style={{ color: arch.color }}>{arch.name}</span>
+                    <span className="text-[10px] text-muted-foreground/50 ml-auto">{arch.coreDrive}</span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground/50 leading-relaxed">{arch.philosophy}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Data Sources */}
+          <div>
+            <h3 className="text-xs font-semibold mb-2 text-foreground/70">Data sources</h3>
+            <div className="space-y-1.5 text-[11px] text-muted-foreground/50 leading-relaxed">
+              <p><strong className="text-foreground/60">Sonic Mirror:</strong> Spotify listening history. Audio features (energy, valence, danceability, acousticness, tempo) → dimension nudges.</p>
+              <p><strong className="text-foreground/60">Inner Mirror:</strong> Writing analysis. Emotional tone, MBTI inference, political compass, moral foundations → archetype signals.</p>
+              <p><strong className="text-foreground/60">Check-ins:</strong> Self-reported state interpreted by AI across 8 dimensions. Cumulative weighted average.</p>
+              <p><strong className="text-foreground/60">Body Mirror (coming soon):</strong> Fitness data — steps, sleep, heart rate, HRV → health and calm nudges.</p>
+            </div>
+          </div>
+
+          {/* Philosophy */}
+          <div>
+            <blockquote className="border-l-2 border-primary/30 pl-3 italic text-[11px] text-muted-foreground/50 leading-relaxed">
+              "Parallax should not feel like a tracker. It should feel like a mirror that reveals meaning in the patterns of a person's life."
+            </blockquote>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
 // ── Main Page ────────────────────────────────────────────────
+
+// ── Active Echo Card ──────────────────────────────────────────
+
+function ActiveEchoCard({ echo }: { echo: { modeName: string; dominantArchetype: string; similarityScore: number; detectedAt: string } }) {
+  const arch = ARCHETYPE_MAP[echo.dominantArchetype];
+  return (
+    <div className="p-4 rounded-[10px] border border-border/30 bg-card/20 text-center" data-testid="card-active-echo">
+      <p className="text-[10px] font-mono text-muted-foreground/40 uppercase tracking-widest mb-2">
+        Identity Echo Detected
+      </p>
+      <p className="text-sm text-foreground/70 leading-relaxed">
+        Your current signals resemble{" "}
+        <span className="font-display font-semibold" style={{ color: arch?.color }}>
+          &ldquo;{echo.modeName}&rdquo;
+        </span>
+      </p>
+      <p className="text-[10px] font-mono text-muted-foreground/30 mt-1">
+        {echo.similarityScore}% match
+      </p>
+    </div>
+  );
+}
+
 
 export default function HolisticPage() {
   const { data, isLoading } = useQuery<HolisticData>({
@@ -311,6 +399,11 @@ export default function HolisticPage() {
   const { data: forecastData } = useQuery<ForecastData>({
     queryKey: ["/api/forecast"],
     staleTime: 10 * 60 * 1000,
+  });
+
+  const { data: echoData } = useQuery<{ active: { modeName: string; dominantArchetype: string; similarityScore: number; detectedAt: string } | null }>({
+    queryKey: ["/api/echo"],
+    staleTime: 2 * 60 * 1000,
   });
 
   const selfVec = data?.selfVec || {};
@@ -346,9 +439,7 @@ export default function HolisticPage() {
       <div className="min-h-screen bg-background noise-overlay pb-20">
         <div className="max-w-2xl mx-auto px-4 py-6">
           <header className="flex items-center justify-between mb-8">
-            <Link href="/" className="text-xs text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1">
-              <ArrowLeft className="w-3.5 h-3.5" /> Parallax
-            </Link>
+            <div />
             <span className="text-base font-display font-semibold">Identity Parallax</span>
             <ThemeToggle />
           </header>
@@ -371,14 +462,7 @@ export default function HolisticPage() {
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-8">
         {/* Header */}
         <header className="flex items-center justify-between">
-          <Link
-            href="/"
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1"
-            data-testid="link-back-home"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            Parallax
-          </Link>
+          <div />
           <h1
             className="text-base font-display font-semibold"
             data-testid="text-page-title"
@@ -440,6 +524,11 @@ export default function HolisticPage() {
                 </>
               )}
             </section>
+
+            {/* ── Active Echo Card ── */}
+            {echoData?.active && (
+              <ActiveEchoCard echo={echoData.active} />
+            )}
 
             {/* ── Layer 2: Radar Chart (mid) ── */}
             <section
@@ -670,6 +759,9 @@ export default function HolisticPage() {
                   </div>
                 )}
             </section>
+
+            {/* ── About Parallax Collapsible ── */}
+            <AboutParallaxSection />
 
             {/* ── Footer ── */}
             <div className="text-center pt-4 pb-8">

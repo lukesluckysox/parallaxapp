@@ -89,6 +89,37 @@ export const cachedResponses = sqliteTable("cached_responses", {
   created_at: text("created_at").notNull(), // ISO timestamp
 });
 
+export const identityModes = sqliteTable("identity_modes", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  user_id: integer("user_id").notNull(),
+  mode_name: text("mode_name").notNull(),
+  centroid_vec: text("centroid_vec").notNull(), // JSON: {focus, calm, discipline, health, social, creativity, exploration, ambition}
+  archetype_distribution: text("archetype_distribution").notNull(), // JSON: {observer: 25, builder: 30, ...}
+  dominant_archetype: text("dominant_archetype").notNull(),
+  conditions: text("conditions"), // JSON: {timeOfDay, musicEnergy, writingTone, etc.}
+  first_seen: text("first_seen").notNull(),
+  last_seen: text("last_seen").notNull(),
+  occurrence_count: integer("occurrence_count").notNull(),
+  checkin_ids: text("checkin_ids").notNull(), // JSON array of check-in IDs in this cluster
+});
+
+export const identityEchoes = sqliteTable("identity_echoes", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  user_id: integer("user_id").notNull(),
+  mode_id: integer("mode_id").notNull(),
+  detected_at: text("detected_at").notNull(),
+  similarity_score: integer("similarity_score").notNull(), // 0-100
+  current_vec: text("current_vec").notNull(), // JSON
+});
+
+export const insertIdentityModeSchema = createInsertSchema(identityModes).omit({ id: true });
+export const insertIdentityEchoSchema = createInsertSchema(identityEchoes).omit({ id: true });
+
+export type InsertIdentityMode = z.infer<typeof insertIdentityModeSchema>;
+export type IdentityMode = typeof identityModes.$inferSelect;
+export type InsertIdentityEcho = z.infer<typeof insertIdentityEchoSchema>;
+export type IdentityEcho = typeof identityEchoes.$inferSelect;
+
 export const insertWritingSchema = createInsertSchema(writings).omit({ id: true });
 export const insertSpotifyListenSchema = createInsertSchema(spotifyListens).omit({ id: true });
 export const insertSpotifyTokenSchema = createInsertSchema(spotifyTokens).omit({ id: true });

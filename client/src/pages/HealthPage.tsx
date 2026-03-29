@@ -17,12 +17,12 @@ export default function HealthPage() {
         {/* Header */}
         <header className="flex items-center justify-between">
           <Link
-            href="/"
+            href="/mirrors"
             className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
             data-testid="link-back-home"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            Parallax
+            Mirrors
           </Link>
           <h1 className="text-base font-bold" data-testid="text-page-title">
             Body Mirror

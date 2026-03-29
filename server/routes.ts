@@ -7,6 +7,7 @@ import { DIMENSIONS } from "@shared/archetypes";
 import bcrypt from "bcryptjs";
 import { getAuthUrl, exchangeCode, refreshAccessToken, spotifyApi } from "./spotify-auth";
 import jwt from "jsonwebtoken";
+import type { InsertIdentityMode } from "@shared/schema";
 
 const JWT_SECRET = process.env.JWT_SECRET || "parallax-dev-secret-change-in-production";
 
@@ -1092,6 +1093,48 @@ Return ONLY valid JSON:
         storage.clearUserCache(userId, "mythology");
         storage.clearUserCache(userId, "forecast");
       }
+
+      // --- Echo detection ---
+      try {
+        if (userId) {
+          const modes = storage.getIdentityModes(userId);
+          if (modes.length > 0 && req.body.self_vec) {
+            const DIMS = ["focus", "calm", "discipline", "health", "social", "creativity", "exploration", "ambition"];
+            const currentVec = JSON.parse(req.body.self_vec);
+            const currentArr = DIMS.map(d => currentVec[d] || 50);
+
+            // Compare against each mode centroid
+            for (const mode of modes) {
+              const centroid = JSON.parse(mode.centroid_vec);
+              const centroidArr = DIMS.map(d => centroid[d] || 50);
+
+              // Cosine similarity
+              let dot = 0, magA = 0, magB = 0;
+              for (let i = 0; i < currentArr.length; i++) {
+                dot += currentArr[i] * centroidArr[i];
+                magA += currentArr[i] * currentArr[i];
+                magB += centroidArr[i] * centroidArr[i];
+              }
+              const sim = magA === 0 || magB === 0 ? 0 : dot / (Math.sqrt(magA) * Math.sqrt(magB));
+              const simPct = Math.round(sim * 100);
+
+              if (simPct >= 85) {
+                storage.saveIdentityEcho({
+                  user_id: userId,
+                  mode_id: mode.id,
+                  detected_at: new Date().toISOString(),
+                  similarity_score: simPct,
+                  current_vec: req.body.self_vec,
+                });
+                break; // Only record one echo per check-in
+              }
+            }
+          }
+        }
+      } catch (echoErr) {
+        console.error("Echo detection error:", echoErr);
+      }
+
       return res.json(checkin);
     } catch (err: any) {
       return res.status(500).json({ error: err.message });
@@ -1721,6 +1764,24 @@ Return ONLY valid JSON:
       });
     }
 
+    // Add identity echo events
+    const echoes = storage.getIdentityEchoes(userId, 20);
+    const modes = storage.getIdentityModes(userId);
+    const modeMap = new Map(modes.map(m => [m.id, m]));
+
+    for (const echo of echoes) {
+      const mode = modeMap.get(echo.mode_id);
+      if (mode) {
+        events.push({
+          date: echo.detected_at.slice(0, 10),
+          type: "echo" as any,
+          title: `${mode.mode_name} (Echo)`,
+          detail: `Identity echo detected — ${echo.similarity_score}% match with a previously observed mode`,
+          archetype: mode.dominant_archetype,
+        });
+      }
+    }
+
     // Sort events by date (newest first) and deduplicate
     events.sort((a, b) => b.date.localeCompare(a.date));
 
@@ -1949,6 +2010,389 @@ Return ONLY the single line, no quotes, no explanation.`
       },
       latestArchetype: allCheckins.length > 0 ? allCheckins[0].self_archetype : null,
       latestDataArchetype: allCheckins.length > 0 ? allCheckins[0].data_archetype : null,
+    });
+  });
+
+  // GET /api/spotify/patterns — mood clusters, temporal patterns, discovery ratio
+  app.get("/api/spotify/patterns", async (req, res) => {
+    const userId = getUserId(req);
+    if (!userId) return res.json({ hasData: false });
+
+    const listens = storage.getSpotifyListens(userId, 500);
+    if (listens.length === 0) return res.json({ hasData: false });
+
+    const tz = getUserTimezone(req);
+
+    // Mood clustering (rule-based from audio features)
+    const clusters: Record<string, number> = {
+      ambient: 0,
+      energetic: 0,
+      melancholic: 0,
+      rhythmic: 0,
+      acoustic: 0,
+      experimental: 0,
+    };
+    let clusterTotal = 0;
+
+    for (const t of listens) {
+      const energy = (t.energy || 50) / 100;
+      const valence = (t.valence || 50) / 100;
+      const dance = (t.danceability || 50) / 100;
+      const acoustic = (t.acousticness || 50) / 100;
+      const instrumental = (t.instrumentalness || 0) / 100;
+      const tempo = (t.tempo || 120) / 200; // normalize tempo to 0-1 range
+
+      // Score each cluster
+      clusters.ambient += acoustic * (1 - energy) * (1 - dance) * 1.5;
+      clusters.energetic += energy * tempo * (1 - acoustic) * 1.5;
+      clusters.melancholic += (1 - valence) * (1 - dance) * 0.7 * 1.5;
+      clusters.rhythmic += dance * energy * valence * 1.5;
+      clusters.acoustic += acoustic * (0.3 + valence * 0.7) * (1 - tempo * 0.5) * 1.5;
+      clusters.experimental += instrumental * (1 - valence) * 1.5;
+      clusterTotal++;
+    }
+
+    // Normalize to percentages
+    const moodClusters: Record<string, number> = {};
+    if (clusterTotal > 0) {
+      const maxVal = Math.max(...Object.values(clusters));
+      for (const [key, val] of Object.entries(clusters)) {
+        moodClusters[key] = maxVal > 0 ? Math.round((val / maxVal) * 100) : 0;
+      }
+    }
+
+    // Temporal patterns: hour-of-day distribution
+    const hourCounts: Record<number, { count: number; avgEnergy: number; avgValence: number }> = {};
+    for (const t of listens) {
+      const d = new Date(t.timestamp);
+      let hour: number;
+      try {
+        hour = parseInt(d.toLocaleString("en-US", { hour: "numeric", hour12: false, timeZone: tz }));
+      } catch {
+        hour = d.getUTCHours();
+      }
+      if (!hourCounts[hour]) hourCounts[hour] = { count: 0, avgEnergy: 0, avgValence: 0 };
+      hourCounts[hour].count++;
+      hourCounts[hour].avgEnergy += (t.energy || 50);
+      hourCounts[hour].avgValence += (t.valence || 50);
+    }
+    // Average the energy/valence per hour
+    const hourlyPatterns = Object.entries(hourCounts).map(([hour, data]) => ({
+      hour: parseInt(hour),
+      count: data.count,
+      avgEnergy: Math.round(data.avgEnergy / data.count),
+      avgValence: Math.round(data.avgValence / data.count),
+    })).sort((a, b) => a.hour - b.hour);
+
+    // Discovery ratio: unique tracks / total listens
+    const uniqueTracks = new Set(listens.map(t => t.track_id)).size;
+    const uniqueArtists = new Set(listens.map(t => t.artist_name)).size;
+    const discoveryRatio = listens.length > 0 ? Math.round((uniqueTracks / listens.length) * 100) : 0;
+
+    // Recent trend: compare last 7 days avg energy/valence to overall
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const recentListens = listens.filter(t => t.timestamp >= sevenDaysAgo);
+    const overallAvgEnergy = listens.reduce((s, t) => s + (t.energy || 50), 0) / listens.length;
+    const overallAvgValence = listens.reduce((s, t) => s + (t.valence || 50), 0) / listens.length;
+    const recentAvgEnergy = recentListens.length > 0
+      ? recentListens.reduce((s, t) => s + (t.energy || 50), 0) / recentListens.length
+      : overallAvgEnergy;
+    const recentAvgValence = recentListens.length > 0
+      ? recentListens.reduce((s, t) => s + (t.valence || 50), 0) / recentListens.length
+      : overallAvgValence;
+
+    return res.json({
+      hasData: true,
+      moodClusters,
+      hourlyPatterns,
+      discoveryRatio,
+      uniqueTracks,
+      uniqueArtists,
+      totalListens: listens.length,
+      trend: {
+        recentEnergy: Math.round(recentAvgEnergy),
+        recentValence: Math.round(recentAvgValence),
+        overallEnergy: Math.round(overallAvgEnergy),
+        overallValence: Math.round(overallAvgValence),
+        energyDelta: Math.round(recentAvgEnergy - overallAvgEnergy),
+        valenceDelta: Math.round(recentAvgValence - overallAvgValence),
+      },
+    });
+  });
+
+  // ===================== IDENTITY CONSTELLATIONS =====================
+
+  app.get("/api/constellations", async (req, res) => {
+    const userId = getUserId(req);
+    if (!userId) return res.json({ modes: [], ready: false });
+
+    // Check cache first (recompute every 6 hours)
+    const cached = storage.getCachedResponse(userId, "constellations", 360);
+    if (cached && req.query.force !== "true") {
+      try { return res.json(JSON.parse(cached)); } catch {}
+    }
+
+    const allCheckins = storage.getCheckins(userId);
+
+    // Minimum threshold: 15 check-ins over 14+ days
+    if (allCheckins.length < 15) {
+      return res.json({ modes: [], ready: false, reason: `Need ${15 - allCheckins.length} more check-ins` });
+    }
+
+    const dates = allCheckins.map(c => c.timestamp.slice(0, 10));
+    const uniqueDays = new Set(dates).size;
+    const firstDate = new Date(allCheckins[allCheckins.length - 1].timestamp);
+    const daySpan = Math.floor((Date.now() - firstDate.getTime()) / (24 * 60 * 60 * 1000));
+
+    if (daySpan < 14) {
+      return res.json({ modes: [], ready: false, reason: `Need ${14 - daySpan} more days of data` });
+    }
+
+    // Parse check-in vectors
+    const DIMS = ["focus", "calm", "discipline", "health", "social", "creativity", "exploration", "ambition"];
+    const vectors: { id: number; vec: number[]; archetype: string; timestamp: string }[] = [];
+
+    for (const c of allCheckins) {
+      if (!c.self_vec) continue;
+      try {
+        const sv = JSON.parse(c.self_vec);
+        const vec = DIMS.map(d => sv[d] || 50);
+        vectors.push({ id: c.id, vec, archetype: c.self_archetype, timestamp: c.timestamp });
+      } catch {}
+    }
+
+    if (vectors.length < 15) {
+      return res.json({ modes: [], ready: false, reason: "Not enough valid check-in data" });
+    }
+
+    // Cosine similarity between two vectors
+    function cosSim(a: number[], b: number[]): number {
+      let dot = 0, magA = 0, magB = 0;
+      for (let i = 0; i < a.length; i++) {
+        dot += a[i] * b[i];
+        magA += a[i] * a[i];
+        magB += b[i] * b[i];
+      }
+      return magA === 0 || magB === 0 ? 0 : dot / (Math.sqrt(magA) * Math.sqrt(magB));
+    }
+
+    // Simple k-means clustering
+    function kmeans(data: number[][], k: number, maxIter: number = 20): { assignments: number[]; centroids: number[][] } {
+      const n = data.length;
+      const dim = data[0].length;
+
+      // Initialize centroids by picking k random data points
+      const indices = Array.from({ length: n }, (_, i) => i);
+      for (let i = indices.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [indices[i], indices[j]] = [indices[j], indices[i]];
+      }
+      let centroids = indices.slice(0, k).map(i => [...data[i]]);
+      let assignments = new Array(n).fill(0);
+
+      for (let iter = 0; iter < maxIter; iter++) {
+        // Assign each point to nearest centroid
+        const newAssignments = data.map(point => {
+          let bestK = 0, bestSim = -1;
+          for (let ki = 0; ki < k; ki++) {
+            const sim = cosSim(point, centroids[ki]);
+            if (sim > bestSim) { bestSim = sim; bestK = ki; }
+          }
+          return bestK;
+        });
+
+        // Check convergence
+        const changed = newAssignments.some((a, i) => a !== assignments[i]);
+        assignments = newAssignments;
+        if (!changed) break;
+
+        // Recompute centroids
+        centroids = Array.from({ length: k }, () => new Array(dim).fill(0));
+        const counts = new Array(k).fill(0);
+        for (let i = 0; i < n; i++) {
+          const cluster = assignments[i];
+          counts[cluster]++;
+          for (let d = 0; d < dim; d++) {
+            centroids[cluster][d] += data[i][d];
+          }
+        }
+        for (let ki = 0; ki < k; ki++) {
+          if (counts[ki] > 0) {
+            for (let d = 0; d < dim; d++) centroids[ki][d] /= counts[ki];
+          }
+        }
+      }
+
+      return { assignments, centroids };
+    }
+
+    // Try k from 3 to min(6, floor(n/3)) and pick best
+    const dataVecs = vectors.map(v => v.vec);
+    let bestK = 3;
+    let bestResult = kmeans(dataVecs, 3);
+
+    const maxK = Math.min(6, Math.floor(vectors.length / 3));
+    for (let k = 3; k <= maxK; k++) {
+      const result = kmeans(dataVecs, k);
+      // Check all clusters have >= 3 members
+      const clusterCounts = new Array(k).fill(0);
+      result.assignments.forEach(a => clusterCounts[a]++);
+      const allValid = clusterCounts.every(c => c >= 3);
+      if (allValid) {
+        bestK = k;
+        bestResult = result;
+      }
+    }
+
+    const { assignments, centroids } = bestResult;
+
+    // Build cluster data
+    interface ClusterInfo {
+      centroid: number[];
+      checkinIds: number[];
+      archetypes: Record<string, number>;
+      timestamps: string[];
+      dominantArchetype: string;
+    }
+
+    const clusters: ClusterInfo[] = Array.from({ length: bestK }, () => ({
+      centroid: [], checkinIds: [], archetypes: {}, timestamps: [], dominantArchetype: ""
+    }));
+
+    for (let i = 0; i < vectors.length; i++) {
+      const ci = assignments[i];
+      clusters[ci].checkinIds.push(vectors[i].id);
+      clusters[ci].timestamps.push(vectors[i].timestamp);
+      const arch = vectors[i].archetype;
+      clusters[ci].archetypes[arch] = (clusters[ci].archetypes[arch] || 0) + 1;
+    }
+
+    for (let ki = 0; ki < bestK; ki++) {
+      clusters[ki].centroid = centroids[ki].map(v => Math.round(v));
+      // Dominant archetype
+      const archEntries = Object.entries(clusters[ki].archetypes);
+      archEntries.sort((a, b) => b[1] - a[1]);
+      clusters[ki].dominantArchetype = archEntries[0]?.[0] || "observer";
+    }
+
+    // Filter out tiny clusters
+    const validClusters = clusters.filter(c => c.checkinIds.length >= 3);
+
+    // Name the clusters with LLM
+    let modeNames: string[] = validClusters.map((c, i) => `Mode ${i + 1}`);
+
+    if (anthropic && validClusters.length > 0) {
+      try {
+        const clusterDescriptions = validClusters.map((c, i) => {
+          const dimVec: Record<string, number> = {};
+          DIMS.forEach((d, di) => { dimVec[d] = c.centroid[di]; });
+          return `Cluster ${i + 1}: dominant=${c.dominantArchetype}, dimensions=${JSON.stringify(dimVec)}, count=${c.checkinIds.length}`;
+        }).join("\n");
+
+        const msg = await anthropic.messages.create({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 500,
+          system: "You MUST respond with ONLY valid JSON. No markdown, no explanation.",
+          messages: [{
+            role: "user",
+            content: `Name these identity mode clusters for a personal pattern recognition system. Each name should be 2-3 words, evocative, and start with an adjective. The 5 archetypes are Observer, Builder, Explorer, Dissenter, Seeker.\n\n${clusterDescriptions}\n\nReturn JSON: {"names": ["Quiet Architect", "Night Explorer", ...]}`
+          }]
+        });
+
+        const raw = msg.content[0].type === "text" ? msg.content[0].text : "";
+        const match = raw.replace(/```json?\s*/i, "").replace(/```/i, "").match(/\{[\s\S]*\}/);
+        if (match) {
+          const parsed = JSON.parse(match[0]);
+          if (Array.isArray(parsed.names)) {
+            modeNames = parsed.names.slice(0, validClusters.length);
+          }
+        }
+      } catch (e) {
+        console.error("Constellation naming error:", e);
+      }
+    }
+
+    // Save modes to DB
+    const modesToSave: InsertIdentityMode[] = validClusters.map((c, i) => {
+      const dimVec: Record<string, number> = {};
+      DIMS.forEach((d, di) => { dimVec[d] = c.centroid[di]; });
+
+      // Compute archetype distribution as percentages
+      const totalArch = Object.values(c.archetypes).reduce((s, v) => s + v, 0);
+      const archDist: Record<string, number> = {};
+      for (const [k, v] of Object.entries(c.archetypes)) {
+        archDist[k] = Math.round((v / totalArch) * 100);
+      }
+
+      return {
+        user_id: userId,
+        mode_name: modeNames[i] || `Mode ${i + 1}`,
+        centroid_vec: JSON.stringify(dimVec),
+        archetype_distribution: JSON.stringify(archDist),
+        dominant_archetype: c.dominantArchetype,
+        conditions: null,
+        first_seen: c.timestamps[c.timestamps.length - 1],
+        last_seen: c.timestamps[0],
+        occurrence_count: c.checkinIds.length,
+        checkin_ids: JSON.stringify(c.checkinIds),
+      };
+    });
+
+    storage.saveIdentityModes(userId, modesToSave);
+
+    // Return response
+    const responseData = {
+      modes: modesToSave.map((m, i) => ({
+        id: i + 1,
+        name: m.mode_name,
+        dominantArchetype: m.dominant_archetype,
+        archetypeDistribution: JSON.parse(m.archetype_distribution),
+        centroidVec: JSON.parse(m.centroid_vec),
+        occurrenceCount: m.occurrence_count,
+        firstSeen: m.first_seen,
+        lastSeen: m.last_seen,
+      })),
+      ready: true,
+      totalCheckins: allCheckins.length,
+      daySpan,
+    };
+
+    storage.setCachedResponse(userId, "constellations", JSON.stringify(responseData));
+    return res.json(responseData);
+  });
+
+  // ===================== IDENTITY ECHO =====================
+
+  app.get("/api/echo", async (req, res) => {
+    const userId = getUserId(req);
+    if (!userId) return res.json({ active: null, history: [] });
+
+    const activeEcho = storage.getActiveEcho(userId);
+    const echoHistory = storage.getIdentityEchoes(userId, 20);
+
+    // Enrich history with mode names
+    const modes = storage.getIdentityModes(userId);
+    const modeMap = new Map(modes.map(m => [m.id, m]));
+
+    const enrichedHistory = echoHistory.map(e => {
+      const mode = modeMap.get(e.mode_id);
+      return {
+        id: e.id,
+        modeName: mode?.mode_name || "Unknown Mode",
+        dominantArchetype: mode?.dominant_archetype || "observer",
+        similarityScore: e.similarity_score,
+        detectedAt: e.detected_at,
+      };
+    });
+
+    return res.json({
+      active: activeEcho ? {
+        modeName: activeEcho.mode_name,
+        dominantArchetype: activeEcho.dominant_archetype,
+        similarityScore: activeEcho.similarity_score,
+        detectedAt: activeEcho.detected_at,
+      } : null,
+      history: enrichedHistory,
     });
   });
 

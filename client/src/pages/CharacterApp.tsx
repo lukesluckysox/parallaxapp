@@ -4,13 +4,13 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { ARCHETYPES, ARCHETYPE_MAP, DIMENSIONS, type DimensionVec } from "@shared/archetypes";
 import { topArchetype, computeMixture, applyNudges, defaultVec } from "@shared/archetype-math";
-import Header from "@/components/Header";
 import SourcePills from "@/components/SourcePills";
 import FeelingInput from "@/components/FeelingInput";
 import GaugeSection from "@/components/GaugeSection";
 import MythologyCard from "@/components/MythologyCard";
-import { Sparkles, ArrowRight, Music, PenLine, Heart, Fingerprint, Radio, TrendingUp, TrendingDown, Minus, Zap, BookOpen } from "lucide-react";
+import { Sparkles, ArrowRight, Music, PenLine, Heart, Fingerprint, Radio, TrendingUp, TrendingDown, Minus, Zap, BookOpen, ArrowLeft } from "lucide-react";
 import { Link } from "wouter";
+import ThemeToggle from "@/components/ThemeToggle";
 import type { Writing, Checkin } from "@shared/schema";
 
 // ── Parallax Mirror (one-liner under username) ───────────────
@@ -237,7 +237,7 @@ function VariantBadge() {
   const primary = ARCHETYPE_MAP[variant.primary_archetype];
 
   return (
-    <Link href="/discover">
+    <Link href="/signals">
       <div
         data-testid="card-variant-badge"
         className="p-3 rounded-[10px] border bg-card/80 cursor-pointer hover:bg-card transition-colors"
@@ -403,10 +403,10 @@ function DataSourceSummary() {
       data-testid="card-data-sources"
       className="flex items-center justify-center gap-4 text-[11px] text-muted-foreground"
     >
-      <Link href="/spotify" className="hover:text-foreground transition-colors">
+      <Link href="/mirrors/sonic" className="hover:text-foreground transition-colors">
         {trackCount > 0 ? `${trackCount} tracks logged` : "Not connected"}
       </Link>
-      <Link href="/writing" className="hover:text-foreground transition-colors">
+      <Link href="/mirrors/inner" className="hover:text-foreground transition-colors">
         {writingCount > 0 ? `${writingCount} writings analyzed` : "No writing yet"}
       </Link>
     </div>
@@ -630,7 +630,18 @@ export default function CharacterApp() {
   return (
     <div className="min-h-screen bg-background pb-20 noise-overlay">
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-5">
-        <Header />
+        <header className="pt-3 pb-2">
+          <div className="flex items-center justify-between mb-2">
+            <Link href="/" className="text-xs text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1">
+              <ArrowLeft className="w-3.5 h-3.5" /> Home
+            </Link>
+            <ThemeToggle />
+          </div>
+          <div className="text-center">
+            <h1 className="text-xl font-display font-semibold tracking-tight text-foreground">Instant Reflection</h1>
+            <p className="text-[10px] text-muted-foreground/40 font-mono mt-0.5">how are you feeling right now?</p>
+          </div>
+        </header>
 
         {/* Parallax Mirror — one-liner identity synopsis */}
         <ParallaxMirror />
@@ -689,15 +700,7 @@ export default function CharacterApp() {
           </button>
         </div>
 
-        {/* About link */}
-        <div className="text-center pt-4 pb-2">
-          <Link
-            href="/about"
-            className="text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors"
-          >
-            About Parallax
-          </Link>
-        </div>
+
       </div>
     </div>
   );
