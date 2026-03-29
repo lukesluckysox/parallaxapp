@@ -275,7 +275,7 @@ export default function SpotifyPage() {
   const byDay = history?.byDay || [];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background noise-overlay">
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-5">
         {/* Header */}
         <header className="pt-2 pb-1">

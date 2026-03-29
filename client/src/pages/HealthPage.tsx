@@ -12,7 +12,7 @@ const INTEGRATIONS = [
 
 export default function HealthPage() {
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div className="min-h-screen bg-background pb-20 noise-overlay">
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
         {/* Header */}
         <header className="flex items-center justify-between">

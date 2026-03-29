@@ -26,7 +26,7 @@ export default function FutureSelf({ selfVec }: FutureSelfProps) {
           <option value="">Pick a target archetype...</option>
           {ARCHETYPES.map(a => (
             <option key={a.key} value={a.key}>
-              {a.emoji} {a.name}
+              {a.name}
             </option>
           ))}
         </select>
@@ -46,7 +46,7 @@ export default function FutureSelf({ selfVec }: FutureSelfProps) {
           <Gauge percentage={alignmentPct} label="alignment" color={target.color} size={100} />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
-              <span>{target.emoji}</span>
+              <span className="font-display" style={{ color: target.color }}>{target.emoji}</span>
               <span className="text-sm font-bold" style={{ color: target.color }}>{target.name}</span>
             </div>
             <p className="text-xs text-muted-foreground italic mb-2">{target.philosophy}</p>

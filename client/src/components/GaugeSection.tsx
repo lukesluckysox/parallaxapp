@@ -24,126 +24,73 @@ export default function GaugeSection({ selfVec, dataVec, selfArchetype, dataArch
   const archetypesDiffer = hasData && selfArchetype !== dataArchetype;
 
   return (
-    <div className="space-y-4">
-      {/* ── Primary Gauges: Data vs Self ── */}
-      <div className={`flex items-start justify-center ${hasData ? "gap-6" : ""}`}>
-        {hasData ? (
-          <>
-            {/* DATA-FED gauge */}
-            <div className="flex-1 flex flex-col items-center">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">
-                Your data says
-              </p>
-              <Gauge
-                percentage={dataPct}
-                label=""
-                color={dataArch?.color || "#01696f"}
-                size={150}
-              />
-              <div className="text-center -mt-1">
-                <span className="text-lg">{dataArch?.emoji}</span>
-                <p className="text-sm font-bold" style={{ color: dataArch?.color }}>
-                  {dataArch?.name}
-                </p>
-                <p className="text-[10px] text-muted-foreground max-w-[140px] mx-auto">
-                  {dataArch?.coreDrive}
-                </p>
-              </div>
-            </div>
-
-            {/* SELF-REPORT gauge */}
-            <div className="flex-1 flex flex-col items-center">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">
-                You say
-              </p>
-              <Gauge
-                percentage={selfPct}
-                label=""
-                color={selfArch?.color || "#01696f"}
-                size={150}
-              />
-              <div className="text-center -mt-1">
-                <span className="text-lg">{selfArch?.emoji}</span>
-                <p className="text-sm font-bold" style={{ color: selfArch?.color }}>
-                  {selfArch?.name}
-                </p>
-                <p className="text-[10px] text-muted-foreground max-w-[140px] mx-auto">
-                  {selfArch?.coreDrive}
-                </p>
-              </div>
-            </div>
-          </>
-        ) : (
-          <div className="flex flex-col items-center">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">
-              Self-report
+    <div className="space-y-5">
+      {/* Primary Gauges */}
+      <div className={`${hasData ? "grid grid-cols-2 gap-5" : ""}`}>
+        {hasData && dataArch && (
+          <div className="space-y-2">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+              Your data says
             </p>
-            <Gauge
-              percentage={selfPct}
-              label=""
-              color={selfArch?.color || "#01696f"}
-              size={180}
-            />
-            <div className="text-center -mt-1">
-              <span className="text-xl">{selfArch?.emoji}</span>
-              <p className="text-sm font-bold" style={{ color: selfArch?.color }}>
-                {selfArch?.name}
-              </p>
-              <p className="text-[10px] text-muted-foreground italic max-w-[200px] mx-auto">
-                {selfArch?.philosophy}
-              </p>
+            <div className="flex items-center gap-2.5">
+              <span className="text-2xl font-display" style={{ color: dataArch.color }}>{dataArch.emoji}</span>
+              <div className="flex-1">
+                <p className="text-sm font-semibold" style={{ color: dataArch.color }}>{dataArch.name}</p>
+                <Gauge percentage={dataPct} label="" color={dataArch.color} />
+              </div>
             </div>
           </div>
         )}
+        <div className="space-y-2">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+            {hasData ? "You say" : "Self-report"}
+          </p>
+          <div className="flex items-center gap-2.5">
+            <span className="text-2xl font-display" style={{ color: selfArch?.color }}>{selfArch?.emoji}</span>
+            <div className="flex-1">
+              <p className="text-sm font-semibold" style={{ color: selfArch?.color }}>{selfArch?.name}</p>
+              <Gauge percentage={selfPct} label="" color={selfArch?.color || "#5eaaa8"} />
+            </div>
+          </div>
+          {!hasData && selfArch && (
+            <p className="text-[10px] text-muted-foreground/60 italic leading-relaxed mt-1 max-w-[300px]">
+              {selfArch.coreDrive}
+            </p>
+          )}
+        </div>
       </div>
 
-      {/* ── Mini Gauges: All Archetypes ── */}
-      <div className="pt-2">
-        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold text-center mb-2">
+      {/* Systems Overview — all 5 archetypes */}
+      <div>
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-3">
           Systems overview
         </p>
-        <div className="grid grid-cols-5 gap-1">
+        <div className="space-y-2.5">
           {ARCHETYPES.map(arch => {
             const selfVal = selfMix[arch.key] || 0;
             const dataVal = dataMix ? (dataMix[arch.key] || 0) : null;
-            const isTopSelf = selfArchetype === arch.key;
-            const isTopData = dataArchetype === arch.key;
+            const isTop = selfArchetype === arch.key || dataArchetype === arch.key;
 
             return (
               <div
                 key={arch.key}
-                className={`flex flex-col items-center py-2 px-1 rounded-lg transition-all ${
-                  isTopSelf || isTopData
-                    ? "bg-card border border-border shadow-sm"
-                    : ""
+                className={`flex items-center gap-3 py-1.5 px-2 rounded-lg transition-all ${
+                  isTop ? "bg-card/80" : ""
                 }`}
               >
-                <Gauge
-                  percentage={dataVal !== null ? dataVal : selfVal}
-                  label=""
-                  color={arch.color}
-                  size={60}
-                />
-                <span className="text-sm mt-0.5">{arch.emoji}</span>
-                <span className="text-[9px] font-medium text-muted-foreground">
-                  {arch.name}
+                <span
+                  className="text-base font-display w-5 text-center"
+                  style={{ color: arch.color }}
+                >
+                  {arch.emoji}
                 </span>
-                {/* Show both values if data exists */}
-                <div className="flex items-center gap-1 mt-0.5">
-                  {dataVal !== null ? (
-                    <>
-                      <span className="text-[8px] text-muted-foreground/60" title="Data">
-                        D:{dataVal}%
-                      </span>
-                      <span className="text-[8px] text-muted-foreground/60" title="Self">
-                        S:{selfVal}%
-                      </span>
-                    </>
-                  ) : (
-                    <span className="text-[8px] text-muted-foreground/60">
-                      {selfVal}%
-                    </span>
-                  )}
+                <span className="text-xs font-medium w-16 text-foreground/80">{arch.name}</span>
+                <div className="flex-1">
+                  <Gauge
+                    percentage={dataVal !== null ? dataVal : selfVal}
+                    label=""
+                    color={arch.color}
+                  />
                 </div>
               </div>
             );
@@ -151,13 +98,13 @@ export default function GaugeSection({ selfVec, dataVec, selfArchetype, dataArch
         </div>
       </div>
 
-      {/* ── Gap Analysis ── */}
-      {archetypesDiffer && dataArch && (
+      {/* Gap Analysis */}
+      {archetypesDiffer && dataArch && selfArch && (
         <div
           data-testid="card-gap-analysis"
-          className="p-3 rounded-[10px] border border-border bg-card text-sm"
+          className="p-4 rounded-[10px] bg-card/50 border border-border/50 text-sm"
         >
-          <p className="font-medium mb-1">Gap detected</p>
+          <p className="font-medium mb-1 text-foreground/80">Gap detected</p>
           <p className="text-muted-foreground text-xs leading-relaxed">
             Your data leans{" "}
             <span style={{ color: dataArch.color }} className="font-medium">{dataArch.name}</span>

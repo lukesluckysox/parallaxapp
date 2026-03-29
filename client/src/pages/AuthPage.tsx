@@ -42,11 +42,10 @@ export default function AuthPage() {
       <div className="w-full max-w-sm space-y-8">
         {/* Logo + tagline */}
         <div className="text-center space-y-3">
-          <div className="flex items-center justify-center gap-2.5">
-            <img src="/logo.png" alt="Parallax" className="w-10 h-10 rounded-md dark:brightness-90 dark:contrast-125" />
-            <h1 className="text-xl font-bold tracking-tight" data-testid="text-auth-title">Parallax</h1>
+          <div className="flex items-center justify-center">
+            <h1 className="text-4xl font-display font-semibold tracking-tight" data-testid="text-auth-title">Parallax</h1>
           </div>
-          <p className="text-xs text-muted-foreground">See yourself from every angle</p>
+          <p className="text-xs text-muted-foreground/60 tracking-wide">See yourself from every angle</p>
         </div>
 
         {/* Tab switcher */}

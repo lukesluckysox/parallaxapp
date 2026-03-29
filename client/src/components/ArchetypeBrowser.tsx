@@ -27,7 +27,7 @@ export default function ArchetypeBrowser({ selfVec }: ArchetypeBrowserProps) {
           <option value="">Select an archetype...</option>
           {sorted.map(a => (
             <option key={a.key} value={a.key}>
-              {a.emoji} {a.name} — {a.pct}%
+              {a.name} — {a.pct}%
             </option>
           ))}
         </select>
@@ -50,7 +50,7 @@ export default function ArchetypeBrowser({ selfVec }: ArchetypeBrowserProps) {
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
-                <span className="text-base">{selected.emoji}</span>
+                <span className="text-base font-display" style={{ color: selected.color }}>{selected.emoji}</span>
                 <h3 className="text-sm font-bold" style={{ color: selected.color }}>{selected.name}</h3>
                 <span className="text-xs text-muted-foreground">{selected.pct}%</span>
               </div>

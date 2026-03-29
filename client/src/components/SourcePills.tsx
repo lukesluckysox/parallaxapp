@@ -218,17 +218,17 @@ export default function SourcePills({
         <div className="flex flex-col gap-1">
           {spotifySummary && (
             <p className="text-xs text-muted-foreground pl-1" data-testid="text-spotify-summary">
-              🎵 {spotifySummary}
+              <Music className="w-3 h-3 inline mr-1 opacity-60" />{spotifySummary}
             </p>
           )}
           {fitnessSummary && (
             <p className="text-xs text-muted-foreground pl-1" data-testid="text-fitness-summary">
-              💪 {fitnessSummary}
+              <Heart className="w-3 h-3 inline mr-1 opacity-60" />{fitnessSummary}
             </p>
           )}
           {writingSummary && (
             <p className="text-xs text-muted-foreground pl-1" data-testid="text-writing-summary">
-              ✍️ {writingSummary}
+              <PenLine className="w-3 h-3 inline mr-1 opacity-60" />{writingSummary}
             </p>
           )}
         </div>
@@ -305,7 +305,7 @@ export default function SourcePills({
                     className="text-xs font-medium"
                     style={{ color: ARCHETYPE_MAP[writingResult.archetype_lean]?.color }}
                   >
-                    {ARCHETYPE_MAP[writingResult.archetype_lean]?.emoji}{" "}
+                    <span className="font-display">{ARCHETYPE_MAP[writingResult.archetype_lean]?.emoji}</span>{" "}
                     {ARCHETYPE_MAP[writingResult.archetype_lean]?.name || writingResult.archetype_lean}
                   </span>
                 </div>

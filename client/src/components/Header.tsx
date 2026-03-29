@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-import ThemeToggle from "./ThemeToggle";
-import { LogOut, MapPin } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 
 interface WeatherData {
@@ -82,17 +81,17 @@ function weatherCodeToText(code: number): string {
 }
 
 function weatherCodeToIcon(code: number): string {
-  if (code === 0) return "☀️";
-  if (code <= 2) return "⛅";
-  if (code === 3) return "☁️";
-  if (code <= 48) return "🌫️";
-  if (code <= 57) return "🌦️";
-  if (code <= 67) return "🌧️";
-  if (code <= 77) return "🌨️";
-  if (code <= 82) return "🌧️";
-  if (code <= 86) return "❄️";
-  if (code >= 95) return "⛈️";
-  return "☀️";
+  if (code === 0) return "clear";
+  if (code <= 2) return "partly cloudy";
+  if (code === 3) return "overcast";
+  if (code <= 48) return "fog";
+  if (code <= 57) return "drizzle";
+  if (code <= 67) return "rain";
+  if (code <= 77) return "snow";
+  if (code <= 82) return "showers";
+  if (code <= 86) return "snow";
+  if (code >= 95) return "storm";
+  return "clear";
 }
 
 function formatTime(date: Date): string {
@@ -118,58 +117,51 @@ export default function Header() {
   return (
     <header className="pt-3 pb-2">
       {/* Weather + Clock bar */}
-      <div className="flex items-center justify-between mb-3 text-muted-foreground">
-        <div className="flex items-center gap-1.5 text-xs">
+      <div className="flex items-center justify-between mb-4 text-muted-foreground font-mono text-[11px]">
+        <div className="flex items-center gap-2">
           {weather ? (
             <>
-              <span>{weather.icon}</span>
-              <span className="font-medium">{weather.temp}°F</span>
-              <span className="text-muted-foreground/60">{weather.condition}</span>
+              <span className="tabular-nums">{weather.temp}°</span>
+              <span className="text-muted-foreground/40">|</span>
+              <span className="text-muted-foreground/60">{weather.icon}</span>
             </>
           ) : (
-            <span className="text-muted-foreground/40">—</span>
+            <span className="text-muted-foreground/30">—</span>
           )}
           {locationName && (
             <>
-              <MapPin className="w-2.5 h-2.5 ml-1 text-muted-foreground/40" />
-              <span className="text-muted-foreground/60 text-[10px]">{locationName}</span>
+              <span className="text-muted-foreground/40">|</span>
+              <span className="text-muted-foreground/40">{locationName}</span>
             </>
           )}
         </div>
-        <div className="text-right">
-          <span className="text-xs font-medium tabular-nums">{formatTime(time)}</span>
+        <div>
+          <span className="tabular-nums">{formatTime(time)}</span>
         </div>
       </div>
 
       {/* Main header */}
-      <div className="flex items-center justify-between mb-1.5">
-        <div className="w-8" />
-        <div className="flex items-center gap-2.5">
-          <img src="/logo.png" alt="Parallax" className="w-10 h-10 rounded-lg dark:brightness-90 dark:contrast-125" />
-          <h1 className="text-2xl font-bold tracking-tight" data-testid="text-title">Parallax</h1>
-        </div>
-        <div className="flex items-center gap-1">
-          <ThemeToggle />
-        </div>
+      <div className="text-center mb-1">
+        <h1 className="text-3xl font-display font-semibold tracking-tight text-foreground" data-testid="text-title">
+          Parallax
+        </h1>
+        <p className="text-[11px] text-muted-foreground/50 mt-1 tracking-wide" data-testid="text-subtitle">
+          See yourself from every angle
+        </p>
+        <p className="text-[10px] text-muted-foreground/30 font-mono mt-0.5">
+          {formatDate(time)}
+        </p>
       </div>
-      <p className="text-xs text-muted-foreground text-center" data-testid="text-subtitle">
-        See yourself from every angle
-      </p>
-
-      {/* Date line */}
-      <p className="text-[10px] text-muted-foreground/50 text-center mt-0.5">
-        {formatDate(time)}
-      </p>
 
       {user && (
         <div className="flex items-center justify-center gap-2 mt-1.5">
-          <span className="text-[10px] text-muted-foreground" data-testid="text-username">
+          <span className="text-[10px] text-muted-foreground/50 font-mono" data-testid="text-username">
             {user.displayName || user.username}
           </span>
           <button
             data-testid="button-logout"
             onClick={logout}
-            className="inline-flex items-center gap-1 text-[10px] text-muted-foreground/60 hover:text-foreground transition-colors"
+            className="inline-flex items-center gap-1 text-[10px] text-muted-foreground/30 hover:text-foreground transition-colors"
             aria-label="Sign out"
           >
             <LogOut className="w-3 h-3" />

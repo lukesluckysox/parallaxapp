@@ -94,7 +94,7 @@ function TrajectoryPath() {
               {/* Content */}
               <div className="pb-4">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-sm">{node.arch!.emoji}</span>
+                  <span className="text-sm font-display" style={{ color: node.arch!.color }}>{node.arch!.emoji}</span>
                   <span className="text-sm font-medium" style={{ color: node.arch!.color }}>
                     {node.arch!.name}
                   </span>
@@ -245,7 +245,7 @@ function NarrativeProjection() {
           <p className="text-xs text-muted-foreground pt-1 border-t border-border/50">
             If current patterns continue, your dominant archetype in 2-4 weeks is likely to shift toward{" "}
             <span className="font-medium" style={{ color: emerging.color }}>
-              {emerging.emoji} {emerging.name}
+              <span className="font-display">{emerging.emoji}</span> {emerging.name}
             </span>.
           </p>
         )}
@@ -280,7 +280,7 @@ export default function TrajectoryPage() {
   const selfVec = useLatestSelfVec();
 
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div className="min-h-screen bg-background pb-20 noise-overlay">
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
         {/* Header */}
         <header className="flex items-center justify-between">

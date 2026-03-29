@@ -154,7 +154,7 @@ function InsightCard({ insight }: { insight: Insight }) {
   return (
     <div
       data-testid={`card-insight-${insight.type}`}
-      className={`p-5 rounded-[10px] border-l-4 ${borderColor} ${bgColor}`}
+      className={`p-5 rounded-[10px] border border-border/60 ${bgColor}`}
     >
       <div className="flex items-center gap-2 mb-2.5">
         <Icon className={`w-3.5 h-3.5 ${labelColor}`} />
@@ -231,20 +231,20 @@ function VariantCard({ variant }: { variant: VariantData }) {
       </div>
 
       {/* Variant name */}
-      <h2 className="text-xl font-bold text-foreground mb-1 tracking-tight">
+      <h2 className="text-2xl font-display font-semibold text-foreground mb-1 tracking-tight">
         {variant.variant_name}
       </h2>
 
       {/* Archetype derivation */}
       <div className="flex items-center gap-2 mb-3 text-xs text-muted-foreground">
         <span>
-          {primary?.emoji} {primary?.name || variant.primary_archetype}
+          <span className="font-display">{primary?.emoji}</span>{" "}{primary?.name || variant.primary_archetype}
         </span>
         {secondary && (
           <>
             <span className="text-muted-foreground/40">+</span>
             <span>
-              {secondary.emoji} {secondary.name}
+              <span className="font-display">{secondary.emoji}</span>{" "}{secondary.name}
             </span>
           </>
         )}
@@ -379,7 +379,7 @@ function IdentityTimeline() {
               <div key={`${event.date}-${i}`} className="flex gap-3 relative">
                 <div className={`w-[11px] h-[11px] rounded-full ${style.dotColor} mt-0.5 shrink-0 z-10 ring-2 ring-background`} />
                 <div className="flex-1 -mt-0.5">
-                  <p className="text-[10px] text-muted-foreground mb-0.5">{dateStr}</p>
+                  <p className="text-[10px] font-mono text-muted-foreground mb-0.5">{dateStr}</p>
                   <div className="flex items-center gap-1.5 mb-0.5">
                     <EventIcon className="w-3 h-3" style={{ color: arch?.color || undefined }} />
                     <p className="text-xs font-bold text-foreground">{event.title}</p>
@@ -422,7 +422,7 @@ export default function DiscoverPage() {
   const loading = insightsLoading || profileLoading;
 
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div className="min-h-screen bg-background pb-20 noise-overlay">
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
         {/* Header */}
         <header className="flex items-center justify-between">

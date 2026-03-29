@@ -195,7 +195,7 @@ export default function DecisionEngine({ selfVec, dataVec }: DecisionEngineProps
                 className="p-2.5 rounded-[10px] border border-border bg-card text-xs"
               >
                 <div className="flex items-center gap-1.5 mb-1">
-                  <span>{av.emoji}</span>
+                  <span className="font-display" style={{ color: av.color }}>{av.emoji}</span>
                   <span className="font-medium" style={{ color: av.color }}>{av.name}</span>
                   {av.decision === "do" ? (
                     <Check className="w-3 h-3 text-green-600 ml-auto" />
@@ -221,7 +221,7 @@ export default function DecisionEngine({ selfVec, dataVec }: DecisionEngineProps
               <p className="text-xs text-muted-foreground mb-2">Predicted archetype shift</p>
               <div className="flex items-center justify-center gap-3">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-lg">{ARCHETYPE_MAP[predictedShift.from]?.emoji || ""}</span>
+                  <span className="text-lg font-display" style={{ color: ARCHETYPE_MAP[predictedShift.from]?.color }}>{ARCHETYPE_MAP[predictedShift.from]?.emoji || ""}</span>
                   <span
                     className="text-sm font-medium"
                     style={{ color: ARCHETYPE_MAP[predictedShift.from]?.color }}
@@ -231,7 +231,7 @@ export default function DecisionEngine({ selfVec, dataVec }: DecisionEngineProps
                 </div>
                 <ArrowRight className="w-4 h-4 text-muted-foreground" />
                 <div className="flex items-center gap-1.5">
-                  <span className="text-lg">{ARCHETYPE_MAP[predictedShift.to]?.emoji || ""}</span>
+                  <span className="text-lg font-display" style={{ color: ARCHETYPE_MAP[predictedShift.to]?.color }}>{ARCHETYPE_MAP[predictedShift.to]?.emoji || ""}</span>
                   <span
                     className="text-sm font-medium"
                     style={{ color: ARCHETYPE_MAP[predictedShift.to]?.color }}

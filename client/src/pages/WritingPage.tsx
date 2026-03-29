@@ -491,7 +491,7 @@ export default function WritingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background noise-overlay">
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
         {/* Header */}
         <header className="flex items-center justify-between pt-2 pb-1">
@@ -602,7 +602,7 @@ export default function WritingPage() {
             {/* Archetype lean */}
             {result.archetype_lean && ARCHETYPE_MAP[result.archetype_lean] && (
               <div className="flex items-center gap-3 p-3 rounded-[10px] border border-border bg-card">
-                <span className="text-lg">{ARCHETYPE_MAP[result.archetype_lean]?.emoji}</span>
+                <span className="text-lg font-display" style={{ color: ARCHETYPE_MAP[result.archetype_lean]?.color }}>{ARCHETYPE_MAP[result.archetype_lean]?.emoji}</span>
                 <div>
                   <p className="text-xs text-muted-foreground">Archetype lean</p>
                   <p
@@ -718,7 +718,7 @@ export default function WritingPage() {
                       onClick={() => setExpandedId(isExpanded ? null : w.id)}
                     >
                       <div className="flex items-center gap-2 min-w-0">
-                        {arch && <span className="text-sm">{arch.emoji}</span>}
+                        {arch && <span className="text-sm font-display" style={{ color: arch.color }}>{arch.emoji}</span>}
                         <span className="text-sm font-medium truncate">
                           {w.title || "Untitled"}
                         </span>

@@ -74,7 +74,7 @@ export default function MythologyCard() {
         <div className="flex items-center justify-center gap-2 flex-wrap py-2">
           {baseline && (
             <div className="flex items-center gap-1 text-xs">
-              <span className="text-sm">{baseline.emoji}</span>
+              <span className="text-base font-display" style={{ color: baseline.color }}>{baseline.emoji}</span>
               <div className="text-center">
                 <p className="text-[10px] text-muted-foreground">Baseline</p>
                 <p className="font-medium" style={{ color: baseline.color }}>{baseline.name}</p>
@@ -86,7 +86,7 @@ export default function MythologyCard() {
           )}
           {current && (
             <div className="flex items-center gap-1 text-xs">
-              <span className="text-sm">{current.emoji}</span>
+              <span className="text-base font-display" style={{ color: current.color }}>{current.emoji}</span>
               <div className="text-center">
                 <p className="text-[10px] text-muted-foreground">Current</p>
                 <p className="font-medium" style={{ color: current.color }}>{current.name}</p>
@@ -98,7 +98,7 @@ export default function MythologyCard() {
           )}
           {emerging && (
             <div className="flex items-center gap-1 text-xs">
-              <span className="text-sm">{emerging.emoji}</span>
+              <span className="text-base font-display" style={{ color: emerging.color }}>{emerging.emoji}</span>
               <div className="text-center">
                 <p className="text-[10px] text-muted-foreground">Emerging</p>
                 <p className="font-medium" style={{ color: emerging.color }}>{emerging.name}</p>

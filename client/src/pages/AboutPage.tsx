@@ -5,7 +5,7 @@ import { ARCHETYPES } from "@shared/archetypes";
 
 export default function AboutPage() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background noise-overlay">
       <div className="max-w-2xl mx-auto px-4 py-6">
         {/* Header */}
         <header className="flex items-center justify-between pt-2 pb-1 mb-8">
@@ -23,9 +23,8 @@ export default function AboutPage() {
           {/* Hero */}
           <section className="text-center mb-8">
             <div className="flex items-center justify-center gap-3 mb-4">
-              <img src="/logo.png" alt="Parallax" className="w-14 h-14 rounded-lg dark:brightness-90 dark:contrast-125" />
+              <h1 className="text-4xl font-display font-semibold tracking-tight">Parallax</h1>
             </div>
-            <h1 className="text-3xl font-bold tracking-tight mb-2">Parallax</h1>
             <p className="text-base text-muted-foreground mb-4">
               See yourself from every angle
             </p>
@@ -36,7 +35,7 @@ export default function AboutPage() {
 
           {/* How the Gauges Work */}
           <section>
-            <h2 className="text-lg font-bold mb-4">How the gauges work</h2>
+            <h2 className="text-base font-semibold mb-4">How the gauges work</h2>
             <div className="space-y-3 text-sm text-muted-foreground leading-relaxed">
               <p>
                 Your dashboard shows two types of gauges: a <strong className="text-foreground">self-report gauge</strong> (what you say you are) and a <strong className="text-foreground">data-driven gauge</strong> (what your behavior reveals).
@@ -56,7 +55,7 @@ export default function AboutPage() {
 
           {/* What Moves the Gauges */}
           <section>
-            <h2 className="text-lg font-bold mb-4">What moves the gauges</h2>
+            <h2 className="text-base font-semibold mb-4">What moves the gauges</h2>
             <div className="space-y-4 text-sm">
               <div className="p-3 rounded-[10px] bg-card border border-border">
                 <p className="font-semibold text-foreground mb-1">Self-report gauge</p>
@@ -92,7 +91,7 @@ export default function AboutPage() {
 
           {/* Example */}
           <section>
-            <h2 className="text-lg font-bold mb-4">Example: "I ran a marathon"</h2>
+            <h2 className="text-base font-semibold mb-4">Example: "I ran a marathon"</h2>
             <div className="text-sm text-muted-foreground leading-relaxed space-y-2">
               <p>You type "I ran a marathon today and feel unstoppable." The AI might set:</p>
               <div className="grid grid-cols-2 gap-2 text-xs">
@@ -110,12 +109,12 @@ export default function AboutPage() {
 
           {/* The Five Archetypes */}
           <section>
-            <h2 className="text-lg font-bold mb-4">The five archetypes</h2>
+            <h2 className="text-base font-semibold mb-4">The five archetypes</h2>
             <div className="space-y-3">
               {ARCHETYPES.map(arch => (
                 <div key={arch.key} className="p-3 rounded-[10px] bg-card border border-border">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-lg">{arch.emoji}</span>
+                    <span className="text-lg font-display" style={{ color: arch.color }}>{arch.emoji}</span>
                     <span className="font-semibold" style={{ color: arch.color }}>{arch.name}</span>
                     <span className="text-xs text-muted-foreground ml-auto">{arch.coreDrive}</span>
                   </div>
@@ -134,22 +133,22 @@ export default function AboutPage() {
 
           {/* Data Sources */}
           <section>
-            <h2 className="text-lg font-bold mb-4">Data sources</h2>
+            <h2 className="text-base font-semibold mb-4">Data sources</h2>
             <div className="space-y-3 text-sm">
               <div className="p-3 rounded-[10px] bg-card border border-border">
-                <p className="font-semibold text-foreground">🎵 Music (Sonic Mirror)</p>
+                <p className="font-semibold text-foreground">Music (Sonic Mirror)</p>
                 <p className="text-xs text-muted-foreground mt-1">Connect your Spotify account. Parallax reads your currently playing track and recently played history, analyzes audio features (energy, valence, danceability, acousticness, instrumentalness, tempo), and converts them into personality dimension scores. Your listening patterns reveal emotional states you might not articulate.</p>
               </div>
               <div className="p-3 rounded-[10px] bg-card border border-border">
-                <p className="font-semibold text-foreground">✍️ Writing (Inner Mirror)</p>
+                <p className="font-semibold text-foreground">Writing (Inner Mirror)</p>
                 <p className="text-xs text-muted-foreground mt-1">Submit poetry, journal entries, or any personal writing. The AI performs deep analysis: emotional tone, MBTI inference, political compass positioning, moral foundations scoring, theme extraction, and mirror moments (your most revealing lines reflected back with interpretation). Each analysis feeds the archetype engine.</p>
               </div>
               <div className="p-3 rounded-[10px] bg-card border border-border">
-                <p className="font-semibold text-foreground">🧠 Self-report (Check-ins)</p>
+                <p className="font-semibold text-foreground">Self-report (Check-ins)</p>
                 <p className="text-xs text-muted-foreground mt-1">Type how you're feeling in your own words. The AI interprets your state across 8 dimensions. Save check-ins regularly to build your cumulative profile. Each check-in is a data point that moves the gauges.</p>
               </div>
               <div className="p-3 rounded-[10px] bg-card border border-border">
-                <p className="font-semibold text-foreground">❤️ Health (Body Mirror — coming soon)</p>
+                <p className="font-semibold text-foreground">Health (Body Mirror — coming soon)</p>
                 <p className="text-xs text-muted-foreground mt-1">Will connect fitness trackers to add physical data: steps, sleep, heart rate, HRV, exercise. Your body is a signal source for identity patterns.</p>
               </div>
             </div>
@@ -157,7 +156,7 @@ export default function AboutPage() {
 
           {/* Identity Variants */}
           <section>
-            <h2 className="text-lg font-bold mb-4">Identity variants</h2>
+            <h2 className="text-base font-semibold mb-4">Identity variants</h2>
             <div className="space-y-3 text-sm text-muted-foreground leading-relaxed">
               <p>
                 Beyond the 5 base archetypes, Parallax derives <strong className="text-foreground">emergent identity variants</strong> — unique, evocative patterns synthesized from your actual behavioral data.
@@ -179,7 +178,7 @@ export default function AboutPage() {
 
           {/* Insight Detection */}
           <section>
-            <h2 className="text-lg font-bold mb-4">Insight detection</h2>
+            <h2 className="text-base font-semibold mb-4">Insight detection</h2>
             <div className="space-y-3 text-sm">
               <p className="text-muted-foreground leading-relaxed">
                 The Discover page runs 7 types of pattern analysis:
@@ -206,7 +205,7 @@ export default function AboutPage() {
 
           {/* Pages */}
           <section>
-            <h2 className="text-lg font-bold mb-4">Pages</h2>
+            <h2 className="text-base font-semibold mb-4">Pages</h2>
             <div className="space-y-2 text-sm">
               {[
                 { name: "Home", desc: "Dashboard with dual gauges (data vs self), mini archetype gauges, insight feed, and check-in." },
@@ -226,7 +225,7 @@ export default function AboutPage() {
 
           {/* Philosophy */}
           <section>
-            <h2 className="text-lg font-bold mb-4">Philosophy</h2>
+            <h2 className="text-base font-semibold mb-4">Philosophy</h2>
             <div className="space-y-4">
               <blockquote className="border-l-2 border-primary pl-4 italic text-sm text-muted-foreground">
                 "Parallax should not feel like a tracker. It should feel like a mirror that reveals meaning in the patterns of a person's life."

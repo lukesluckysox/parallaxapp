@@ -49,7 +49,7 @@ function MirrorMomentCard() {
       }}
     >
       <div className="flex items-center gap-1.5 mb-1.5">
-        <Sparkles className="w-3 h-3 text-amber-500" />
+        <span className="font-display text-sm" style={{ color: arch?.color }}>✧</span>
         <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Mirror Moment</span>
       </div>
       <p className="text-sm italic font-serif leading-relaxed text-foreground mb-1">
@@ -93,7 +93,7 @@ function ArchetypePhaseIndicator() {
     >
       {baseline && (
         <div className="flex items-center gap-1 text-xs">
-          <span className="text-sm">{baseline.emoji}</span>
+          <span className="font-display text-lg" style={{ color: baseline.color }}>{baseline.emoji}</span>
           <div className="text-center">
             <p className="text-[10px] text-muted-foreground">Baseline</p>
             <p className="font-medium" style={{ color: baseline.color }}>{baseline.name}</p>
@@ -105,7 +105,7 @@ function ArchetypePhaseIndicator() {
       )}
       {current && (
         <div className="flex items-center gap-1 text-xs">
-          <span className="text-sm">{current.emoji}</span>
+          <span className="font-display text-lg" style={{ color: current.color }}>{current.emoji}</span>
           <div className="text-center">
             <p className="text-[10px] text-muted-foreground">Current</p>
             <p className="font-medium" style={{ color: current.color }}>{current.name}</p>
@@ -117,7 +117,7 @@ function ArchetypePhaseIndicator() {
       )}
       {emerging && (
         <div className="flex items-center gap-1 text-xs">
-          <span className="text-sm">{emerging.emoji}</span>
+          <span className="font-display text-lg" style={{ color: emerging.color }}>{emerging.emoji}</span>
           <div className="text-center">
             <p className="text-[10px] text-muted-foreground">Emerging</p>
             <p className="font-medium" style={{ color: emerging.color }}>{emerging.name}</p>
@@ -169,7 +169,7 @@ function InsightFeed() {
       {latestMirror && (
         <div className="p-3 rounded-[10px] border-l-4 border-l-amber-500/60 bg-amber-500/5">
           <div className="flex items-center gap-1.5 mb-1">
-            <Sparkles className="w-3 h-3 text-amber-500" />
+            <span className="text-xs text-muted-foreground/60">✧</span>
             <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Mirror Moment</span>
           </div>
           <p className="text-sm italic font-serif leading-relaxed text-foreground mb-1">
@@ -301,7 +301,7 @@ function SignalForecast() {
           const SigIcon = sig.icon;
           return (
             <div key={arch.key} className="text-center">
-              <div className="text-sm mb-0.5">{arch.emoji}</div>
+              <div className="text-base font-display mb-0.5" style={{ color: arch.color }}>{arch.emoji}</div>
               <div className={`flex items-center justify-center gap-0.5 ${sig.color}`}>
                 <SigIcon className="w-3 h-3" />
               </div>
@@ -383,10 +383,10 @@ function DataSourceSummary() {
       className="flex items-center justify-center gap-4 text-[11px] text-muted-foreground"
     >
       <Link href="/spotify" className="hover:text-foreground transition-colors">
-        {trackCount > 0 ? `🎵 ${trackCount} tracks logged` : "🎵 Not connected"}
+        {trackCount > 0 ? `${trackCount} tracks logged` : "Not connected"}
       </Link>
       <Link href="/writing" className="hover:text-foreground transition-colors">
-        {writingCount > 0 ? `✍️ ${writingCount} writings analyzed` : "✍️ No writing yet"}
+        {writingCount > 0 ? `${writingCount} writings analyzed` : "No writing yet"}
       </Link>
     </div>
   );
@@ -607,7 +607,7 @@ export default function CharacterApp() {
   });
 
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div className="min-h-screen bg-background pb-20 noise-overlay">
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-5">
         <Header />
 
