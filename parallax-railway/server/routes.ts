@@ -7,16 +7,24 @@ import { DIMENSIONS } from "@shared/archetypes";
 import bcrypt from "bcryptjs";
 import { getAuthUrl, exchangeCode, refreshAccessToken, spotifyApi } from "./spotify-auth";
 
-const anthropic = new Anthropic();
+let anthropic: Anthropic;
+try {
+  anthropic = new Anthropic();
+} catch (e) {
+  console.warn("Anthropic SDK failed to initialize — LLM features will be unavailable. Set ANTHROPIC_API_KEY env var.");
+  anthropic = null as any;
+}
 
 // Keep callExternalTool for fitness (non-Spotify) endpoints
+// NOTE: external-tool CLI only exists in the Perplexity sandbox.
+// On Railway/other hosts, this gracefully returns null.
 function callExternalTool(sourceId: string, toolName: string, args: Record<string, unknown>) {
   try {
     const params = JSON.stringify({ source_id: sourceId, tool_name: toolName, arguments: args });
     const result = execSync(`external-tool call '${params}'`, { timeout: 30000 }).toString();
     return JSON.parse(result);
   } catch (err: any) {
-    console.error(`External tool error (${toolName}):`, err.message);
+    // Silently fail — external-tool doesn't exist outside sandbox
     return null;
   }
 }
@@ -602,7 +610,7 @@ export async function registerRoutes(
       const contextStr = contextParts.length > 0 ? `\nData context: ${contextParts.join(". ")}` : "";
 
       const message = await anthropic.messages.create({
-        model: "claude_haiku_4_5",
+        model: "claude-3-5-haiku-20241022",
         max_tokens: 1024,
         messages: [{
           role: "user",
@@ -646,7 +654,7 @@ Respond ONLY with valid JSON:
       const stateStr = currentState ? `\nCurrent state: ${JSON.stringify(currentState)}` : "";
 
       const message = await anthropic.messages.create({
-        model: "claude_haiku_4_5",
+        model: "claude-3-5-haiku-20241022",
         max_tokens: 1024,
         messages: [{
           role: "user",
@@ -708,7 +716,7 @@ Respond ONLY with valid JSON:
       }).filter(Boolean).join("\n");
 
       const message = await anthropic.messages.create({
-        model: "claude_haiku_4_5",
+        model: "claude-3-5-haiku-20241022",
         max_tokens: 1024,
         messages: [{
           role: "user",
@@ -763,7 +771,7 @@ Return ONLY valid JSON:
       const dateStr = dateWritten ? `\nDate written: ${dateWritten}` : "";
 
       const message = await anthropic.messages.create({
-        model: "claude_haiku_4_5",
+        model: "claude-3-5-haiku-20241022",
         max_tokens: 4096,
         messages: [{
           role: "user",
