@@ -108,20 +108,6 @@ export default function MythologyCard() {
         </div>
       )}
 
-      {/* Parallax Observation */}
-      {data.observation && (
-        <div
-          data-testid="card-observation"
-          className="p-3 rounded-[10px] border-l-4 border-l-primary/60 bg-primary/5"
-        >
-          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">
-            Parallax Observation
-          </p>
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            {data.observation}
-          </p>
-        </div>
-      )}
     </div>
   );
 }

@@ -732,7 +732,7 @@ Return ONLY valid JSON:
     }
   });
 
-  // POST /api/writing/analyze — LLM analyzes writing sample
+  // POST /api/writing/analyze — LLM analyzes writing sample (two-pass for reliability)
   app.post("/api/writing/analyze", async (req, res) => {
     try {
       const { content, title, dateWritten } = req.body;
@@ -745,101 +745,110 @@ Return ONLY valid JSON:
       }
 
       const userId = getUserId(req);
-
       const titleStr = title ? `\nTitle: "${title}"` : "";
       const dateStr = dateWritten ? `\nDate written: ${dateWritten}` : "";
 
-      const message = await anthropic.messages.create({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 6000,
-        messages: [{
-          role: "user",
-          content: `You are an Inner Mirror — a literary psychologist who reads writing to reveal the author's inner state. Analyze this writing sample:${titleStr}${dateStr}
+      // Helper: call LLM and parse JSON with retry
+      async function callAndParse(systemPrompt: string, userPrompt: string, maxTokens: number): Promise<any> {
+        for (let attempt = 0; attempt < 2; attempt++) {
+          const message = await anthropic.messages.create({
+            model: "claude-sonnet-4-20250514",
+            max_tokens: maxTokens,
+            system: systemPrompt,
+            messages: [{ role: "user", content: userPrompt }],
+          });
 
-"""
-${content}
-"""
-
-Analyze the writing for emotional tone, psychological themes, and map those to 8 dimensions (each 0-100):
-focus, calm, discipline, health, social, creativity, exploration, ambition.
-
-Key mapping guidelines:
-- Dark/heavy emotional content → calm down, creativity up
-- Structured/analytical writing → focus up, discipline up
-- Social/relational themes → social up, exploration up
-- Ambitious/driven language → ambition up, discipline up
-- Chaotic/fragmented → discipline down, exploration up, creativity up
-
-Also determine:
-- emotions: object mapping emotion names to 0-1 intensity (e.g. {"grief": 0.3, "hope": 0.6})
-- archetype_lean: which of the 5 meta-archetypes this writing most reflects (observer, builder, explorer, dissenter, seeker)
-- narrative: 2-3 sentence reading of what the writing reveals about who they are right now
-- nudges: dimension adjustments from neutral (-15 to +15 for each dimension)
-- word_themes: 3-5 thematic words that capture the writing's essence
-- mirror_moment: Extract the single most resonant or revealing line from the writing (verbatim), and provide a 2-3 sentence interpretation of what this line reveals about the user's current psychological state, identity, or inner conflict. This should be the "how did it know?" moment.
-- political_compass: Infer the author's political compass position from the themes, values, and worldview expressed. economic: -10 (left) to +10 (right), social: -10 (libertarian) to +10 (authoritarian). Include an explanation sentence.
-- mbti: Infer MBTI cognitive tendencies from writing style. extraversion: 0-100 (0=introversion, 100=extraversion) based on self-referential vs outward patterns. intuition: 0-100 (0=sensing, 100=intuition) based on abstract vs concrete language. feeling: 0-100 (0=thinking, 100=feeling) based on analytical vs emotional tone. perceiving: 0-100 (0=judging, 100=perceiving) based on structured vs open-ended expression. type: the 4-letter MBTI type. Include an explanation sentence.
-- moral_foundations: Score which moral values the writing emphasizes. Each 0-1: care, fairness, loyalty, authority, sanctity, liberty. Include an explanation sentence.
-- quotes: Select exactly 5 quotes from real, well-known authors that directly address the emotional and thematic content of this writing. Each with "text" and "author" fields.
-- recommended_reading: Recommend exactly 3 books that connect to the writing's themes. Each with "title", "author", and "reason" (1 sentence connecting the book to this specific writing).
-
-Respond ONLY with valid JSON:
-{"emotions":{"emotion_name":0.0},"dimensions":{"focus":N,"calm":N,"discipline":N,"health":N,"social":N,"creativity":N,"exploration":N,"ambition":N},"archetype_lean":"...","narrative":"...","nudges":{"focus":N,"calm":N,"discipline":N,"health":N,"social":N,"creativity":N,"exploration":N,"ambition":N},"word_themes":["..."],"mirror_moment":{"line":"exact line from writing","interpretation":"2-3 sentence reflection"},"political_compass":{"economic":0.0,"social":0.0,"explanation":"..."},"mbti":{"extraversion":50,"intuition":50,"feeling":50,"perceiving":50,"type":"XXXX","explanation":"..."},"moral_foundations":{"care":0.0,"fairness":0.0,"loyalty":0.0,"authority":0.0,"sanctity":0.0,"liberty":0.0,"explanation":"..."},"quotes":[{"text":"...","author":"..."}],"recommended_reading":[{"title":"...","author":"...","reason":"..."}]}`
-        }],
-      });
-
-      const responseText = message.content[0].type === "text" ? message.content[0].text : "";
-      
-      // Strip markdown code fences if present
-      let cleanText = responseText.trim();
-      if (cleanText.startsWith("```")) {
-        cleanText = cleanText.replace(/^```(?:json)?\s*/, "").replace(/\s*```$/, "");
-      }
-      
-      const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        console.error("Writing analyze: no JSON in response. First 200 chars:", responseText.slice(0, 200));
-        return res.status(500).json({ error: "Analysis failed — the AI response could not be parsed. Try again." });
+          const raw = message.content[0].type === "text" ? message.content[0].text : "";
+          let text = raw.trim();
+          // Strip markdown fences
+          text = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
+          // Try to find JSON object
+          const match = text.match(/\{[\s\S]*\}/);
+          if (!match) {
+            console.error(`Writing analyze pass: no JSON (attempt ${attempt + 1}). First 200:`, raw.slice(0, 200));
+            continue;
+          }
+          try {
+            return JSON.parse(match[0]);
+          } catch (e) {
+            // Try to fix common JSON issues: trailing commas, unescaped newlines in strings
+            let fixed = match[0]
+              .replace(/,\s*}/g, "}")
+              .replace(/,\s*]/g, "]")
+              .replace(/(["'])\s*\n\s*/g, "$1 ");
+            try {
+              return JSON.parse(fixed);
+            } catch {
+              console.error(`Writing analyze pass: JSON parse failed (attempt ${attempt + 1}). First 300:`, match[0].slice(0, 300));
+              continue;
+            }
+          }
+        }
+        return null;
       }
 
-      let parsed;
+      const writingExcerpt = content.length > 4000 ? content.slice(0, 4000) + "\n[truncated]" : content;
+
+      // ── PASS 1: Core analysis (emotions, dimensions, narrative, mirror moment) ──
+      const coreResult = await callAndParse(
+        "You are a literary psychologist. You MUST respond with ONLY valid JSON. No markdown, no explanation, no text outside the JSON object.",
+        `Analyze this writing:${titleStr}${dateStr}\n\n"""\n${writingExcerpt}\n"""\n\nReturn JSON with these exact keys:\n- emotions: object of emotion names to 0-1 intensity (3-6 emotions)\n- dimensions: {focus, calm, discipline, health, social, creativity, exploration, ambition} each 0-100\n- archetype_lean: one of "observer", "builder", "explorer", "dissenter", "seeker"\n- narrative: 2-3 sentence reading of what this reveals about the author\n- nudges: {focus, calm, discipline, health, social, creativity, exploration, ambition} each -15 to +15\n- word_themes: array of 3-5 thematic words\n- mirror_moment: {"line": "exact verbatim line from the writing", "interpretation": "2-3 sentence reflection"}`,
+        3000
+      );
+
+      if (!coreResult) {
+        return res.status(500).json({ error: "Analysis failed after retries. Try submitting again." });
+      }
+
+      // ── PASS 2: Deep layer (MBTI, political compass, moral foundations, quotes, reading) ──
+      let deepResult: any = null;
       try {
-        parsed = JSON.parse(jsonMatch[0]);
-      } catch (parseErr) {
-        console.error("Writing analyze: JSON parse error:", parseErr, "First 300 chars:", jsonMatch[0].slice(0, 300));
-        return res.status(500).json({ error: "Analysis failed — malformed response. Try again." });
+        deepResult = await callAndParse(
+          "You are a literary psychologist. You MUST respond with ONLY valid JSON. No markdown, no explanation, no text outside the JSON object.",
+          `Based on this writing:${titleStr}${dateStr}\n\n"""\n${writingExcerpt}\n"""\n\nReturn JSON with these exact keys:\n- political_compass: {"economic": -10 to 10, "social": -10 to 10, "explanation": "one sentence"}\n- mbti: {"extraversion": 0-100, "intuition": 0-100, "feeling": 0-100, "perceiving": 0-100, "type": "XXXX", "explanation": "one sentence"}\n- moral_foundations: {"care": 0-1, "fairness": 0-1, "loyalty": 0-1, "authority": 0-1, "sanctity": 0-1, "liberty": 0-1, "explanation": "one sentence"}\n- quotes: array of 5 objects {"text": "quote", "author": "name"} from real well-known authors relevant to this writing\n- recommended_reading: array of 3 objects {"title": "book", "author": "name", "reason": "one sentence"}`,
+          2500
+        );
+      } catch (e) {
+        console.error("Writing analyze deep pass error:", e);
+        // Deep layer is optional — core analysis still succeeds
       }
 
-      // Save to database with user_id
+      // Merge results
+      const merged = {
+        ...coreResult,
+        political_compass: deepResult?.political_compass || null,
+        mbti: deepResult?.mbti || null,
+        moral_foundations: deepResult?.moral_foundations || null,
+        quotes: deepResult?.quotes || null,
+        recommended_reading: deepResult?.recommended_reading || null,
+      };
+
+      // Save to database
       const writing = storage.createWriting({
         timestamp: new Date().toISOString(),
         title: title || null,
         content,
         date_written: dateWritten || null,
         analysis: JSON.stringify({
-          emotions: parsed.emotions,
-          dimensions: parsed.dimensions,
-          archetype_lean: parsed.archetype_lean,
-          narrative: parsed.narrative,
-          word_themes: parsed.word_themes,
-          mirror_moment: parsed.mirror_moment || null,
-          political_compass: parsed.political_compass || null,
-          mbti: parsed.mbti || null,
-          moral_foundations: parsed.moral_foundations || null,
-          quotes: parsed.quotes || null,
-          recommended_reading: parsed.recommended_reading || null,
+          emotions: merged.emotions,
+          dimensions: merged.dimensions,
+          archetype_lean: merged.archetype_lean,
+          narrative: merged.narrative,
+          word_themes: merged.word_themes,
+          mirror_moment: merged.mirror_moment || null,
+          political_compass: merged.political_compass,
+          mbti: merged.mbti,
+          moral_foundations: merged.moral_foundations,
+          quotes: merged.quotes,
+          recommended_reading: merged.recommended_reading,
         }),
-        nudges: JSON.stringify(parsed.nudges || {}),
+        nudges: JSON.stringify(merged.nudges || {}),
         user_id: userId,
       });
 
-      return res.json({
-        ...parsed,
-        id: writing.id,
-      });
+      return res.json({ ...merged, id: writing.id });
     } catch (err: any) {
       console.error("Writing analyze error:", err?.message || err);
-      // Surface more helpful error messages
       const msg = err?.message || "Unknown error";
       if (msg.includes("rate") || msg.includes("429")) {
         return res.status(429).json({ error: "Rate limited by AI provider. Wait a moment and try again." });
