@@ -1201,40 +1201,61 @@ Respond ONLY with valid JSON:
     }
   });
 
-  // ===================== DISCOVER (INSIGHT ENGINE) =====================
+  // ===================== HELPER: gather user data context =====================
 
-  app.get("/api/discover", async (req, res) => {
-    const userId = getUserId(req);
-    if (!userId) return res.json({ insights: [] });
-
-    // Gather all data
+  function gatherUserContext(userId: number) {
     const allCheckins = storage.getCheckins(userId);
-    const checkinSlice = allCheckins.slice(0, 10);
-    const allWritings = storage.getWritings(10, userId);
-    const spotifyListensAll = storage.getSpotifyListens(userId, 30);
+    const checkinSlice = allCheckins.slice(0, 15);
+    const allWritings = storage.getWritings(15, userId);
+    const spotifyListensAll = storage.getSpotifyListens(userId, 50);
     const spotifyStats = storage.getSpotifyStats(userId);
 
-    // Build context
     const checkinSummary = checkinSlice.map(c => {
       return `${c.timestamp.slice(0,10)}: self=${c.self_archetype}, data=${c.data_archetype || "n/a"}, feeling="${c.feeling_text || ""}"`;
     }).join("\n");
 
     const writingSummary = allWritings.map(w => {
       const a = w.analysis ? JSON.parse(w.analysis) : null;
-      return `${w.timestamp.slice(0,10)}: "${w.title || "untitled"}" - archetype=${a?.archetype_lean || "?"}, mbti=${a?.mbti?.type || "?"}, themes=${a?.word_themes?.join(",") || "?"}`;
+      return `${w.timestamp.slice(0,10)}: "${w.title || "untitled"}" - archetype=${a?.archetype_lean || "?"}, mbti=${a?.mbti?.type || "?"}, themes=${a?.word_themes?.join(",") || "?"}, emotions=${a?.emotions ? JSON.stringify(a.emotions) : "?"}${a?.political_compass ? `, compass=${JSON.stringify(a.political_compass)}` : ""}`;
     }).join("\n");
 
-    const musicSummary = `${spotifyStats.totalTracks} tracks, avg energy ${spotifyStats.avgEnergy}%, avg valence ${spotifyStats.avgValence}%, top artists: ${spotifyStats.topArtists.map((a: any) => a.name).join(", ")}`;
+    const musicSummary = `${spotifyStats.totalTracks} tracks, avg energy ${spotifyStats.avgEnergy}%, avg valence ${spotifyStats.avgValence}%, avg danceability ${spotifyStats.avgDanceability}%, top artists: ${spotifyStats.topArtists.map((a: any) => `${a.name} (${a.count})`).join(", ")}`;
 
-    // Recent tracks for pattern analysis
-    const recentTracks = spotifyListensAll.slice(0, 15).map(t =>
-      `"${t.track_name}" by ${t.artist_name} (energy:${t.energy}, valence:${t.valence})`
+    // Temporal patterns: timestamps of listening
+    const listenTimestamps = spotifyListensAll.slice(0, 30).map(t => {
+      const d = new Date(t.timestamp);
+      return `${t.track_name} by ${t.artist_name} at ${d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true })} (energy:${t.energy}, valence:${t.valence}, dance:${t.danceability}, acoustic:${t.acousticness})`;
+    }).join("\n");
+
+    // Archetype timeline for state transitions
+    const archetypeTimeline = checkinSlice.map(c =>
+      `${c.timestamp.slice(0,10)}: self=${c.self_archetype}, data=${c.data_archetype || "n/a"}`
     ).join("\n");
 
+    // Writing volume / frequency
+    const writingDates = allWritings.map(w => w.timestamp.slice(0,10));
+    const uniqueWritingDays = [...new Set(writingDates)].length;
+    const writingVolume = allWritings.reduce((sum, w) => sum + (w.content?.length || 0), 0);
+
     const hasData = checkinSlice.length > 0 || allWritings.length > 0 || spotifyListensAll.length > 0;
-    if (!hasData) {
-      return res.json({ insights: [], hasData: false });
-    }
+
+    return {
+      allCheckins, checkinSlice, allWritings, spotifyListensAll, spotifyStats,
+      checkinSummary, writingSummary, musicSummary, listenTimestamps,
+      archetypeTimeline, uniqueWritingDays, writingVolume, hasData
+    };
+  }
+
+  // ===================== PROFILE (VARIANT + IDENTITY ENGINE) =====================
+
+  app.get("/api/profile", async (req, res) => {
+    const userId = getUserId(req);
+    if (!userId) return res.json({ variant: null });
+
+    const ctx = gatherUserContext(userId);
+    if (!ctx.hasData) return res.json({ variant: null, hasData: false });
+
+    if (!anthropic) return res.json({ variant: null, error: "LLM unavailable" });
 
     try {
       const message = await anthropic.messages.create({
@@ -1242,48 +1263,130 @@ Respond ONLY with valid JSON:
         max_tokens: 2048,
         messages: [{
           role: "user",
+          content: `You are the Parallax identity engine. The 5 base archetypes are Observer, Builder, Explorer, Dissenter, and Seeker. Your job is to derive an EMERGENT VARIANT — a unique, evocative identity pattern that goes beyond the base archetypes.
+
+Variants are NOT limited to the 5 base archetypes. They are synthesized FROM the user's actual behavioral data. Think of archetypes as primary colors — variants are the infinite shades mixed from them.
+
+Examples of variants (for inspiration, never copy these exactly):
+- "The Night Cartographer" — an Explorer who maps through late-night writing and solo music discovery
+- "The Quiet Architect" — a Builder who constructs internally through reflection rather than external output
+- "The Emotional Seismologist" — an Observer who detects emotional patterns before they surface consciously
+- "The Reluctant Oracle" — a Seeker who discovers truth through resistance rather than pursuit
+- "The Signal Drifter" — an Explorer-Observer hybrid who follows data patterns like a current
+
+User data:
+
+CHECK-INS:
+${ctx.checkinSummary || "No check-ins yet"}
+
+WRITING ANALYSIS:
+${ctx.writingSummary || "No writings yet"}
+
+MUSIC PATTERNS:
+${ctx.musicSummary || "No music data"}
+
+LISTENING TIMESTAMPS & FEATURES:
+${ctx.listenTimestamps || "None"}
+
+WRITING VOLUME: ${ctx.writingVolume} chars across ${ctx.uniqueWritingDays} unique days
+
+Based on ALL available signals, synthesize:
+
+1. A VARIANT NAME — 2-4 word evocative title ("The [Adjective] [Noun]"). Must feel personal and specific, not generic.
+2. The PRIMARY ARCHETYPE it derives from (one of the 5 base)
+3. A SECONDARY ARCHETYPE influence (if any)
+4. 3-4 EXPLORATION CHANNELS — specific ways this user explores (e.g., "music discovery", "late-night writing", "solo exercise")
+5. 4-6 EMERGENT TRAITS — short behavioral labels derived from data (e.g., "Night Thinker", "Creative After Movement", "Solitary Processor", "Pattern Sensitive")
+6. A 2-3 sentence DESCRIPTION of this variant — what makes it unique, how it manifests
+
+Return ONLY valid JSON:
+{
+  "variant_name": "The Night Cartographer",
+  "primary_archetype": "explorer",
+  "secondary_archetype": "observer",
+  "exploration_channels": ["music discovery", "late-night writing", "solo exercise"],
+  "emergent_traits": ["Night Thinker", "Creative After Movement", "Solitary Processor", "Pattern Sensitive"],
+  "description": "You explore primarily through solitary, late-night channels..."
+}`
+        }],
+      });
+
+      const text = message.content[0].type === "text" ? message.content[0].text : "";
+      const match = text.match(/\{[\s\S]*\}/);
+      if (!match) return res.json({ variant: null, hasData: true });
+      const parsed = JSON.parse(match[0]);
+      return res.json({ variant: parsed, hasData: true });
+    } catch (err: any) {
+      console.error("Profile variant error:", err);
+      return res.json({ variant: null, hasData: true, error: err.message });
+    }
+  });
+
+  // ===================== DISCOVER (INSIGHT ENGINE) =====================
+
+  app.get("/api/discover", async (req, res) => {
+    const userId = getUserId(req);
+    if (!userId) return res.json({ insights: [] });
+
+    const ctx = gatherUserContext(userId);
+    if (!ctx.hasData) return res.json({ insights: [], hasData: false });
+
+    if (!anthropic) return res.json({ insights: [], error: "LLM unavailable" });
+
+    try {
+      const message = await anthropic.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 3000,
+        messages: [{
+          role: "user",
           content: `You are the Parallax insight engine — a personal pattern recognition system for the psyche. You analyze behavioral data to reveal hidden patterns, identity signals, and psychological blind spots.
+
+The 5 base archetypes are Observer, Builder, Explorer, Dissenter, and Seeker.
 
 User data:
 
 CHECK-INS (self-report + data-driven archetype):
-${checkinSummary || "No check-ins yet"}
+${ctx.checkinSummary || "No check-ins yet"}
+
+ARCHETYPE TIMELINE:
+${ctx.archetypeTimeline || "No timeline"}
 
 WRITING ANALYSIS (Inner Mirror):
-${writingSummary || "No writings yet"}
+${ctx.writingSummary || "No writings yet"}
 
 MUSIC PATTERNS:
-${musicSummary || "No music data"}
-Recent tracks:
-${recentTracks || "None"}
+${ctx.musicSummary || "No music data"}
 
-Generate exactly 4 insights. Each should be a different TYPE. Return ONLY valid JSON:
+LISTENING TIMESTAMPS & FEATURES:
+${ctx.listenTimestamps || "None"}
+
+WRITING VOLUME: ${ctx.writingVolume} chars across ${ctx.uniqueWritingDays} unique days
+
+Generate exactly 7 insights. Each MUST be a different type. Types:
+
+1. "observation" — A pattern connecting multiple data sources. Thoughtful, slightly poetic.
+2. "blind_spot" — A contradiction between self-perception and behavioral data.
+3. "creative_signal" — Conditions that correlate with the user's most expressive output.
+4. "trajectory" — Direction current patterns suggest, framed as identity progression.
+5. "emotional_anomaly" — When emotional tone diverges from normal signals. Detect contradictions (e.g., writing becomes more reflective while music gets more energetic). Include bullet points of specific signal observations.
+6. "creative_surge" — When creative output spikes relative to baseline. Note the conditions (later sleep, more instrumental music, reduced social activity, etc.).
+7. "state_transition" — When archetype modes shift rapidly. Note which archetypes shifted and what this consolidation/expansion might mean.
+
+For types 5-7, use this format in the body:
+- Start with a bold signal statement
+- Follow with bullet points of specific observations (use • character)
+- End with a "Possible interpretation:" line
+
+Return ONLY valid JSON:
 {
   "insights": [
-    {
-      "type": "observation",
-      "title": "Short evocative title (3-6 words)",
-      "body": "2-3 sentence observation connecting multiple data sources. Should feel thoughtful and slightly poetic, not clinical.",
-      "icon": "eye"
-    },
-    {
-      "type": "blind_spot",
-      "title": "Potential blind spot title",
-      "body": "2-3 sentences about a contradiction between how the user sees themselves and what their behavior indicates.",
-      "icon": "alert"
-    },
-    {
-      "type": "creative_signal",
-      "title": "Creative state signal title",
-      "body": "2-3 sentences about conditions that seem to correlate with the user's best/most expressive output.",
-      "icon": "sparkle"
-    },
-    {
-      "type": "trajectory",
-      "title": "Where you're heading",
-      "body": "2-3 sentences about the direction current patterns suggest, framed as identity progression not prediction.",
-      "icon": "trending"
-    }
+    { "type": "observation", "title": "...", "body": "..." },
+    { "type": "blind_spot", "title": "...", "body": "..." },
+    { "type": "creative_signal", "title": "...", "body": "..." },
+    { "type": "trajectory", "title": "...", "body": "..." },
+    { "type": "emotional_anomaly", "title": "Signal Deviation Detected", "body": "Your recent writing tone is significantly more reflective than your usual baseline.\n\nHowever:\n• music selection became more energetic\n• activity levels increased\n\nPossible interpretation: You may be processing something internally while maintaining external momentum." },
+    { "type": "creative_surge", "title": "Creative Surge", "body": "Your writing volume increased significantly this period.\n\nCommon conditions during these periods:\n• later activity schedule\n• more instrumental music\n• reduced social signals\n\nThis pattern has preceded your most reflective sessions." },
+    { "type": "state_transition", "title": "Rapid Mode Shift", "body": "Explorer mode dropped sharply while Builder mode increased.\n\nThis shift often occurs when you begin consolidating ideas after periods of discovery." }
   ]
 }`
         }],
@@ -1298,6 +1401,216 @@ Generate exactly 4 insights. Each should be a different TYPE. Return ONLY valid 
       console.error("Discover error:", err);
       return res.json({ insights: [], hasData: true, error: "Could not generate insights" });
     }
+  });
+
+  // ===================== SIGNAL FORECAST =====================
+
+  app.get("/api/forecast", async (req, res) => {
+    const userId = getUserId(req);
+    if (!userId) return res.json({ forecast: null });
+
+    const ctx = gatherUserContext(userId);
+    if (!ctx.hasData) return res.json({ forecast: null, hasData: false });
+
+    if (!anthropic) return res.json({ forecast: null, error: "LLM unavailable" });
+
+    try {
+      const message = await anthropic.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1500,
+        messages: [{
+          role: "user",
+          content: `You are the Parallax signal forecast engine. Based on the user's recent behavioral data, generate a "Today's Signal Forecast" — a prediction of what kind of day this is shaping up to be, what modes are rising/falling, and what activities are likely to be most productive.
+
+The 5 archetypes are: Observer (understanding), Builder (structure), Explorer (novelty), Dissenter (autonomy), Seeker (meaning).
+
+User data:
+
+CHECK-INS (recent):
+${ctx.checkinSummary || "No check-ins"}
+
+MUSIC (recent):
+${ctx.musicSummary || "No music data"}
+${ctx.listenTimestamps ? `\nRecent listening:\n${ctx.listenTimestamps}` : ""}
+
+WRITING:
+${ctx.writingSummary || "No writings"}
+Volume: ${ctx.writingVolume} chars across ${ctx.uniqueWritingDays} days
+
+Based on current patterns, generate:
+
+1. archetype_signals: For each of the 5 archetypes, assign a signal level: "rising", "elevated", "stable", "low", or "dormant". Based on recent trajectory.
+2. dominant_mode: Which archetype is strongest right now (key name)
+3. good_conditions: An array of 3-5 activities the user is well-positioned for today based on their current signals (e.g., "writing", "planning", "solo work", "creative exploration", "structured tasks", "social connection", "deep reading", "physical activity")
+4. forecast_narrative: 1-2 sentence poetic forecast of the day's energy
+5. operating_rules: 2-3 "personal operating rules" — behavioral sequences that tend to produce good outcomes for this user based on their data. Format: "[trigger] → [action] → [result]". Example: "Exercise → instrumental music → deep writing (appears in 70%+ of high-quality sessions)"
+6. rare_pattern: If there's an unusual or uncommon behavioral combination detected, describe it in 1-2 sentences. If nothing unusual, set to null.
+
+Return ONLY valid JSON:
+{
+  "archetype_signals": {
+    "observer": "stable",
+    "builder": "rising",
+    "explorer": "elevated",
+    "dissenter": "low",
+    "seeker": "dormant"
+  },
+  "dominant_mode": "explorer",
+  "good_conditions": ["writing", "planning", "solo work"],
+  "forecast_narrative": "Explorer energy is elevated today...",
+  "operating_rules": [
+    "Exercise → instrumental music → writing (appears in your most reflective sessions)",
+    "Late-night solitude → creative surge → pattern-sensitive output"
+  ],
+  "rare_pattern": "High writing complexity during reduced music listening — an uncommon combination for you that often precedes breakthrough insights."
+}`
+        }],
+      });
+
+      const text = message.content[0].type === "text" ? message.content[0].text : "";
+      const match = text.match(/\{[\s\S]*\}/);
+      if (!match) return res.json({ forecast: null, hasData: true });
+      const parsed = JSON.parse(match[0]);
+      return res.json({ forecast: parsed, hasData: true });
+    } catch (err: any) {
+      console.error("Forecast error:", err);
+      return res.json({ forecast: null, hasData: true, error: err.message });
+    }
+  });
+
+  // ===================== IDENTITY TIMELINE =====================
+
+  app.get("/api/timeline", async (req, res) => {
+    const userId = getUserId(req);
+    if (!userId) return res.json({ events: [] });
+
+    // Build timeline from actual data events
+    const allCheckins = storage.getCheckins(userId);
+    const allWritings = storage.getWritings(50, userId);
+    const spotifyListens = storage.getSpotifyListens(userId, 200);
+
+    type TimelineEvent = {
+      date: string;
+      type: "checkin" | "writing" | "creative_surge" | "state_transition" | "archetype_shift" | "music_milestone";
+      title: string;
+      detail: string;
+      archetype?: string;
+    };
+
+    const events: TimelineEvent[] = [];
+
+    // Add check-in events — detect archetype shifts
+    let prevArchetype: string | null = null;
+    for (const c of [...allCheckins].reverse()) {
+      const arch = c.self_archetype;
+      if (prevArchetype && arch !== prevArchetype) {
+        const archDef = ARCHETYPE_MAP[arch];
+        events.push({
+          date: c.timestamp.slice(0, 10),
+          type: "state_transition",
+          title: `${ARCHETYPE_MAP[prevArchetype]?.name || prevArchetype} → ${archDef?.name || arch}`,
+          detail: `Shifted from ${prevArchetype} to ${arch} mode`,
+          archetype: arch,
+        });
+      }
+      prevArchetype = arch;
+    }
+
+    // Add writing events — detect surges (multiple writings in short periods)
+    const writingByDate: Record<string, number> = {};
+    for (const w of allWritings) {
+      const date = w.timestamp.slice(0, 10);
+      writingByDate[date] = (writingByDate[date] || 0) + 1;
+    }
+    for (const [date, count] of Object.entries(writingByDate)) {
+      if (count >= 2) {
+        events.push({
+          date,
+          type: "creative_surge",
+          title: "Creative Surge",
+          detail: `${count} writings submitted in a single day`,
+        });
+      }
+    }
+
+    // Add significant writing analysis events
+    for (const w of allWritings) {
+      const analysis = w.analysis ? JSON.parse(w.analysis) : null;
+      if (analysis?.archetype_lean) {
+        events.push({
+          date: w.timestamp.slice(0, 10),
+          type: "writing",
+          title: `${analysis.archetype_lean.charAt(0).toUpperCase() + analysis.archetype_lean.slice(1)} Writing`,
+          detail: analysis.narrative || `"${w.title || 'Untitled'}" analyzed`,
+          archetype: analysis.archetype_lean,
+        });
+      }
+    }
+
+    // Add music milestones (first listen, every 25th track)
+    const sortedListens = [...spotifyListens].reverse();
+    if (sortedListens.length > 0) {
+      events.push({
+        date: sortedListens[0].timestamp.slice(0, 10),
+        type: "music_milestone",
+        title: "First Track Logged",
+        detail: `"${sortedListens[0].track_name}" by ${sortedListens[0].artist_name}`,
+      });
+    }
+    for (let i = 24; i < sortedListens.length; i += 25) {
+      events.push({
+        date: sortedListens[i].timestamp.slice(0, 10),
+        type: "music_milestone",
+        title: `${i + 1} Tracks Logged`,
+        detail: `Milestone: ${i + 1} tracks in your sonic profile`,
+      });
+    }
+
+    // Sort events by date (newest first) and deduplicate
+    events.sort((a, b) => b.date.localeCompare(a.date));
+
+    // If we have enough data, ask the LLM to generate interpretive labels
+    if (events.length > 0 && anthropic) {
+      try {
+        const eventSummary = events.slice(0, 20).map(e =>
+          `${e.date}: [${e.type}] ${e.title} — ${e.detail}`
+        ).join("\n");
+
+        const message = await anthropic.messages.create({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 1500,
+          messages: [{
+            role: "user",
+            content: `You are the Parallax timeline narrator. Given these behavioral events, identify the 5-8 most significant moments and give each a narrative phase label.
+
+Events:
+${eventSummary}
+
+For each significant moment, provide:
+- date: the event date
+- type: one of "creative_surge", "state_transition", "archetype_shift", "milestone", "consolidation", "emergence"
+- title: A short evocative phase name (2-4 words, e.g., "Creative Surge", "Catalyst Phase", "Architect Consolidation", "Signal Awakening")
+- detail: 1 sentence about what this moment meant
+- archetype: the relevant archetype key (observer/builder/explorer/dissenter/seeker) if applicable, or null
+
+Return ONLY valid JSON:
+{ "events": [ { "date": "2026-03-03", "type": "...", "title": "...", "detail": "...", "archetype": "..." } ] }`
+          }],
+        });
+
+        const text = message.content[0].type === "text" ? message.content[0].text : "";
+        const match = text.match(/\{[\s\S]*\}/);
+        if (match) {
+          const parsed = JSON.parse(match[0]);
+          return res.json({ events: parsed.events || [], hasData: true });
+        }
+      } catch (err) {
+        console.error("Timeline LLM error:", err);
+      }
+    }
+
+    // Fallback: return raw events (limited to 15)
+    return res.json({ events: events.slice(0, 15), hasData: events.length > 0 });
   });
 
   return httpServer;

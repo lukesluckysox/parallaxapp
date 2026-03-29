@@ -9,7 +9,7 @@ import SourcePills from "@/components/SourcePills";
 import FeelingInput from "@/components/FeelingInput";
 import GaugeSection from "@/components/GaugeSection";
 import MythologyCard from "@/components/MythologyCard";
-import { Sparkles, ArrowRight, Music, PenLine, Heart } from "lucide-react";
+import { Sparkles, ArrowRight, Music, PenLine, Heart, Fingerprint, Radio, TrendingUp, TrendingDown, Minus, Zap, BookOpen } from "lucide-react";
 import { Link } from "wouter";
 import type { Writing, Checkin } from "@shared/schema";
 
@@ -187,6 +187,177 @@ function InsightFeed() {
           </p>
           <p className="text-xs text-muted-foreground leading-relaxed">
             {mythology.observation}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Variant Badge (compact) ──────────────────────────────────
+interface VariantData {
+  variant_name: string;
+  primary_archetype: string;
+  secondary_archetype?: string | null;
+  emergent_traits: string[];
+  exploration_channels: string[];
+  description: string;
+}
+
+function VariantBadge() {
+  const { data } = useQuery<{ variant: VariantData | null }>({
+    queryKey: ["/api/profile"],
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const variant = data?.variant;
+  if (!variant) return null;
+
+  const primary = ARCHETYPE_MAP[variant.primary_archetype];
+
+  return (
+    <Link href="/discover">
+      <div
+        data-testid="card-variant-badge"
+        className="p-3 rounded-[10px] border bg-card/80 cursor-pointer hover:bg-card transition-colors"
+        style={{
+          borderColor: `${primary?.color || "#8b5cf6"}30`,
+          background: `linear-gradient(135deg, ${primary?.color || "#8b5cf6"}06 0%, transparent 60%)`,
+        }}
+      >
+        <div className="flex items-center gap-2 mb-1.5">
+          <Fingerprint className="w-3 h-3" style={{ color: primary?.color || "#8b5cf6" }} />
+          <span
+            className="text-[10px] font-semibold tracking-wider uppercase"
+            style={{ color: primary?.color || "#8b5cf6" }}
+          >
+            Identity Variant
+          </span>
+          <ArrowRight className="w-3 h-3 ml-auto text-muted-foreground/40" />
+        </div>
+        <p className="text-sm font-bold text-foreground mb-1">{variant.variant_name}</p>
+        <div className="flex flex-wrap gap-1">
+          {variant.emergent_traits.slice(0, 4).map((trait, i) => (
+            <span
+              key={i}
+              className="text-[10px] px-2 py-0.5 rounded-full bg-accent text-accent-foreground border border-border"
+            >
+              {trait}
+            </span>
+          ))}
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+// ── Signal Forecast ────────────────────────────────────────
+interface ForecastData {
+  archetype_signals: Record<string, string>;
+  dominant_mode: string;
+  good_conditions: string[];
+  forecast_narrative: string;
+  operating_rules: string[];
+  rare_pattern: string | null;
+}
+
+const SIGNAL_ICON: Record<string, { icon: typeof TrendingUp; color: string }> = {
+  rising: { icon: TrendingUp, color: "text-emerald-500" },
+  elevated: { icon: Zap, color: "text-amber-500" },
+  stable: { icon: Minus, color: "text-muted-foreground" },
+  low: { icon: TrendingDown, color: "text-blue-400" },
+  dormant: { icon: Minus, color: "text-muted-foreground/40" },
+};
+
+function SignalForecast() {
+  const { data } = useQuery<{ forecast: ForecastData | null }>({
+    queryKey: ["/api/forecast"],
+    staleTime: 10 * 60 * 1000, // cache 10 min
+  });
+
+  const forecast = data?.forecast;
+  if (!forecast) return null;
+
+  const dominant = ARCHETYPE_MAP[forecast.dominant_mode];
+
+  return (
+    <div
+      data-testid="card-signal-forecast"
+      className="p-4 rounded-[10px] border border-border bg-card/80 space-y-3"
+    >
+      {/* Header */}
+      <div className="flex items-center gap-2">
+        <Radio className="w-3.5 h-3.5 text-primary" />
+        <span className="text-[10px] font-semibold tracking-wider uppercase text-primary">
+          Today's Signal Forecast
+        </span>
+      </div>
+
+      {/* Archetype signal levels */}
+      <div className="grid grid-cols-5 gap-1">
+        {ARCHETYPES.map(arch => {
+          const level = forecast.archetype_signals[arch.key] || "stable";
+          const sig = SIGNAL_ICON[level] || SIGNAL_ICON.stable;
+          const SigIcon = sig.icon;
+          return (
+            <div key={arch.key} className="text-center">
+              <div className="text-sm mb-0.5">{arch.emoji}</div>
+              <div className={`flex items-center justify-center gap-0.5 ${sig.color}`}>
+                <SigIcon className="w-3 h-3" />
+              </div>
+              <p className="text-[9px] text-muted-foreground mt-0.5 capitalize">{level}</p>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Narrative */}
+      <p className="text-xs text-muted-foreground leading-relaxed italic">
+        {forecast.forecast_narrative}
+      </p>
+
+      {/* Good conditions */}
+      <div>
+        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">
+          Good conditions for
+        </p>
+        <div className="flex flex-wrap gap-1.5">
+          {forecast.good_conditions.map((cond, i) => (
+            <span
+              key={i}
+              className="text-[11px] px-2.5 py-1 rounded-full border border-primary/20 text-primary bg-primary/5"
+            >
+              {cond}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* Operating rules */}
+      {forecast.operating_rules.length > 0 && (
+        <div>
+          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">
+            Your patterns
+          </p>
+          <div className="space-y-1">
+            {forecast.operating_rules.map((rule, i) => (
+              <p key={i} className="text-[11px] text-foreground/80 leading-relaxed">
+                {rule}
+              </p>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Rare pattern */}
+      {forecast.rare_pattern && (
+        <div className="p-2.5 rounded-lg bg-amber-500/5 border border-amber-500/20">
+          <div className="flex items-center gap-1.5 mb-1">
+            <BookOpen className="w-3 h-3 text-amber-500" />
+            <span className="text-[10px] font-medium text-amber-500 uppercase tracking-wider">Rare Pattern</span>
+          </div>
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
+            {forecast.rare_pattern}
           </p>
         </div>
       )}
@@ -440,6 +611,9 @@ export default function CharacterApp() {
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-5">
         <Header />
 
+        {/* Signal Forecast — today's conditions */}
+        <SignalForecast />
+
         {/* Data Sources — interactive pills with connect buttons */}
         <SourcePills
           onFetchSpotify={fetchSpotify}
@@ -475,6 +649,9 @@ export default function CharacterApp() {
 
         {/* Insight Feed */}
         <InsightFeed />
+
+        {/* Variant Badge — links to Discover */}
+        <VariantBadge />
 
         {/* Save Check-in */}
         <div>
