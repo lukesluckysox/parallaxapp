@@ -481,6 +481,11 @@ export default function WritingPage() {
   const [result, setResult] = useState<WritingAnalysis | null>(null);
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
+  // Analysis depth checkboxes
+  const [depthPrimary, setDepthPrimary] = useState(true);
+  const [depthSecondary, setDepthSecondary] = useState(true);
+  const [depthDeep, setDepthDeep] = useState(false);
+
   const { data: writings = [], refetch } = useQuery<Writing[]>({
     queryKey: ["/api/writings"],
   });
@@ -489,21 +494,26 @@ export default function WritingPage() {
     if (!content.trim()) return;
     setAnalyzing(true);
     try {
+      const tiers: string[] = [];
+      if (depthPrimary) tiers.push("primary");
+      if (depthSecondary) tiers.push("secondary");
+      if (depthDeep) tiers.push("deep");
+      if (tiers.length === 0) tiers.push("primary");
+
       const res = await apiRequest("POST", "/api/writing/analyze", {
         content,
         title: title || undefined,
         dateWritten: dateWritten || undefined,
+        tiers,
       });
       const data = await res.json();
       setResult(data);
       refetch();
     } catch (err: any) {
-      // Try to extract the server error message
       let msg = "Could not analyze writing. Try again.";
       try {
         const errText = err?.message || "";
         if (errText.includes(":")) {
-          // apiRequest throws "STATUS: body" — extract the body
           const body = errText.substring(errText.indexOf(":") + 1).trim();
           const parsed = JSON.parse(body);
           if (parsed.error) msg = parsed.error;
@@ -582,6 +592,42 @@ export default function WritingPage() {
             rows={10}
             className="w-full px-3 py-3 rounded-[10px] border border-border bg-card text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-muted-foreground/50 font-serif leading-relaxed"
           />
+
+          {/* Analysis Depth Selection */}
+          <div className="flex items-center gap-4 px-1">
+            <p className="text-[10px] text-muted-foreground/50 uppercase tracking-wider font-mono">Depth</p>
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={depthPrimary}
+                onChange={(e) => setDepthPrimary(e.target.checked)}
+                className="w-3.5 h-3.5 rounded border-border accent-primary"
+                data-testid="checkbox-depth-primary"
+              />
+              <span className="text-[11px] text-muted-foreground">Primary</span>
+            </label>
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={depthSecondary}
+                onChange={(e) => setDepthSecondary(e.target.checked)}
+                className="w-3.5 h-3.5 rounded border-border accent-primary"
+                data-testid="checkbox-depth-secondary"
+              />
+              <span className="text-[11px] text-muted-foreground">Secondary</span>
+            </label>
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={depthDeep}
+                onChange={(e) => setDepthDeep(e.target.checked)}
+                className="w-3.5 h-3.5 rounded border-border accent-primary"
+                data-testid="checkbox-depth-deep"
+              />
+              <span className="text-[11px] text-muted-foreground">Deep Layer</span>
+            </label>
+          </div>
+
           <button
             data-testid="button-analyze-writing-page"
             onClick={handleAnalyze}

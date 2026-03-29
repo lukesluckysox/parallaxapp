@@ -732,10 +732,48 @@ Return ONLY valid JSON:
     }
   });
 
-  // POST /api/writing/analyze — LLM analyzes writing sample (two-pass for reliability)
+  // Helper: call LLM and parse JSON with retry
+  async function callAndParseJSON(systemPrompt: string, userPrompt: string, maxTokens: number): Promise<any> {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const message = await anthropic.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: maxTokens,
+        system: systemPrompt,
+        messages: [{ role: "user", content: userPrompt }],
+      });
+
+      const raw = message.content[0].type === "text" ? message.content[0].text : "";
+      let text = raw.trim();
+      text = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
+      const match = text.match(/\{[\s\S]*\}/);
+      if (!match) {
+        console.error(`LLM JSON parse: no JSON (attempt ${attempt + 1}). First 200:`, raw.slice(0, 200));
+        continue;
+      }
+      try {
+        return JSON.parse(match[0]);
+      } catch {
+        let fixed = match[0]
+          .replace(/,\s*}/g, "}")
+          .replace(/,\s*]/g, "]")
+          .replace(/(["'])\s*\n\s*/g, "$1 ");
+        try {
+          return JSON.parse(fixed);
+        } catch {
+          console.error(`LLM JSON parse: failed (attempt ${attempt + 1}). First 300:`, match[0].slice(0, 300));
+          continue;
+        }
+      }
+    }
+    return null;
+  }
+
+  const SYSTEM_JSON = "You are a literary psychologist. You MUST respond with ONLY valid JSON. No markdown, no code fences, no explanation, no text outside the JSON object.";
+
+  // POST /api/writing/analyze — tier-based analysis (primary / secondary / deep)
   app.post("/api/writing/analyze", async (req, res) => {
     try {
-      const { content, title, dateWritten } = req.body;
+      const { content, title, dateWritten, tiers } = req.body;
       if (!content || typeof content !== "string") {
         return res.status(400).json({ error: "content is required" });
       }
@@ -747,81 +785,58 @@ Return ONLY valid JSON:
       const userId = getUserId(req);
       const titleStr = title ? `\nTitle: "${title}"` : "";
       const dateStr = dateWritten ? `\nDate written: ${dateWritten}` : "";
-
-      // Helper: call LLM and parse JSON with retry
-      async function callAndParse(systemPrompt: string, userPrompt: string, maxTokens: number): Promise<any> {
-        for (let attempt = 0; attempt < 2; attempt++) {
-          const message = await anthropic.messages.create({
-            model: "claude-sonnet-4-20250514",
-            max_tokens: maxTokens,
-            system: systemPrompt,
-            messages: [{ role: "user", content: userPrompt }],
-          });
-
-          const raw = message.content[0].type === "text" ? message.content[0].text : "";
-          let text = raw.trim();
-          // Strip markdown fences
-          text = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
-          // Try to find JSON object
-          const match = text.match(/\{[\s\S]*\}/);
-          if (!match) {
-            console.error(`Writing analyze pass: no JSON (attempt ${attempt + 1}). First 200:`, raw.slice(0, 200));
-            continue;
-          }
-          try {
-            return JSON.parse(match[0]);
-          } catch (e) {
-            // Try to fix common JSON issues: trailing commas, unescaped newlines in strings
-            let fixed = match[0]
-              .replace(/,\s*}/g, "}")
-              .replace(/,\s*]/g, "]")
-              .replace(/(["'])\s*\n\s*/g, "$1 ");
-            try {
-              return JSON.parse(fixed);
-            } catch {
-              console.error(`Writing analyze pass: JSON parse failed (attempt ${attempt + 1}). First 300:`, match[0].slice(0, 300));
-              continue;
-            }
-          }
-        }
-        return null;
-      }
-
       const writingExcerpt = content.length > 4000 ? content.slice(0, 4000) + "\n[truncated]" : content;
+      const writingBlock = `${titleStr}${dateStr}\n\n"""\n${writingExcerpt}\n"""`;
 
-      // ── PASS 1: Core analysis (emotions, dimensions, narrative, mirror moment) ──
-      const coreResult = await callAndParse(
-        "You are a literary psychologist. You MUST respond with ONLY valid JSON. No markdown, no explanation, no text outside the JSON object.",
-        `Analyze this writing:${titleStr}${dateStr}\n\n"""\n${writingExcerpt}\n"""\n\nReturn JSON with these exact keys:\n- emotions: object of emotion names to 0-1 intensity (3-6 emotions)\n- dimensions: {focus, calm, discipline, health, social, creativity, exploration, ambition} each 0-100\n- archetype_lean: one of "observer", "builder", "explorer", "dissenter", "seeker"\n- narrative: 2-3 sentence reading of what this reveals about the author\n- nudges: {focus, calm, discipline, health, social, creativity, exploration, ambition} each -15 to +15\n- word_themes: array of 3-5 thematic words\n- mirror_moment: {"line": "exact verbatim line from the writing", "interpretation": "2-3 sentence reflection"}`,
-        3000
-      );
+      // Determine which tiers to run
+      const requestedTiers: string[] = Array.isArray(tiers) && tiers.length > 0 ? tiers : ["primary", "secondary"];
+      const doPrimary = requestedTiers.includes("primary");
+      const doSecondary = requestedTiers.includes("secondary");
+      const doDeep = requestedTiers.includes("deep");
 
-      if (!coreResult) {
-        return res.status(500).json({ error: "Analysis failed after retries. Try submitting again." });
-      }
+      let merged: any = {};
 
-      // ── PASS 2: Deep layer (MBTI, political compass, moral foundations, quotes, reading) ──
-      let deepResult: any = null;
-      try {
-        deepResult = await callAndParse(
-          "You are a literary psychologist. You MUST respond with ONLY valid JSON. No markdown, no explanation, no text outside the JSON object.",
-          `Based on this writing:${titleStr}${dateStr}\n\n"""\n${writingExcerpt}\n"""\n\nReturn JSON with these exact keys:\n- political_compass: {"economic": -10 to 10, "social": -10 to 10, "explanation": "one sentence"}\n- mbti: {"extraversion": 0-100, "intuition": 0-100, "feeling": 0-100, "perceiving": 0-100, "type": "XXXX", "explanation": "one sentence"}\n- moral_foundations: {"care": 0-1, "fairness": 0-1, "loyalty": 0-1, "authority": 0-1, "sanctity": 0-1, "liberty": 0-1, "explanation": "one sentence"}\n- quotes: array of 5 objects {"text": "quote", "author": "name"} from real well-known authors relevant to this writing\n- recommended_reading: array of 3 objects {"title": "book", "author": "name", "reason": "one sentence"}`,
-          2500
+      // ── TIER 1: PRIMARY (mirror moment, narrative, emotional tone) ──
+      if (doPrimary) {
+        const result = await callAndParseJSON(
+          SYSTEM_JSON,
+          `Analyze this writing:${writingBlock}\n\nReturn JSON with these exact keys:\n- emotions: object of emotion names to 0-1 intensity (3-6 emotions)\n- archetype_lean: one of "observer", "builder", "explorer", "dissenter", "seeker"\n- narrative: 2-3 sentence reading of what this reveals about the author\n- mirror_moment: {"line": "exact verbatim line from the writing", "interpretation": "2-3 sentence reflection"}\n- word_themes: array of 3-5 thematic words`,
+          2000
         );
-      } catch (e) {
-        console.error("Writing analyze deep pass error:", e);
-        // Deep layer is optional — core analysis still succeeds
+        if (!result) {
+          return res.status(500).json({ error: "Primary analysis failed. Try again." });
+        }
+        merged = { ...merged, ...result };
       }
 
-      // Merge results
-      const merged = {
-        ...coreResult,
-        political_compass: deepResult?.political_compass || null,
-        mbti: deepResult?.mbti || null,
-        moral_foundations: deepResult?.moral_foundations || null,
-        quotes: deepResult?.quotes || null,
-        recommended_reading: deepResult?.recommended_reading || null,
-      };
+      // ── TIER 2: SECONDARY (dimensions, nudges, archetype, quotes, reading) ──
+      if (doSecondary) {
+        const result = await callAndParseJSON(
+          SYSTEM_JSON,
+          `Analyze this writing:${writingBlock}\n\nReturn JSON with these exact keys:\n- dimensions: {focus, calm, discipline, health, social, creativity, exploration, ambition} each 0-100\n- nudges: {focus, calm, discipline, health, social, creativity, exploration, ambition} each -15 to +15\n- quotes: array of 5 objects {"text": "quote", "author": "name"} from real well-known authors relevant to this writing\n- recommended_reading: array of 3 objects {"title": "book", "author": "name", "reason": "one sentence"}`,
+          2000
+        );
+        if (result) {
+          merged = { ...merged, ...result };
+        }
+      }
+
+      // ── TIER 3: DEEP LAYER (MBTI, political compass, moral foundations) ──
+      if (doDeep) {
+        const result = await callAndParseJSON(
+          SYSTEM_JSON,
+          `Analyze this writing:${writingBlock}\n\nReturn JSON with these exact keys:\n- political_compass: {"economic": number -10 to 10, "social": number -10 to 10, "explanation": "one sentence"}\n- mbti: {"extraversion": 0-100, "intuition": 0-100, "feeling": 0-100, "perceiving": 0-100, "type": "XXXX", "explanation": "one sentence"}\n- moral_foundations: {"care": 0-1, "fairness": 0-1, "loyalty": 0-1, "authority": 0-1, "sanctity": 0-1, "liberty": 0-1, "explanation": "one sentence"}`,
+          1500
+        );
+        if (result) {
+          merged = { ...merged, ...result };
+        }
+      }
+
+      // Ensure we have at least primary
+      if (!merged.narrative && !merged.emotions && !merged.dimensions) {
+        return res.status(500).json({ error: "Analysis produced no results. Try again." });
+      }
 
       // Save to database
       const writing = storage.createWriting({
@@ -830,17 +845,17 @@ Return ONLY valid JSON:
         content,
         date_written: dateWritten || null,
         analysis: JSON.stringify({
-          emotions: merged.emotions,
-          dimensions: merged.dimensions,
-          archetype_lean: merged.archetype_lean,
-          narrative: merged.narrative,
-          word_themes: merged.word_themes,
+          emotions: merged.emotions || null,
+          dimensions: merged.dimensions || null,
+          archetype_lean: merged.archetype_lean || null,
+          narrative: merged.narrative || null,
+          word_themes: merged.word_themes || null,
           mirror_moment: merged.mirror_moment || null,
-          political_compass: merged.political_compass,
-          mbti: merged.mbti,
-          moral_foundations: merged.moral_foundations,
-          quotes: merged.quotes,
-          recommended_reading: merged.recommended_reading,
+          political_compass: merged.political_compass || null,
+          mbti: merged.mbti || null,
+          moral_foundations: merged.moral_foundations || null,
+          quotes: merged.quotes || null,
+          recommended_reading: merged.recommended_reading || null,
         }),
         nudges: JSON.stringify(merged.nudges || {}),
         user_id: userId,
@@ -851,13 +866,13 @@ Return ONLY valid JSON:
       console.error("Writing analyze error:", err?.message || err);
       const msg = err?.message || "Unknown error";
       if (msg.includes("rate") || msg.includes("429")) {
-        return res.status(429).json({ error: "Rate limited by AI provider. Wait a moment and try again." });
+        return res.status(429).json({ error: "Rate limited. Wait a moment and try again." });
       }
       if (msg.includes("timeout") || msg.includes("ETIMEDOUT")) {
-        return res.status(504).json({ error: "Analysis timed out. Try again with shorter text." });
+        return res.status(504).json({ error: "Timed out. Try again with shorter text." });
       }
       if (msg.includes("key") || msg.includes("auth") || msg.includes("401")) {
-        return res.status(503).json({ error: "AI service authentication error. Check API key." });
+        return res.status(503).json({ error: "AI service auth error. Check API key." });
       }
       return res.status(500).json({ error: "Analysis failed — " + msg.slice(0, 100) });
     }
