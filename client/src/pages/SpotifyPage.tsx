@@ -138,6 +138,50 @@ function StatCard({ label, value, icon }: { label: string; value: string; icon: 
   );
 }
 
+function MusicSynopsis({ stats, recentTracks }: { stats: HistoryData["stats"]; recentTracks: SpotifyListen[] }) {
+  const [synopsis, setSynopsis] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [fetched, setFetched] = useState(false);
+
+  useEffect(() => {
+    if (fetched || stats.totalTracks === 0) return;
+    setLoading(true);
+    setFetched(true);
+    (async () => {
+      try {
+        const trackList = recentTracks.slice(0, 10).map(t =>
+          `"${t.track_name}" by ${t.artist_name} (energy:${t.energy ?? "?"}, valence:${t.valence ?? "?"})`
+        ).join(", ");
+        const res = await apiRequest("POST", "/api/interpret", {
+          text: `Based on my music listening patterns: ${stats.totalTracks} tracks, average energy ${stats.avgEnergy}%, average valence ${stats.avgValence}%, top artists: ${stats.topArtists.map(a => a.name).join(", ")}. Recent tracks: ${trackList}. What does my music listening suggest about my current psychological state? Answer in 2-3 sentences, focusing on identity and emotional patterns, not just describing the music.`,
+          spotifySummary: `${stats.totalTracks} tracks, avg energy ${stats.avgEnergy}%, avg valence ${stats.avgValence}%`,
+        });
+        const data = await res.json();
+        if (data.narrative) setSynopsis(data.narrative);
+      } catch { /* skip */ }
+      setLoading(false);
+    })();
+  }, [stats, recentTracks, fetched]);
+
+  if (!synopsis && !loading) return null;
+
+  return (
+    <div className="p-3 rounded-[10px] border border-primary/20 bg-primary/5" data-testid="card-music-synopsis">
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-primary/60 mb-1.5">
+        Sonic reading
+      </p>
+      {loading ? (
+        <div className="space-y-1.5">
+          <div className="h-3 bg-muted rounded animate-pulse w-full" />
+          <div className="h-3 bg-muted rounded animate-pulse w-4/5" />
+        </div>
+      ) : (
+        <p className="text-sm text-foreground leading-relaxed italic">{synopsis}</p>
+      )}
+    </div>
+  );
+}
+
 export default function SpotifyPage() {
   const [refreshing, setRefreshing] = useState(false);
   const { user } = useAuth();
@@ -184,15 +228,17 @@ export default function SpotifyPage() {
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      // Call with ?log=true to actually log tracks to DB
-      await apiRequest("GET", "/api/spotify/now?log=true");
-      // Then refetch to update the UI
-      await refetchNow();
+      // Single call with ?log=true — logs new tracks AND returns now-playing data
+      const res = await apiRequest("GET", "/api/spotify/now?log=true");
+      const data = await res.json();
+      // Manually update the query cache instead of refetching (avoids double call)
+      queryClient.setQueryData(["/api/spotify/now"], data);
+      // Refresh history from DB
       await refetchHistory();
     } finally {
       setRefreshing(false);
     }
-  }, [refetchNow, refetchHistory]);
+  }, [refetchHistory]);
 
   const handleConnect = () => {
     if (!user?.id) return;
@@ -392,6 +438,11 @@ export default function SpotifyPage() {
                   ))}
                 </div>
               </div>
+            )}
+
+            {/* Music Synopsis */}
+            {stats && stats.totalTracks > 0 && (
+              <MusicSynopsis stats={stats} recentTracks={byDay.length > 0 ? byDay[0]?.tracks || [] : []} />
             )}
 
             {/* Listening History by Day */}

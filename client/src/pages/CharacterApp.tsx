@@ -225,10 +225,11 @@ function DataSourceSummary() {
 export default function CharacterApp() {
   const { toast } = useToast();
 
-  // State for dimension vectors
+  // State for dimension vectors — initialized from latest check-in below
   const [selfVec, setSelfVec] = useState<DimensionVec>(defaultVec());
   const [dataNudges, setDataNudges] = useState<Partial<DimensionVec>>({});
   const [hasDataSources, setHasDataSources] = useState(false);
+  const [initialLoaded, setInitialLoaded] = useState(false);
   const [feelingText, setFeelingText] = useState("");
   const [llmNarrative, setLlmNarrative] = useState("");
   const [spotifySummary, setSpotifySummary] = useState("");
@@ -315,11 +316,43 @@ export default function CharacterApp() {
     }
   }, [toast]);
 
-  // Auto-fetch all data sources on page load
+  // Load latest check-in + all data sources on page load
   useEffect(() => {
+    // Restore state from last saved check-in so gauges persist
+    (async () => {
+      try {
+        const res = await apiRequest("GET", "/api/checkins");
+        const checkins = await res.json();
+        if (Array.isArray(checkins) && checkins.length > 0) {
+          const latest = checkins[checkins.length - 1];
+          if (latest.self_vec) {
+            try {
+              const sv = JSON.parse(latest.self_vec);
+              setSelfVec(sv);
+            } catch {}
+          }
+          if (latest.data_vec) {
+            try {
+              const dv = JSON.parse(latest.data_vec);
+              // Convert absolute vec back to nudges (diff from baseline)
+              const nudges: Partial<DimensionVec> = {};
+              for (const dim of DIMENSIONS) {
+                const diff = (dv[dim] || 50) - 50;
+                if (diff !== 0) nudges[dim as keyof DimensionVec] = diff;
+              }
+              setDataNudges(nudges);
+              setHasDataSources(true);
+            } catch {}
+          }
+          if (latest.spotify_summary) setSpotifySummary(latest.spotify_summary);
+          if (latest.llm_narrative) setLlmNarrative(latest.llm_narrative);
+        }
+      } catch {}
+      setInitialLoaded(true);
+    })();
+    // Then fetch fresh data from sources
     fetchSpotify();
     fetchWriting();
-    // fetchFitness(); // uncomment when fitness is available
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Interpret feeling

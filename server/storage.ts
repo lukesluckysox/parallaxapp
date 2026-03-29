@@ -306,10 +306,12 @@ export class DatabaseStorage implements IStorage {
 
     for (const listen of listens) {
       artistCounts.set(listen.artist_name, (artistCounts.get(listen.artist_name) || 0) + 1);
-      if (listen.energy !== null && listen.energy !== undefined) {
-        energySum += listen.energy;
-        valenceSum += (listen.valence || 0);
-        danceSum += (listen.danceability || 0);
+      // Energy is stored as 0-100 integer, check for truthy (0 is valid but rare)
+      const e = listen.energy;
+      if (e !== null && e !== undefined && typeof e === "number" && e >= 0) {
+        energySum += e;
+        valenceSum += (listen.valence ?? 0);
+        danceSum += (listen.danceability ?? 0);
         featureCount++;
       }
     }
