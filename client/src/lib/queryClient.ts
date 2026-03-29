@@ -2,21 +2,20 @@ import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 const API_BASE = ".";
 
-let currentUserId: number | null = null;
+let currentToken: string | null = null;
 
-export function setCurrentUserId(id: number | null) {
-  currentUserId = id;
+export function setAuthToken(token: string | null) {
+  currentToken = token;
 }
 
-function getUserHeaders(): Record<string, string> {
+function getAuthHeaders(): Record<string, string> {
   const headers: Record<string, string> = {};
-  if (currentUserId) {
-    headers["X-User-Id"] = String(currentUserId);
+  if (currentToken) {
+    headers["Authorization"] = `Bearer ${currentToken}`;
   }
-  // Always send the user's timezone so the server can format timestamps correctly
   try {
     headers["X-Timezone"] = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  } catch { /* fallback: server uses UTC */ }
+  } catch {}
   return headers;
 }
 
@@ -33,7 +32,7 @@ export async function apiRequest(
   data?: unknown | undefined,
 ): Promise<Response> {
   const headers: Record<string, string> = {
-    ...getUserHeaders(),
+    ...getAuthHeaders(),
     ...(data ? { "Content-Type": "application/json" } : {}),
   };
 
@@ -55,7 +54,7 @@ export const getQueryFn: <T>(options: {
   async ({ queryKey }) => {
     const path = queryKey.join("/").replace(/\/\/+/g, "/");
     const res = await fetch(`${API_BASE}${path}`, {
-      headers: getUserHeaders(),
+      headers: getAuthHeaders(),
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {

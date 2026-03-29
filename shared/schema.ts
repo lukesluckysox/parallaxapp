@@ -46,6 +46,7 @@ export const writings = sqliteTable("writings", {
   date_written: text("date_written"),
   analysis: text("analysis"), // JSON: {emotions, dimensions, archetype_lean, word_frequencies, narrative}
   nudges: text("nudges"), // JSON: dimension nudges computed from this writing
+  status: text("status"), // "pending", "processing", "complete", "failed"
 });
 
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
@@ -80,9 +81,18 @@ export const spotifyTokens = sqliteTable("spotify_tokens", {
   spotify_display_name: text("spotify_display_name"),
 });
 
+export const cachedResponses = sqliteTable("cached_responses", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  user_id: integer("user_id").notNull(),
+  cache_key: text("cache_key").notNull(), // e.g. "discover", "forecast", "profile", "mirror-line", "mythology"
+  response_json: text("response_json").notNull(),
+  created_at: text("created_at").notNull(), // ISO timestamp
+});
+
 export const insertWritingSchema = createInsertSchema(writings).omit({ id: true });
 export const insertSpotifyListenSchema = createInsertSchema(spotifyListens).omit({ id: true });
 export const insertSpotifyTokenSchema = createInsertSchema(spotifyTokens).omit({ id: true });
+export const insertCachedResponseSchema = createInsertSchema(cachedResponses).omit({ id: true });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -96,3 +106,5 @@ export type InsertSpotifyListen = z.infer<typeof insertSpotifyListenSchema>;
 export type SpotifyListen = typeof spotifyListens.$inferSelect;
 export type InsertSpotifyToken = z.infer<typeof insertSpotifyTokenSchema>;
 export type SpotifyToken = typeof spotifyTokens.$inferSelect;
+export type InsertCachedResponse = z.infer<typeof insertCachedResponseSchema>;
+export type CachedResponse = typeof cachedResponses.$inferSelect;

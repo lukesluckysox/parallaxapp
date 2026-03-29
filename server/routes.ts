@@ -6,6 +6,9 @@ import Anthropic from "@anthropic-ai/sdk";
 import { DIMENSIONS } from "@shared/archetypes";
 import bcrypt from "bcryptjs";
 import { getAuthUrl, exchangeCode, refreshAccessToken, spotifyApi } from "./spotify-auth";
+import jwt from "jsonwebtoken";
+
+const JWT_SECRET = process.env.JWT_SECRET || "parallax-dev-secret-change-in-production";
 
 let anthropic: Anthropic;
 try {
@@ -34,9 +37,20 @@ function clamp(val: number, min: number, max: number): number {
 }
 
 function getUserId(req: Request): number | null {
+  // Try Authorization header (Bearer token)
+  const authHeader = req.headers.authorization;
+  if (authHeader?.startsWith("Bearer ")) {
+    try {
+      const decoded = jwt.verify(authHeader.slice(7), JWT_SECRET) as { userId: number };
+      return decoded.userId;
+    } catch {
+      return null;
+    }
+  }
+  // Fallback to X-User-Id for backward compat during transition
   const id = req.headers["x-user-id"];
-  if (!id) return null;
-  return parseInt(id as string, 10) || null;
+  if (id) return parseInt(id as string, 10) || null;
+  return null;
 }
 
 function getUserTimezone(req: Request): string {
@@ -139,10 +153,12 @@ export async function registerRoutes(
         created_at: new Date().toISOString(),
       });
 
+      const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "30d" });
       return res.json({
         id: user.id,
         username: user.username,
         displayName: user.display_name,
+        token,
       });
     } catch (err: any) {
       console.error("Register error:", err);
@@ -169,10 +185,12 @@ export async function registerRoutes(
         return res.status(401).json({ error: "Invalid username or password" });
       }
 
+      const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "30d" });
       return res.json({
         id: user.id,
         username: user.username,
         displayName: user.display_name,
+        token,
       });
     } catch (err: any) {
       console.error("Login error:", err);
@@ -673,6 +691,15 @@ Respond ONLY with valid JSON:
   app.get("/api/mythology", async (req, res) => {
     try {
       const userId = getUserId(req);
+
+      // Check cache first
+      if (userId) {
+        const cached = storage.getCachedResponse(userId, "mythology", 60);
+        if (cached) {
+          try { return res.json(JSON.parse(cached)); } catch {}
+        }
+      }
+
       const recentCheckins = storage.getCheckins(userId).slice(0, 10);
       const recentWritings = storage.getWritings(5, userId);
 
@@ -725,6 +752,9 @@ Return ONLY valid JSON:
       }
 
       const parsed = JSON.parse(jsonMatch[0]);
+      if (userId) {
+        storage.setCachedResponse(userId, "mythology", JSON.stringify(parsed));
+      }
       return res.json(parsed);
     } catch (err: any) {
       console.error("Mythology error:", err);
@@ -770,7 +800,7 @@ Return ONLY valid JSON:
 
   const SYSTEM_JSON = "You are a literary psychologist. You MUST respond with ONLY valid JSON. No markdown, no code fences, no explanation, no text outside the JSON object.";
 
-  // POST /api/writing/analyze — tier-based analysis (primary / secondary / deep)
+  // POST /api/writing/analyze — save immediately, analyze in background
   app.post("/api/writing/analyze", async (req, res) => {
     try {
       const { content, title, dateWritten, tiers } = req.body;
@@ -783,99 +813,121 @@ Return ONLY valid JSON:
       }
 
       const userId = getUserId(req);
-      const titleStr = title ? `\nTitle: "${title}"` : "";
-      const dateStr = dateWritten ? `\nDate written: ${dateWritten}` : "";
-      const writingExcerpt = content.length > 4000 ? content.slice(0, 4000) + "\n[truncated]" : content;
-      const writingBlock = `${titleStr}${dateStr}\n\n"""\n${writingExcerpt}\n"""`;
 
-      // Determine which tiers to run
-      const requestedTiers: string[] = Array.isArray(tiers) && tiers.length > 0 ? tiers : ["primary", "secondary"];
-      const doPrimary = requestedTiers.includes("primary");
-      const doSecondary = requestedTiers.includes("secondary");
-      const doDeep = requestedTiers.includes("deep");
-
-      let merged: any = {};
-
-      // ── TIER 1: PRIMARY (mirror moment, narrative, emotional tone) ──
-      if (doPrimary) {
-        const result = await callAndParseJSON(
-          SYSTEM_JSON,
-          `Analyze this writing:${writingBlock}\n\nReturn JSON with these exact keys:\n- emotions: object of emotion names to 0-1 intensity (3-6 emotions)\n- archetype_lean: one of "observer", "builder", "explorer", "dissenter", "seeker"\n- narrative: 2-3 sentence reading of what this reveals about the author\n- mirror_moment: {"line": "exact verbatim line from the writing", "interpretation": "2-3 sentence reflection"}\n- word_themes: array of 3-5 thematic words`,
-          2000
-        );
-        if (!result) {
-          return res.status(500).json({ error: "Primary analysis failed. Try again." });
-        }
-        merged = { ...merged, ...result };
-      }
-
-      // ── TIER 2: SECONDARY (dimensions, nudges, archetype, quotes, reading) ──
-      if (doSecondary) {
-        const result = await callAndParseJSON(
-          SYSTEM_JSON,
-          `Analyze this writing:${writingBlock}\n\nReturn JSON with these exact keys:\n- dimensions: {focus, calm, discipline, health, social, creativity, exploration, ambition} each 0-100\n- nudges: {focus, calm, discipline, health, social, creativity, exploration, ambition} each -15 to +15\n- quotes: array of 5 objects {"text": "quote", "author": "name"} from real well-known authors relevant to this writing\n- recommended_reading: array of 3 objects {"title": "book", "author": "name", "reason": "one sentence"}`,
-          2000
-        );
-        if (result) {
-          merged = { ...merged, ...result };
-        }
-      }
-
-      // ── TIER 3: DEEP LAYER (MBTI, political compass, moral foundations) ──
-      if (doDeep) {
-        const result = await callAndParseJSON(
-          SYSTEM_JSON,
-          `Analyze this writing:${writingBlock}\n\nReturn JSON with these exact keys:\n- political_compass: {"economic": number -10 to 10, "social": number -10 to 10, "explanation": "one sentence"}\n- mbti: {"extraversion": 0-100, "intuition": 0-100, "feeling": 0-100, "perceiving": 0-100, "type": "XXXX", "explanation": "one sentence"}\n- moral_foundations: {"care": 0-1, "fairness": 0-1, "loyalty": 0-1, "authority": 0-1, "sanctity": 0-1, "liberty": 0-1, "explanation": "one sentence"}`,
-          1500
-        );
-        if (result) {
-          merged = { ...merged, ...result };
-        }
-      }
-
-      // Ensure we have at least primary
-      if (!merged.narrative && !merged.emotions && !merged.dimensions) {
-        return res.status(500).json({ error: "Analysis produced no results. Try again." });
-      }
-
-      // Save to database
+      // Save writing immediately with pending status
       const writing = storage.createWriting({
         timestamp: new Date().toISOString(),
         title: title || null,
         content,
         date_written: dateWritten || null,
-        analysis: JSON.stringify({
-          emotions: merged.emotions || null,
-          dimensions: merged.dimensions || null,
-          archetype_lean: merged.archetype_lean || null,
-          narrative: merged.narrative || null,
-          word_themes: merged.word_themes || null,
-          mirror_moment: merged.mirror_moment || null,
-          political_compass: merged.political_compass || null,
-          mbti: merged.mbti || null,
-          moral_foundations: merged.moral_foundations || null,
-          quotes: merged.quotes || null,
-          recommended_reading: merged.recommended_reading || null,
-        }),
-        nudges: JSON.stringify(merged.nudges || {}),
+        analysis: null,
+        nudges: null,
         user_id: userId,
+        status: "pending",
       });
 
-      return res.json({ ...merged, id: writing.id });
+      // Return immediately
+      res.json({ id: writing.id, status: "pending" });
+
+      // Process in background
+      (async () => {
+        try {
+          const titleStr = title ? `\nTitle: "${title}"` : "";
+          const dateStr = dateWritten ? `\nDate written: ${dateWritten}` : "";
+          const writingExcerpt = content.length > 4000 ? content.slice(0, 4000) + "\n[truncated]" : content;
+          const writingBlock = `${titleStr}${dateStr}\n\n"""\n${writingExcerpt}\n"""`;
+
+          const requestedTiers: string[] = Array.isArray(tiers) && tiers.length > 0 ? tiers : ["primary", "secondary"];
+          const doPrimary = requestedTiers.includes("primary");
+          const doSecondary = requestedTiers.includes("secondary");
+          const doDeep = requestedTiers.includes("deep");
+
+          let merged: any = {};
+
+          if (doPrimary) {
+            const result = await callAndParseJSON(
+              SYSTEM_JSON,
+              `Analyze this writing:${writingBlock}\n\nReturn JSON with these exact keys:\n- emotions: object of emotion names to 0-1 intensity (3-6 emotions)\n- archetype_lean: one of "observer", "builder", "explorer", "dissenter", "seeker"\n- narrative: 2-3 sentence reading of what this reveals about the author\n- mirror_moment: {"line": "exact verbatim line from the writing", "interpretation": "2-3 sentence reflection"}\n- word_themes: array of 3-5 thematic words`,
+              2000
+            );
+            if (result) merged = { ...merged, ...result };
+          }
+
+          if (doSecondary) {
+            const result = await callAndParseJSON(
+              SYSTEM_JSON,
+              `Analyze this writing:${writingBlock}\n\nReturn JSON with these exact keys:\n- dimensions: {focus, calm, discipline, health, social, creativity, exploration, ambition} each 0-100\n- nudges: {focus, calm, discipline, health, social, creativity, exploration, ambition} each -15 to +15\n- quotes: array of 5 objects {"text": "quote", "author": "name"} from real well-known authors relevant to this writing\n- recommended_reading: array of 3 objects {"title": "book", "author": "name", "reason": "one sentence"}`,
+              2000
+            );
+            if (result) merged = { ...merged, ...result };
+          }
+
+          if (doDeep) {
+            const result = await callAndParseJSON(
+              SYSTEM_JSON,
+              `Analyze this writing:${writingBlock}\n\nReturn JSON with these exact keys:\n- political_compass: {"economic": number -10 to 10, "social": number -10 to 10, "explanation": "one sentence"}\n- mbti: {"extraversion": 0-100, "intuition": 0-100, "feeling": 0-100, "perceiving": 0-100, "type": "XXXX", "explanation": "one sentence"}\n- moral_foundations: {"care": 0-1, "fairness": 0-1, "loyalty": 0-1, "authority": 0-1, "sanctity": 0-1, "liberty": 0-1, "explanation": "one sentence"}`,
+              1500
+            );
+            if (result) merged = { ...merged, ...result };
+          }
+
+          const hasResult = merged.narrative || merged.emotions || merged.dimensions;
+
+          storage.updateWritingAnalysis(
+            writing.id,
+            JSON.stringify({
+              emotions: merged.emotions || null,
+              dimensions: merged.dimensions || null,
+              archetype_lean: merged.archetype_lean || null,
+              narrative: merged.narrative || null,
+              word_themes: merged.word_themes || null,
+              mirror_moment: merged.mirror_moment || null,
+              political_compass: merged.political_compass || null,
+              mbti: merged.mbti || null,
+              moral_foundations: merged.moral_foundations || null,
+              quotes: merged.quotes || null,
+              recommended_reading: merged.recommended_reading || null,
+            }),
+            JSON.stringify(merged.nudges || {}),
+            hasResult ? "complete" : "failed"
+          );
+
+          // Clear relevant caches
+          if (userId) {
+            storage.clearUserCache(userId, "profile");
+            storage.clearUserCache(userId, "mirror-line");
+          }
+        } catch (err: any) {
+          console.error("Background writing analysis error:", err?.message || err);
+          storage.updateWritingAnalysis(writing.id, "{}", "{}", "failed");
+        }
+      })();
     } catch (err: any) {
       console.error("Writing analyze error:", err?.message || err);
-      const msg = err?.message || "Unknown error";
-      if (msg.includes("rate") || msg.includes("429")) {
-        return res.status(429).json({ error: "Rate limited. Wait a moment and try again." });
-      }
-      if (msg.includes("timeout") || msg.includes("ETIMEDOUT")) {
-        return res.status(504).json({ error: "Timed out. Try again with shorter text." });
-      }
-      if (msg.includes("key") || msg.includes("auth") || msg.includes("401")) {
-        return res.status(503).json({ error: "AI service auth error. Check API key." });
-      }
-      return res.status(500).json({ error: "Analysis failed — " + msg.slice(0, 100) });
+      return res.status(500).json({ error: "Failed to save writing." });
     }
+  });
+
+  // GET /api/writing/:id/status — poll for analysis completion
+  app.get("/api/writing/:id/status", async (req, res) => {
+    const id = parseInt(req.params.id, 10);
+    if (!id) return res.status(400).json({ error: "Invalid id" });
+
+    const writing = storage.getWritingById(id);
+    if (!writing) return res.status(404).json({ error: "Not found" });
+
+    const status = (writing as any).status || "complete";
+    if (status === "complete" && writing.analysis) {
+      try {
+        const analysis = JSON.parse(writing.analysis);
+        const nudges = writing.nudges ? JSON.parse(writing.nudges) : {};
+        return res.json({ status: "complete", ...analysis, nudges, id: writing.id });
+      } catch {
+        return res.json({ status: "complete", id: writing.id });
+      }
+    }
+
+    return res.json({ status, id: writing.id });
   });
 
   // GET /api/writings — list recent writings
@@ -1035,6 +1087,11 @@ Return ONLY valid JSON:
     try {
       const userId = getUserId(req);
       const checkin = storage.createCheckin({ ...req.body, user_id: userId });
+      // Clear related caches so they refresh with new data
+      if (userId) {
+        storage.clearUserCache(userId, "mythology");
+        storage.clearUserCache(userId, "forecast");
+      }
       return res.json(checkin);
     } catch (err: any) {
       return res.status(500).json({ error: err.message });
@@ -1321,6 +1378,12 @@ Return ONLY valid JSON:
     const userId = getUserId(req);
     if (!userId) return res.json({ variant: null });
 
+    // Check cache first
+    const cachedProfile = storage.getCachedResponse(userId, "profile", 120);
+    if (cachedProfile) {
+      try { return res.json(JSON.parse(cachedProfile)); } catch {}
+    }
+
     const tz = getUserTimezone(req);
     const ctx = gatherUserContext(userId, tz);
     if (!ctx.hasData) return res.json({ variant: null, hasData: false });
@@ -1385,7 +1448,9 @@ Return ONLY valid JSON:
       const match = text.match(/\{[\s\S]*\}/);
       if (!match) return res.json({ variant: null, hasData: true });
       const parsed = JSON.parse(match[0]);
-      return res.json({ variant: parsed, hasData: true });
+      const profileResponseData = { variant: parsed, hasData: true };
+      storage.setCachedResponse(userId, "profile", JSON.stringify(profileResponseData));
+      return res.json(profileResponseData);
     } catch (err: any) {
       console.error("Profile variant error:", err);
       return res.json({ variant: null, hasData: true, error: err.message });
@@ -1397,6 +1462,14 @@ Return ONLY valid JSON:
   app.get("/api/discover", async (req, res) => {
     const userId = getUserId(req);
     if (!userId) return res.json({ insights: [] });
+
+    // Check cache first (skip if force=true)
+    if (req.query.force !== "true") {
+      const cached = storage.getCachedResponse(userId, "discover", 60);
+      if (cached) {
+        try { return res.json(JSON.parse(cached)); } catch {}
+      }
+    }
 
     const tz = getUserTimezone(req);
     const ctx = gatherUserContext(userId, tz);
@@ -1467,7 +1540,9 @@ Return ONLY valid JSON:
       const match = text.match(/\{[\s\S]*\}/);
       if (!match) return res.json({ insights: [], hasData: true });
       const parsed = JSON.parse(match[0]);
-      return res.json({ ...parsed, hasData: true });
+      const discoverResponseData = { ...parsed, hasData: true };
+      storage.setCachedResponse(userId, "discover", JSON.stringify(discoverResponseData));
+      return res.json(discoverResponseData);
     } catch (err) {
       console.error("Discover error:", err);
       return res.json({ insights: [], hasData: true, error: "Could not generate insights" });
@@ -1479,6 +1554,12 @@ Return ONLY valid JSON:
   app.get("/api/forecast", async (req, res) => {
     const userId = getUserId(req);
     if (!userId) return res.json({ forecast: null });
+
+    // Check cache first
+    const cachedForecast = storage.getCachedResponse(userId, "forecast", 30);
+    if (cachedForecast) {
+      try { return res.json(JSON.parse(cachedForecast)); } catch {}
+    }
 
     const tz = getUserTimezone(req);
     const ctx = gatherUserContext(userId, tz);
@@ -1543,7 +1624,9 @@ Return ONLY valid JSON:
       const match = text.match(/\{[\s\S]*\}/);
       if (!match) return res.json({ forecast: null, hasData: true });
       const parsed = JSON.parse(match[0]);
-      return res.json({ forecast: parsed, hasData: true });
+      const forecastResponseData = { forecast: parsed, hasData: true };
+      storage.setCachedResponse(userId, "forecast", JSON.stringify(forecastResponseData));
+      return res.json(forecastResponseData);
     } catch (err: any) {
       console.error("Forecast error:", err);
       return res.json({ forecast: null, hasData: true, error: err.message });
@@ -1691,6 +1774,12 @@ Return ONLY valid JSON:
     const userId = getUserId(req);
     if (!userId) return res.json({ line: null });
 
+    // Check cache first
+    const cachedMirror = storage.getCachedResponse(userId, "mirror-line", 120);
+    if (cachedMirror) {
+      try { return res.json(JSON.parse(cachedMirror)); } catch {}
+    }
+
     const writings = storage.getWritings(5, userId);
     if (writings.length === 0) return res.json({ line: null });
 
@@ -1749,7 +1838,9 @@ Return ONLY the single line, no quotes, no explanation.`
       const text = (message.content[0].type === "text" ? message.content[0].text : "").trim();
       // Strip any surrounding quotes
       const clean = text.replace(/^["']|["']$/g, "").trim();
-      return res.json({ line: clean || null });
+      const mirrorResponseData = { line: clean || null };
+      storage.setCachedResponse(userId, "mirror-line", JSON.stringify(mirrorResponseData));
+      return res.json(mirrorResponseData);
     } catch (err) {
       console.error("Mirror line error:", err);
       return res.json({ line: null });

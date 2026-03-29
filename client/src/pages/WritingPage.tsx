@@ -493,6 +493,7 @@ export default function WritingPage() {
   const handleAnalyze = async () => {
     if (!content.trim()) return;
     setAnalyzing(true);
+    setResult(null);
     try {
       const tiers: string[] = [];
       if (depthPrimary) tiers.push("primary");
@@ -500,15 +501,66 @@ export default function WritingPage() {
       if (depthDeep) tiers.push("deep");
       if (tiers.length === 0) tiers.push("primary");
 
-      const res = await apiRequest("POST", "/api/writing/analyze", {
+      // Submit writing — returns immediately with pending status
+      const submitRes = await apiRequest("POST", "/api/writing/analyze", {
         content,
         title: title || undefined,
         dateWritten: dateWritten || undefined,
         tiers,
       });
-      const data = await res.json();
-      setResult(data);
-      refetch();
+      const submitData = await submitRes.json();
+
+      if (submitData.status === "pending" && submitData.id) {
+        // Poll for completion
+        const writingId = submitData.id;
+        let attempts = 0;
+        const maxAttempts = 60; // 60 seconds max
+
+        const poll = async (): Promise<void> => {
+          attempts++;
+          if (attempts > maxAttempts) {
+            toast({ title: "Timeout", description: "Analysis is taking longer than expected. Check back in the writing history.", variant: "destructive" });
+            setAnalyzing(false);
+            refetch();
+            return;
+          }
+
+          try {
+            const statusRes = await apiRequest("GET", `/api/writing/${writingId}/status`);
+            const statusData = await statusRes.json();
+
+            if (statusData.status === "complete") {
+              setResult(statusData);
+              setAnalyzing(false);
+              refetch();
+              return;
+            } else if (statusData.status === "failed") {
+              toast({ title: "Error", description: "Analysis failed. Try again.", variant: "destructive" });
+              setAnalyzing(false);
+              refetch();
+              return;
+            }
+
+            // Still pending — wait and poll again
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            return poll();
+          } catch {
+            toast({ title: "Error", description: "Could not check analysis status.", variant: "destructive" });
+            setAnalyzing(false);
+            refetch();
+          }
+        };
+
+        await poll();
+      } else if (submitData.narrative || submitData.emotions) {
+        // Synchronous response (backward compat)
+        setResult(submitData);
+        setAnalyzing(false);
+        refetch();
+      } else {
+        toast({ title: "Error", description: submitData.error || "Could not analyze writing.", variant: "destructive" });
+        setAnalyzing(false);
+      }
     } catch (err: any) {
       let msg = "Could not analyze writing. Try again.";
       try {
@@ -518,9 +570,8 @@ export default function WritingPage() {
           const parsed = JSON.parse(body);
           if (parsed.error) msg = parsed.error;
         }
-      } catch { /* use default */ }
+      } catch {}
       toast({ title: "Error", description: msg, variant: "destructive" });
-    } finally {
       setAnalyzing(false);
     }
   };

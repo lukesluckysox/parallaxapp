@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
-import { setCurrentUserId, queryClient } from "./queryClient";
+import { setAuthToken, queryClient } from "./queryClient";
 
 interface User {
   id: number;
@@ -32,9 +32,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { ok: false, error: data.error || "Login failed" };
       }
       const data = await res.json();
-      setUser(data);
-      setCurrentUserId(data.id);
-      // Clear all cached queries so they refetch with the new user
+      setUser({ id: data.id, username: data.username, displayName: data.displayName });
+      setAuthToken(data.token);
       queryClient.clear();
       return { ok: true };
     } catch {
@@ -54,8 +53,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { ok: false, error: data.error || "Registration failed" };
       }
       const data = await res.json();
-      setUser(data);
-      setCurrentUserId(data.id);
+      setUser({ id: data.id, username: data.username, displayName: data.displayName });
+      setAuthToken(data.token);
       queryClient.clear();
       return { ok: true };
     } catch {
@@ -65,7 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     setUser(null);
-    setCurrentUserId(null);
+    setAuthToken(null);
     queryClient.clear();
   }, []);
 

@@ -5,6 +5,7 @@ import {
   type User, type InsertUser, users,
   type SpotifyListen, type InsertSpotifyListen, spotifyListens,
   type SpotifyToken, type InsertSpotifyToken, spotifyTokens,
+  cachedResponses,
 } from "@shared/schema";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import Database from "better-sqlite3";
@@ -52,6 +53,14 @@ export interface IStorage {
   getSpotifyToken(userId: number): SpotifyToken | undefined;
   saveSpotifyToken(data: InsertSpotifyToken): SpotifyToken;
   deleteSpotifyToken(userId: number): void;
+
+  // Cache methods
+  getCachedResponse(userId: number, cacheKey: string, maxAgeMinutes: number): string | null;
+  setCachedResponse(userId: number, cacheKey: string, responseJson: string): void;
+  clearUserCache(userId: number, cacheKey?: string): void;
+
+  // Writing update method
+  updateWritingAnalysis(id: number, analysis: string, nudges: string, status: string): void;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -126,12 +135,20 @@ export class DatabaseStorage implements IStorage {
         spotify_user_id TEXT,
         spotify_display_name TEXT
       );
+      CREATE TABLE IF NOT EXISTS cached_responses (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        cache_key TEXT NOT NULL,
+        response_json TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
     `);
 
     // Add user_id column to existing tables if they don't have it
     try { sqlite.exec("ALTER TABLE checkins ADD COLUMN user_id INTEGER"); } catch { /* column already exists */ }
     try { sqlite.exec("ALTER TABLE decisions ADD COLUMN user_id INTEGER"); } catch { /* column already exists */ }
     try { sqlite.exec("ALTER TABLE writings ADD COLUMN user_id INTEGER"); } catch { /* column already exists */ }
+    try { sqlite.exec("ALTER TABLE writings ADD COLUMN status TEXT DEFAULT 'complete'"); } catch { /* column already exists */ }
   }
 
   // ---- User methods ----
@@ -358,6 +375,52 @@ export class DatabaseStorage implements IStorage {
 
   deleteSpotifyToken(userId: number): void {
     db.delete(spotifyTokens).where(eq(spotifyTokens.user_id, userId)).run();
+  }
+
+  // ---- Cache Methods ----
+  getCachedResponse(userId: number, cacheKey: string, maxAgeMinutes: number): string | null {
+    const cutoff = new Date(Date.now() - maxAgeMinutes * 60 * 1000).toISOString();
+    const row = db.select().from(cachedResponses)
+      .where(and(
+        eq(cachedResponses.user_id, userId),
+        eq(cachedResponses.cache_key, cacheKey),
+        gte(cachedResponses.created_at, cutoff)
+      ))
+      .orderBy(desc(cachedResponses.created_at))
+      .get();
+    return row?.response_json || null;
+  }
+
+  setCachedResponse(userId: number, cacheKey: string, responseJson: string): void {
+    // Delete old entries for this user+key
+    db.delete(cachedResponses).where(
+      and(eq(cachedResponses.user_id, userId), eq(cachedResponses.cache_key, cacheKey))
+    ).run();
+    // Insert new
+    db.insert(cachedResponses).values({
+      user_id: userId,
+      cache_key: cacheKey,
+      response_json: responseJson,
+      created_at: new Date().toISOString(),
+    }).run();
+  }
+
+  clearUserCache(userId: number, cacheKey?: string): void {
+    if (cacheKey) {
+      db.delete(cachedResponses).where(
+        and(eq(cachedResponses.user_id, userId), eq(cachedResponses.cache_key, cacheKey))
+      ).run();
+    } else {
+      db.delete(cachedResponses).where(eq(cachedResponses.user_id, userId)).run();
+    }
+  }
+
+  // ---- Writing Analysis Update ----
+  updateWritingAnalysis(id: number, analysis: string, nudges: string, status: string): void {
+    db.update(writings)
+      .set({ analysis, nudges, status })
+      .where(eq(writings.id, id))
+      .run();
   }
 }
 

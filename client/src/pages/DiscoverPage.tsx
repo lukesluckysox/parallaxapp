@@ -401,7 +401,7 @@ export default function DiscoverPage() {
   const [refreshKey, setRefreshKey] = useState(0);
 
   const { data, isLoading: insightsLoading, isFetching } = useQuery<DiscoverResponse>({
-    queryKey: ["/api/discover", refreshKey],
+    queryKey: [`/api/discover${refreshKey > 0 ? "?force=true" : ""}`],
     staleTime: 0,
   });
 
@@ -411,7 +411,7 @@ export default function DiscoverPage() {
   });
 
   const handleRefresh = () => {
-    queryClient.removeQueries({ queryKey: ["/api/discover", refreshKey] });
+    queryClient.removeQueries({ queryKey: [`/api/discover${refreshKey > 0 ? "?force=true" : ""}`] });
     setRefreshKey((k) => k + 1);
     refetchProfile();
   };
