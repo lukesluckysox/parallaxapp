@@ -1,0 +1,98 @@
+import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import { createInsertSchema } from "drizzle-zod";
+import { z } from "zod";
+
+export const users = sqliteTable("users", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  username: text("username").notNull().unique(),
+  password_hash: text("password_hash").notNull(),
+  display_name: text("display_name"),
+  created_at: text("created_at").notNull(),
+});
+
+export const checkins = sqliteTable("checkins", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  user_id: integer("user_id"),
+  timestamp: text("timestamp").notNull(),
+  self_vec: text("self_vec").notNull(), // JSON string of {focus, calm, ...}
+  data_vec: text("data_vec"), // JSON string of {focus, calm, ...} or null
+  self_archetype: text("self_archetype").notNull(),
+  data_archetype: text("data_archetype"),
+  feeling_text: text("feeling_text"),
+  spotify_summary: text("spotify_summary"),
+  fitness_summary: text("fitness_summary"),
+  llm_narrative: text("llm_narrative"),
+});
+
+export const decisions = sqliteTable("decisions", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  user_id: integer("user_id"),
+  checkin_id: integer("checkin_id"),
+  timestamp: text("timestamp").notNull(),
+  decision_text: text("decision_text").notNull(),
+  impact_vec: text("impact_vec").notNull(), // JSON string of {focus: -50..50, ...}
+  target_archetype: text("target_archetype"),
+  verdict: text("verdict"), // "do" | "skip" | "neutral"
+  alignment_before: integer("alignment_before"),
+  alignment_after: integer("alignment_after"),
+});
+
+export const writings = sqliteTable("writings", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  user_id: integer("user_id"),
+  timestamp: text("timestamp").notNull(),
+  title: text("title"),
+  content: text("content").notNull(),
+  date_written: text("date_written"),
+  analysis: text("analysis"), // JSON: {emotions, dimensions, archetype_lean, word_frequencies, narrative}
+  nudges: text("nudges"), // JSON: dimension nudges computed from this writing
+});
+
+export const insertUserSchema = createInsertSchema(users).omit({ id: true });
+export const insertCheckinSchema = createInsertSchema(checkins).omit({ id: true });
+export const insertDecisionSchema = createInsertSchema(decisions).omit({ id: true });
+export const spotifyListens = sqliteTable("spotify_listens", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  user_id: integer("user_id"),
+  timestamp: text("timestamp").notNull(),
+  track_id: text("track_id").notNull(),
+  track_name: text("track_name").notNull(),
+  artist_name: text("artist_name").notNull(),
+  album_name: text("album_name"),
+  album_art_url: text("album_art_url"),
+  duration_ms: integer("duration_ms"),
+  // Audio features stored as 0-100 integers
+  energy: integer("energy"),
+  valence: integer("valence"),
+  danceability: integer("danceability"),
+  acousticness: integer("acousticness"),
+  instrumentalness: integer("instrumentalness"),
+  tempo: integer("tempo"),
+});
+
+export const spotifyTokens = sqliteTable("spotify_tokens", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  user_id: integer("user_id").notNull().unique(),
+  access_token: text("access_token").notNull(),
+  refresh_token: text("refresh_token").notNull(),
+  expires_at: text("expires_at").notNull(), // ISO timestamp
+  spotify_user_id: text("spotify_user_id"),
+  spotify_display_name: text("spotify_display_name"),
+});
+
+export const insertWritingSchema = createInsertSchema(writings).omit({ id: true });
+export const insertSpotifyListenSchema = createInsertSchema(spotifyListens).omit({ id: true });
+export const insertSpotifyTokenSchema = createInsertSchema(spotifyTokens).omit({ id: true });
+
+export type InsertUser = z.infer<typeof insertUserSchema>;
+export type User = typeof users.$inferSelect;
+export type InsertCheckin = z.infer<typeof insertCheckinSchema>;
+export type Checkin = typeof checkins.$inferSelect;
+export type InsertDecision = z.infer<typeof insertDecisionSchema>;
+export type Decision = typeof decisions.$inferSelect;
+export type InsertWriting = z.infer<typeof insertWritingSchema>;
+export type Writing = typeof writings.$inferSelect;
+export type InsertSpotifyListen = z.infer<typeof insertSpotifyListenSchema>;
+export type SpotifyListen = typeof spotifyListens.$inferSelect;
+export type InsertSpotifyToken = z.infer<typeof insertSpotifyTokenSchema>;
+export type SpotifyToken = typeof spotifyTokens.$inferSelect;
