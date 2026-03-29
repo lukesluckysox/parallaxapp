@@ -362,53 +362,11 @@ export async function registerRoutes(
         currentFeatures = audioFeaturesMap.get(currentTrack.id) || null;
       }
 
-      // 5. Log current track to DB if playing
-      if (currentTrack) {
-        try {
-          storage.logSpotifyListen({
-            user_id: userId,
-            timestamp: new Date().toISOString(),
-            track_id: currentTrack.id,
-            track_name: currentTrack.name,
-            artist_name: currentTrack.artist,
-            album_name: null,
-            album_art_url: null,
-            duration_ms: null,
-            energy: currentFeatures ? Math.round((currentFeatures.energy || 0) * 100) : null,
-            valence: currentFeatures ? Math.round((currentFeatures.valence || 0) * 100) : null,
-            danceability: currentFeatures ? Math.round((currentFeatures.danceability || 0) * 100) : null,
-            acousticness: currentFeatures ? Math.round((currentFeatures.acousticness || 0) * 100) : null,
-            instrumentalness: currentFeatures ? Math.round((currentFeatures.instrumentalness || 0) * 100) : null,
-            tempo: currentFeatures ? Math.round(currentFeatures.tempo || 0) : null,
-          });
-        } catch (e) { /* dedup or error, skip */ }
-      }
+      // 5. Skip logging from this route — /api/spotify/now handles logging
+      // This route is for nudge computation only
 
-      // 6. Log recently played tracks to DB
-      for (const item of recentTracks) {
-        const track = item.track;
-        if (!track?.id) continue;
-        const features = audioFeaturesMap.get(track.id);
-        const albumImages = track.album?.images || [];
-        try {
-          storage.logSpotifyListen({
-            user_id: userId,
-            timestamp: item.played_at || new Date().toISOString(),
-            track_id: track.id,
-            track_name: track.name || "Unknown",
-            artist_name: track.artists?.[0]?.name || "Unknown",
-            album_name: track.album?.name || null,
-            album_art_url: albumImages[0]?.url || null,
-            duration_ms: track.duration_ms || null,
-            energy: features ? Math.round((features.energy || 0) * 100) : null,
-            valence: features ? Math.round((features.valence || 0) * 100) : null,
-            danceability: features ? Math.round((features.danceability || 0) * 100) : null,
-            acousticness: features ? Math.round((features.acousticness || 0) * 100) : null,
-            instrumentalness: features ? Math.round((features.instrumentalness || 0) * 100) : null,
-            tempo: features ? Math.round(features.tempo || 0) : null,
-          });
-        } catch (e) { /* dedup or error, skip */ }
-      }
+      // 6. Skip logging recently played from this route — /api/spotify/now handles it
+      // This route only computes nudges from whatever is already in the DB
 
       // 7. Compute AGGREGATED nudges from today's listening history
       const todayListens = storage.getSpotifyListensByDay(userId, 1);
@@ -861,6 +819,27 @@ Respond ONLY with valid JSON:
     }
   });
 
+  // DELETE /api/writings/:id — delete a writing entry
+  app.delete("/api/writings/:id", async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+      const id = parseInt(req.params.id, 10);
+      if (!id) {
+        return res.status(400).json({ error: "Invalid ID" });
+      }
+      const deleted = storage.deleteWriting(id, userId);
+      if (!deleted) {
+        return res.status(404).json({ error: "Writing not found or not yours" });
+      }
+      return res.json({ success: true });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
   // GET /api/writing/nudges — aggregate nudges from writings in last 7 days
   app.get("/api/writing/nudges", async (req, res) => {
     try {
@@ -893,6 +872,55 @@ Respond ONLY with valid JSON:
         averaged[k] = Math.round(v / count);
       }
 
+      // Additional nudges from personality analysis
+      for (const w of recentWritings) {
+        try {
+          const analysis = JSON.parse(w.analysis!);
+
+          // MBTI influence on archetype dimensions
+          if (analysis.mbti) {
+            const { extraversion = 50, intuition = 50, feeling = 50, perceiving = 50 } = analysis.mbti;
+            // Introversion → focus, calm (Observer/Seeker signals)
+            if (extraversion < 40) { averaged.focus = (averaged.focus || 0) + 3; averaged.calm = (averaged.calm || 0) + 2; }
+            // Extraversion → social, exploration (Explorer/Dissenter signals)
+            if (extraversion > 60) { averaged.social = (averaged.social || 0) + 3; averaged.exploration = (averaged.exploration || 0) + 2; }
+            // Intuition → creativity, exploration
+            if (intuition > 60) { averaged.creativity = (averaged.creativity || 0) + 3; averaged.exploration = (averaged.exploration || 0) + 2; }
+            // Thinking → focus, discipline (Builder signals)
+            if (feeling < 40) { averaged.focus = (averaged.focus || 0) + 2; averaged.discipline = (averaged.discipline || 0) + 3; }
+            // Perceiving → exploration, creativity
+            if (perceiving > 60) { averaged.exploration = (averaged.exploration || 0) + 3; averaged.creativity = (averaged.creativity || 0) + 2; }
+            // Judging → discipline, ambition (Builder signals)
+            if (perceiving < 40) { averaged.discipline = (averaged.discipline || 0) + 3; averaged.ambition = (averaged.ambition || 0) + 2; }
+          }
+
+          // Political compass influence
+          if (analysis.political_compass) {
+            const { economic = 0, social: socialAxis = 0 } = analysis.political_compass;
+            // Libertarian lean → exploration, creativity (Dissenter/Explorer signals)
+            if (socialAxis < -3) { averaged.exploration = (averaged.exploration || 0) + 3; averaged.creativity = (averaged.creativity || 0) + 2; }
+            // Authoritarian lean → discipline, ambition (Builder signals)
+            if (socialAxis > 3) { averaged.discipline = (averaged.discipline || 0) + 2; averaged.ambition = (averaged.ambition || 0) + 2; }
+          }
+
+          // Moral foundations influence
+          if (analysis.moral_foundations) {
+            const { care = 0, fairness = 0, liberty = 0, authority = 0 } = analysis.moral_foundations;
+            // High care → social, calm (Seeker signals)
+            if (care > 0.7) { averaged.social = (averaged.social || 0) + 2; averaged.calm = (averaged.calm || 0) + 2; }
+            // High liberty → exploration (Dissenter signals)
+            if (liberty > 0.7) { averaged.exploration = (averaged.exploration || 0) + 3; }
+            // High authority → discipline (Builder signals)
+            if (authority > 0.7) { averaged.discipline = (averaged.discipline || 0) + 3; }
+          }
+        } catch { /* skip */ }
+      }
+
+      // Re-clamp all averaged values
+      for (const k of Object.keys(averaged)) {
+        averaged[k] = Math.max(-15, Math.min(15, averaged[k]));
+      }
+
       const latestAnalysis = recentWritings[0].analysis;
       let archetype = "";
       try {
@@ -900,7 +928,19 @@ Respond ONLY with valid JSON:
         archetype = a.archetype_lean || "";
       } catch { /* skip */ }
 
-      const summary = `${count} writing${count > 1 ? "s" : ""} analyzed${archetype ? ` · leaning ${archetype}` : ""}`;
+      let personalitySummary = "";
+      // Get latest MBTI type
+      const latestWithMbti = recentWritings.find(w => {
+        try { return JSON.parse(w.analysis!).mbti?.type; } catch { return false; }
+      });
+      if (latestWithMbti) {
+        try {
+          const a = JSON.parse(latestWithMbti.analysis!);
+          personalitySummary = ` · ${a.mbti.type}`;
+        } catch {}
+      }
+
+      const summary = `${count} writing${count > 1 ? "s" : ""} analyzed${archetype ? ` · leaning ${archetype}` : ""}${personalitySummary}`;
 
       return res.json({ nudges: averaged, count, summary });
     } catch (err: any) {
@@ -1065,16 +1105,22 @@ Respond ONLY with valid JSON:
         }
       }
 
-      // Log recently played tracks
+      // Smart import of recently played tracks:
+      // Only log tracks with played_at NEWER than our most recent DB entry
+      const existingListens = storage.getSpotifyListens(userId, 1);
+      const latestTimestamp = existingListens.length > 0 ? existingListens[0].timestamp : "1970-01-01T00:00:00.000Z";
+
       for (const item of recentTracks) {
         const track = item.track;
-        if (!track?.id) continue;
+        if (!track?.id || !item.played_at) continue;
+        // Only import if this play happened after our last recorded entry
+        if (item.played_at <= latestTimestamp) continue;
         const features = audioFeaturesMap.get(track.id);
         const albumImages = track.album?.images || [];
         try {
           storage.logSpotifyListen({
             user_id: userId,
-            timestamp: item.played_at || new Date().toISOString(),
+            timestamp: item.played_at,
             track_id: track.id,
             track_name: track.name || "Unknown",
             artist_name: track.artists?.[0]?.name || "Unknown",

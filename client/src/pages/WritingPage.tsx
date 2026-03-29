@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
-import { ArrowLeft, Sparkles, ChevronDown } from "lucide-react";
+import { ArrowLeft, Sparkles, ChevronDown, Trash2 } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import PoliticalCompass from "@/components/PoliticalCompass";
 import MbtiRadar from "@/components/MbtiRadar";
@@ -209,6 +209,233 @@ function ExtendedAnalysis({ analysis, compact }: { analysis: Partial<WritingAnal
       <AnalysisCharts analysis={analysis} />
       {analysis.quotes && <QuotesSection quotes={analysis.quotes} />}
       {analysis.recommended_reading && <ReadingSection books={analysis.recommended_reading} />}
+    </div>
+  );
+}
+
+/* ─── Cumulative Portrait ─── */
+function CumulativeAnalysis({ writings }: { writings: Writing[] }) {
+  const cumulative = useMemo(() => {
+    const parsed = writings
+      .map((w) => {
+        try {
+          return w.analysis ? (JSON.parse(w.analysis) as Partial<WritingAnalysis>) : null;
+        } catch {
+          return null;
+        }
+      })
+      .filter((a): a is Partial<WritingAnalysis> => a !== null);
+
+    if (parsed.length < 2) return null;
+
+    // Political compass averages
+    const compassEntries = parsed.filter(
+      (a) => a.political_compass && typeof a.political_compass.economic === "number"
+    );
+    const avgCompass =
+      compassEntries.length > 0
+        ? {
+            economic:
+              compassEntries.reduce((s, a) => s + a.political_compass!.economic, 0) /
+              compassEntries.length,
+            social:
+              compassEntries.reduce((s, a) => s + a.political_compass!.social, 0) /
+              compassEntries.length,
+          }
+        : null;
+
+    // MBTI averages
+    const mbtiEntries = parsed.filter((a) => a.mbti && a.mbti.type);
+    let avgMbti: { extraversion: number; intuition: number; feeling: number; perceiving: number; type: string } | null =
+      null;
+    if (mbtiEntries.length > 0) {
+      const avgE =
+        mbtiEntries.reduce((s, a) => s + (a.mbti!.extraversion ?? 50), 0) / mbtiEntries.length;
+      const avgN =
+        mbtiEntries.reduce((s, a) => s + (a.mbti!.intuition ?? 50), 0) / mbtiEntries.length;
+      const avgF =
+        mbtiEntries.reduce((s, a) => s + (a.mbti!.feeling ?? 50), 0) / mbtiEntries.length;
+      const avgP =
+        mbtiEntries.reduce((s, a) => s + (a.mbti!.perceiving ?? 50), 0) / mbtiEntries.length;
+      // Majority letter at each position
+      const letters = mbtiEntries.map((a) => a.mbti!.type);
+      const letter = (idx: number, a: string, b: string) => {
+        let countA = 0;
+        for (const l of letters) if (l[idx] === a) countA++;
+        return countA >= letters.length - countA ? a : b;
+      };
+      const type = `${letter(0, "E", "I")}${letter(1, "N", "S")}${letter(2, "F", "T")}${letter(3, "P", "J")}`;
+      avgMbti = { extraversion: avgE, intuition: avgN, feeling: avgF, perceiving: avgP, type };
+    }
+
+    // Moral foundations averages
+    const moralEntries = parsed.filter(
+      (a) => a.moral_foundations && typeof a.moral_foundations.care === "number"
+    );
+    const avgMoral =
+      moralEntries.length > 0
+        ? {
+            care: moralEntries.reduce((s, a) => s + a.moral_foundations!.care, 0) / moralEntries.length,
+            fairness:
+              moralEntries.reduce((s, a) => s + a.moral_foundations!.fairness, 0) / moralEntries.length,
+            loyalty:
+              moralEntries.reduce((s, a) => s + a.moral_foundations!.loyalty, 0) / moralEntries.length,
+            authority:
+              moralEntries.reduce((s, a) => s + a.moral_foundations!.authority, 0) / moralEntries.length,
+            sanctity:
+              moralEntries.reduce((s, a) => s + a.moral_foundations!.sanctity, 0) / moralEntries.length,
+            liberty:
+              moralEntries.reduce((s, a) => s + a.moral_foundations!.liberty, 0) / moralEntries.length,
+          }
+        : null;
+
+    // Emotions averages → top 6
+    const emotionEntries = parsed.filter(
+      (a) => a.emotions && Object.keys(a.emotions).length > 0
+    );
+    let topEmotions: { emotion: string; value: number }[] = [];
+    if (emotionEntries.length > 0) {
+      const emotionTotals: Record<string, { sum: number; count: number }> = {};
+      for (const a of emotionEntries) {
+        for (const [k, v] of Object.entries(a.emotions!)) {
+          if (!emotionTotals[k]) emotionTotals[k] = { sum: 0, count: 0 };
+          emotionTotals[k].sum += v as number;
+          emotionTotals[k].count++;
+        }
+      }
+      topEmotions = Object.entries(emotionTotals)
+        .map(([emotion, { sum, count }]) => ({ emotion, value: sum / count }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 6);
+    }
+
+    // Recurring themes
+    const themeCounts: Record<string, number> = {};
+    for (const a of parsed) {
+      if (a.word_themes) {
+        for (const t of a.word_themes) {
+          themeCounts[t] = (themeCounts[t] || 0) + 1;
+        }
+      }
+    }
+    const topThemes = Object.entries(themeCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([theme, count]) => ({ theme, count }));
+
+    return { avgCompass, avgMbti, avgMoral, topEmotions, topThemes, entryCount: parsed.length };
+  }, [writings]);
+
+  if (!cumulative) return null;
+
+  const { avgCompass, avgMbti, avgMoral, topEmotions, topThemes, entryCount } = cumulative;
+
+  return (
+    <div
+      className="space-y-4 p-4 rounded-[12px] bg-accent/30 border border-border/50"
+      data-testid="section-cumulative-analysis"
+    >
+      <div className="text-center space-y-1">
+        <h2 className="text-sm font-bold tracking-tight">Cumulative Portrait</h2>
+        <p className="text-[10px] text-muted-foreground">
+          Aggregated from {entryCount} writing entries
+        </p>
+      </div>
+
+      {/* Charts row */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {avgCompass && (
+          <div className="rounded-[10px] border border-border bg-card p-3 space-y-2">
+            <h4 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider text-center">
+              Political Compass
+            </h4>
+            <PoliticalCompass economic={avgCompass.economic} social={avgCompass.social} />
+            <p className="text-[9px] text-muted-foreground/50 text-center italic">
+              Average position across all entries
+            </p>
+          </div>
+        )}
+
+        {avgMbti && (
+          <div className="rounded-[10px] border border-border bg-card p-3 space-y-2">
+            <h4 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider text-center">
+              MBTI Profile
+            </h4>
+            <MbtiRadar
+              extraversion={avgMbti.extraversion}
+              intuition={avgMbti.intuition}
+              feeling={avgMbti.feeling}
+              perceiving={avgMbti.perceiving}
+              type={avgMbti.type}
+            />
+            <p className="text-[9px] text-muted-foreground/50 text-center italic">
+              Consensus type across entries
+            </p>
+          </div>
+        )}
+
+        {avgMoral && (
+          <div className="rounded-[10px] border border-border bg-card p-3 space-y-2">
+            <h4 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider text-center">
+              Moral Foundations
+            </h4>
+            <MoralFoundations
+              care={avgMoral.care}
+              fairness={avgMoral.fairness}
+              loyalty={avgMoral.loyalty}
+              authority={avgMoral.authority}
+              sanctity={avgMoral.sanctity}
+              liberty={avgMoral.liberty}
+            />
+            <p className="text-[9px] text-muted-foreground/50 text-center italic">
+              Averaged moral emphasis
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Top emotions */}
+      {topEmotions.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-xs font-medium text-muted-foreground">Dominant Emotions</h3>
+          <div className="space-y-1.5">
+            {topEmotions.map(({ emotion, value }) => (
+              <div key={emotion} className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground w-24 capitalize">{emotion}</span>
+                <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-primary/60 transition-all"
+                    style={{ width: `${Math.round(value * 100)}%` }}
+                  />
+                </div>
+                <span className="text-xs tabular-nums text-muted-foreground w-8 text-right">
+                  {Math.round(value * 100)}%
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Recurring themes */}
+      {topThemes.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-xs font-medium text-muted-foreground">Recurring Themes</h3>
+          <div className="flex flex-wrap gap-1.5">
+            {topThemes.map(({ theme, count }) => (
+              <span
+                key={theme}
+                className="px-2.5 py-1 rounded-full text-xs font-medium bg-accent text-accent-foreground border border-border"
+              >
+                {theme}
+                {count > 1 && (
+                  <span className="ml-1 text-[9px] text-muted-foreground/70">×{count}</span>
+                )}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -463,6 +690,9 @@ export default function WritingPage() {
           </div>
         )}
 
+        {/* Cumulative Portrait */}
+        <CumulativeAnalysis writings={writings} />
+
         {/* Writing History */}
         {writings.length > 0 && (
           <div className="space-y-3">
@@ -500,6 +730,19 @@ export default function WritingPage() {
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
                         <span className="text-xs text-muted-foreground">{dateStr}</span>
+                        <button
+                          data-testid={`button-delete-writing-${w.id}`}
+                          className="p-1 rounded hover:bg-destructive/10 text-muted-foreground/50 hover:text-destructive transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (!window.confirm("Delete this entry?")) return;
+                            apiRequest("DELETE", `/api/writings/${w.id}`).then(() => {
+                              queryClient.invalidateQueries({ queryKey: ["/api/writings"] });
+                            });
+                          }}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                         <ChevronDown
                           className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${
                             isExpanded ? "rotate-180" : ""

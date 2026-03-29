@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -314,6 +314,13 @@ export default function CharacterApp() {
       return null;
     }
   }, [toast]);
+
+  // Auto-fetch all data sources on page load
+  useEffect(() => {
+    fetchSpotify();
+    fetchWriting();
+    // fetchFitness(); // uncomment when fitness is available
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Interpret feeling
   const interpretMutation = useMutation({

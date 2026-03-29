@@ -32,6 +32,7 @@ export interface IStorage {
   getWritings(limit?: number, userId?: number | null): Writing[];
   createWriting(data: InsertWriting): Writing;
   getWritingById(id: number): Writing | undefined;
+  deleteWriting(id: number, userId: number): boolean;
 
   // Spotify methods
   logSpotifyListen(data: InsertSpotifyListen): SpotifyListen | null;
@@ -186,27 +187,47 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(writings).where(eq(writings.id, id)).get();
   }
 
+  deleteWriting(id: number, userId: number): boolean {
+    const writing = db.select().from(writings).where(eq(writings.id, id)).get();
+    if (!writing || writing.user_id !== userId) return false;
+    db.delete(writings).where(eq(writings.id, id)).run();
+    return true;
+  }
+
   // ---- Spotify Listens ----
   logSpotifyListen(data: InsertSpotifyListen): SpotifyListen | null {
-    // Dedup: skip if the most recent entry for this user is the same track
+    // Dedup: skip if this track_id already exists in the last 50 entries for this user
+    // This prevents duplicates from page refreshes, multiple routes logging, etc.
     const userId = data.user_id;
-    let lastListen: SpotifyListen | undefined;
+    let recentListens: SpotifyListen[];
     if (userId) {
-      lastListen = db.select().from(spotifyListens)
+      recentListens = db.select().from(spotifyListens)
         .where(eq(spotifyListens.user_id, userId))
         .orderBy(desc(spotifyListens.id))
         .limit(1)
-        .get();
+        .all();
     } else {
-      lastListen = db.select().from(spotifyListens)
+      recentListens = db.select().from(spotifyListens)
         .orderBy(desc(spotifyListens.id))
         .limit(1)
-        .get();
+        .all();
     }
-    // If the last logged track is the same song, skip it
-    if (lastListen && lastListen.track_id === data.track_id) {
+    // If the most recent entry is the same track, skip
+    if (recentListens.length > 0 && recentListens[0].track_id === data.track_id) {
       return null;
     }
+    // Also check: don't log if this exact track was logged in the last 30 min
+    const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    const recentSame = db.select().from(spotifyListens)
+      .where(
+        and(
+          eq(spotifyListens.track_id, data.track_id),
+          gte(spotifyListens.timestamp, thirtyMinAgo),
+          userId ? eq(spotifyListens.user_id, userId) : undefined as any
+        )
+      )
+      .get();
+    if (recentSame) return null;
 
     return db.insert(spotifyListens).values(data).returning().get();
   }
