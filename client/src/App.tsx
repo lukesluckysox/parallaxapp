@@ -11,6 +11,7 @@ import DecisionsPage from "./pages/DecisionsPage";
 import DiscoverPage from "./pages/DiscoverPage";
 import HealthPage from "./pages/HealthPage";
 import TrajectoryPage from "./pages/TrajectoryPage";
+import HolisticPage from "./pages/HolisticPage";
 import AboutPage from "./pages/AboutPage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/not-found";
@@ -34,6 +35,7 @@ function AppContent() {
     <Router hook={useHashLocation}>
       <Switch>
         <Route path="/" component={CharacterApp} />
+        <Route path="/holistic" component={HolisticPage} />
         <Route path="/writing" component={WritingPage} />
         <Route path="/spotify" component={SpotifyPage} />
         <Route path="/decisions" component={DecisionsPage} />

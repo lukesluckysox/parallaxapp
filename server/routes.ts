@@ -1661,5 +1661,110 @@ Return ONLY valid JSON:
     return res.json({ events: events.slice(0, 15), hasData: events.length > 0 });
   });
 
+  // ===================== HOLISTIC OVERVIEW =====================
+
+  app.get("/api/holistic", async (req, res) => {
+    const userId = getUserId(req);
+    if (!userId) return res.json({ hasData: false });
+
+    const allCheckins = storage.getCheckins(userId);
+    const allWritings = storage.getWritings(50, userId);
+    const spotifyListens = storage.getSpotifyListens(userId, 100);
+    const spotifyStats = storage.getSpotifyStats(userId);
+
+    const hasData = allCheckins.length > 0 || allWritings.length > 0 || spotifyListens.length > 0;
+    if (!hasData) return res.json({ hasData: false });
+
+    // Compute cumulative dimension vectors (same logic as CharacterApp)
+    const selfDims: Record<string, number> = {};
+    const dataDims: Record<string, number> = {};
+    let selfWeight = 0;
+    let dataWeight = 0;
+
+    for (let i = 0; i < allCheckins.length; i++) {
+      const c = allCheckins[i];
+      const weight = 1 + (2 * i / Math.max(allCheckins.length - 1, 1));
+      if (c.self_vec) {
+        try {
+          const sv = JSON.parse(c.self_vec);
+          for (const dim of DIMENSIONS) {
+            selfDims[dim] = (selfDims[dim] || 0) + (sv[dim] || 50) * weight;
+          }
+          selfWeight += weight;
+        } catch {}
+      }
+      if (c.data_vec) {
+        try {
+          const dv = JSON.parse(c.data_vec);
+          for (const dim of DIMENSIONS) {
+            dataDims[dim] = (dataDims[dim] || 0) + (dv[dim] || 50) * weight;
+          }
+          dataWeight += weight;
+        } catch {}
+      }
+    }
+
+    const selfVec: Record<string, number> = {};
+    const dataVec: Record<string, number> = {};
+    for (const dim of DIMENSIONS) {
+      selfVec[dim] = selfWeight > 0 ? Math.round((selfDims[dim] || 0) / selfWeight) : 50;
+      dataVec[dim] = dataWeight > 0 ? Math.round((dataDims[dim] || 0) / dataWeight) : 50;
+    }
+
+    // Archetype distribution
+    const archDist: Record<string, number> = {};
+    for (const c of allCheckins) {
+      archDist[c.self_archetype] = (archDist[c.self_archetype] || 0) + 1;
+    }
+
+    // Writing themes
+    const allThemes: string[] = [];
+    const writingArchetypes: Record<string, number> = {};
+    for (const w of allWritings) {
+      if (w.analysis) {
+        try {
+          const a = JSON.parse(w.analysis);
+          if (a.word_themes) allThemes.push(...a.word_themes);
+          if (a.archetype_lean) writingArchetypes[a.archetype_lean] = (writingArchetypes[a.archetype_lean] || 0) + 1;
+        } catch {}
+      }
+    }
+
+    // Top themes by frequency
+    const themeCounts: Record<string, number> = {};
+    for (const t of allThemes) {
+      themeCounts[t] = (themeCounts[t] || 0) + 1;
+    }
+    const topThemes = Object.entries(themeCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([theme]) => theme);
+
+    // Source activity counts
+    const sources = {
+      checkins: allCheckins.length,
+      writings: allWritings.length,
+      tracks: spotifyListens.length,
+    };
+
+    return res.json({
+      hasData: true,
+      selfVec,
+      dataVec: dataWeight > 0 ? dataVec : null,
+      archetypeDistribution: archDist,
+      writingArchetypes,
+      topThemes,
+      sources,
+      spotifyStats: {
+        avgEnergy: spotifyStats.avgEnergy,
+        avgValence: spotifyStats.avgValence,
+        avgDanceability: spotifyStats.avgDanceability,
+        topArtists: spotifyStats.topArtists.slice(0, 5),
+      },
+      latestArchetype: allCheckins.length > 0 ? allCheckins[0].self_archetype : null,
+      latestDataArchetype: allCheckins.length > 0 ? allCheckins[0].data_archetype : null,
+    });
+  });
+
   return httpServer;
 }
