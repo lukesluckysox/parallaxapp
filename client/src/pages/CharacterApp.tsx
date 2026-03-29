@@ -4,11 +4,9 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { ARCHETYPES, ARCHETYPE_MAP, DIMENSIONS, type DimensionVec } from "@shared/archetypes";
 import { topArchetype, computeMixture, applyNudges, defaultVec } from "@shared/archetype-math";
-import SourcePills from "@/components/SourcePills";
 import FeelingInput from "@/components/FeelingInput";
 import GaugeSection from "@/components/GaugeSection";
-import MythologyCard from "@/components/MythologyCard";
-import { Sparkles, ArrowRight, Music, PenLine, Heart, Fingerprint, Radio, TrendingUp, TrendingDown, Minus, Zap, BookOpen, ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { Link } from "wouter";
 import ThemeToggle from "@/components/ThemeToggle";
 import type { Writing, Checkin } from "@shared/schema";
@@ -34,56 +32,90 @@ function ParallaxMirror() {
   );
 }
 
-// ── Mirror Moment Card ────────────────────────────────────────
-function MirrorMomentCard() {
-  const { data: writings = [] } = useQuery<Writing[]>({
-    queryKey: ["/api/writings"],
+// ── Daily Reading (merged forecast + mythology) ──────────────
+interface DailyReadingData {
+  arc_name: string;
+  narrative: string;
+  archetype_signals: Record<string, string>;
+  dominant_mode: string;
+  good_conditions: string[];
+  operating_rules: string[];
+  observation: string;
+}
+
+function DailyReading() {
+  const { data } = useQuery<{ reading: DailyReadingData | null }>({
+    queryKey: ["/api/daily-reading"],
+    staleTime: 10 * 60 * 1000,
   });
 
-  const latestMirror = writings.reduce<{ line: string; interpretation: string; archetype: string } | null>((found, w) => {
-    if (found) return found;
-    if (!w.analysis) return null;
-    try {
-      const analysis = JSON.parse(w.analysis);
-      if (analysis.mirror_moment && analysis.mirror_moment.line) {
-        return {
-          line: analysis.mirror_moment.line,
-          interpretation: analysis.mirror_moment.interpretation,
-          archetype: analysis.archetype_lean || "observer",
-        };
-      }
-    } catch { /* skip */ }
-    return null;
-  }, null);
+  const reading = data?.reading;
+  if (!reading) return null;
 
-  if (!latestMirror) return null;
-
-  const arch = ARCHETYPE_MAP[latestMirror.archetype];
+  const dominant = ARCHETYPE_MAP[reading.dominant_mode];
 
   return (
     <div
-      data-testid="card-mirror-moment-main"
-      className="p-3 rounded-[10px] border-l-4 bg-card/80"
-      style={{
-        borderLeftColor: arch?.color || "hsl(var(--primary))",
-        backgroundColor: arch ? `${arch.color}08` : undefined,
-      }}
+      data-testid="card-daily-reading"
+      className="p-4 rounded-[10px] border border-border/40 bg-card/30 space-y-3"
     >
-      <div className="flex items-center gap-1.5 mb-1.5">
-        <span className="font-display text-sm" style={{ color: arch?.color }}>✧</span>
-        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Mirror Moment</span>
+      {/* Arc name */}
+      <div className="flex items-center justify-between">
+        <p className="text-[10px] font-mono text-muted-foreground/40 uppercase tracking-widest">
+          Daily Reading
+        </p>
+        <p className="text-xs font-display font-semibold" style={{ color: dominant?.color }}>
+          {reading.arc_name}
+        </p>
       </div>
-      <p className="text-sm italic font-serif leading-relaxed text-foreground mb-1">
-        "{latestMirror.line}"
+
+      {/* Narrative */}
+      <p className="text-xs text-foreground/70 leading-relaxed">
+        {reading.narrative}
       </p>
-      <p className="text-[11px] text-muted-foreground leading-relaxed">
-        {latestMirror.interpretation}
-      </p>
+
+      {/* Signal levels — compact row */}
+      <div className="flex items-center justify-between">
+        {ARCHETYPES.map(arch => {
+          const level = reading.archetype_signals[arch.key] || "stable";
+          const isRising = level === "rising" || level === "elevated";
+          const isLow = level === "low" || level === "dormant";
+          return (
+            <div key={arch.key} className="text-center">
+              <span
+                className="text-sm font-display"
+                style={{ color: arch.color, opacity: isLow ? 0.3 : 1 }}
+              >
+                {arch.emoji}
+              </span>
+              <p className={`text-[8px] font-mono mt-0.5 ${isRising ? "text-foreground/60" : "text-muted-foreground/30"}`}>
+                {level}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Good conditions */}
+      <div className="flex flex-wrap gap-1.5">
+        {reading.good_conditions.map((c, i) => (
+          <span key={i} className="text-[10px] px-2 py-0.5 rounded-full border border-primary/20 text-primary/70 bg-primary/5">
+            {c}
+          </span>
+        ))}
+      </div>
+
+      {/* Observation */}
+      {reading.observation && (
+        <p className="text-[11px] text-muted-foreground/50 italic leading-relaxed">
+          {reading.observation}
+        </p>
+      )}
     </div>
   );
 }
 
-// ── Archetype Phase Indicator ─────────────────────────────────
+// ── Insight Feed ──────────────────────────────────────────────
 interface MythologyData {
   empty?: boolean;
   arc_name?: string;
@@ -94,62 +126,6 @@ interface MythologyData {
   observation?: string;
 }
 
-function ArchetypePhaseIndicator() {
-  const { data } = useQuery<MythologyData>({
-    queryKey: ["/api/mythology"],
-  });
-
-  if (!data || data.empty) return null;
-
-  const baseline = data.baseline_archetype ? ARCHETYPE_MAP[data.baseline_archetype] : null;
-  const current = data.current_archetype ? ARCHETYPE_MAP[data.current_archetype] : null;
-  const emerging = data.emerging_archetype ? ARCHETYPE_MAP[data.emerging_archetype] : null;
-
-  if (!baseline && !current && !emerging) return null;
-
-  return (
-    <div
-      data-testid="card-archetype-phase"
-      className="flex items-center justify-center gap-2 flex-wrap py-2 px-3 rounded-[10px] border border-border bg-card/50"
-    >
-      {baseline && (
-        <div className="flex items-center gap-1 text-xs">
-          <span className="font-display text-lg" style={{ color: baseline.color }}>{baseline.emoji}</span>
-          <div className="text-center">
-            <p className="text-[10px] text-muted-foreground">Baseline</p>
-            <p className="font-medium" style={{ color: baseline.color }}>{baseline.name}</p>
-          </div>
-        </div>
-      )}
-      {baseline && current && (
-        <ArrowRight className="w-3.5 h-3.5 text-muted-foreground/50 flex-shrink-0" />
-      )}
-      {current && (
-        <div className="flex items-center gap-1 text-xs">
-          <span className="font-display text-lg" style={{ color: current.color }}>{current.emoji}</span>
-          <div className="text-center">
-            <p className="text-[10px] text-muted-foreground">Current</p>
-            <p className="font-medium" style={{ color: current.color }}>{current.name}</p>
-          </div>
-        </div>
-      )}
-      {current && emerging && (
-        <ArrowRight className="w-3.5 h-3.5 text-muted-foreground/50 flex-shrink-0" />
-      )}
-      {emerging && (
-        <div className="flex items-center gap-1 text-xs">
-          <span className="font-display text-lg" style={{ color: emerging.color }}>{emerging.emoji}</span>
-          <div className="text-center">
-            <p className="text-[10px] text-muted-foreground">Emerging</p>
-            <p className="font-medium" style={{ color: emerging.color }}>{emerging.name}</p>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── Insight Feed ──────────────────────────────────────────────
 function InsightFeed() {
   const { data: writings = [] } = useQuery<Writing[]>({
     queryKey: ["/api/writings"],
@@ -211,204 +187,6 @@ function InsightFeed() {
           </p>
         </div>
       )}
-    </div>
-  );
-}
-
-// ── Variant Badge (compact) ──────────────────────────────────
-interface VariantData {
-  variant_name: string;
-  primary_archetype: string;
-  secondary_archetype?: string | null;
-  emergent_traits: string[];
-  exploration_channels: string[];
-  description: string;
-}
-
-function VariantBadge() {
-  const { data } = useQuery<{ variant: VariantData | null }>({
-    queryKey: ["/api/profile"],
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const variant = data?.variant;
-  if (!variant) return null;
-
-  const primary = ARCHETYPE_MAP[variant.primary_archetype];
-
-  return (
-    <Link href="/signals">
-      <div
-        data-testid="card-variant-badge"
-        className="p-3 rounded-[10px] border bg-card/80 cursor-pointer hover:bg-card transition-colors"
-        style={{
-          borderColor: `${primary?.color || "#8b5cf6"}30`,
-          background: `linear-gradient(135deg, ${primary?.color || "#8b5cf6"}06 0%, transparent 60%)`,
-        }}
-      >
-        <div className="flex items-center gap-2 mb-1.5">
-          <Fingerprint className="w-3 h-3" style={{ color: primary?.color || "#8b5cf6" }} />
-          <span
-            className="text-[10px] font-semibold tracking-wider uppercase"
-            style={{ color: primary?.color || "#8b5cf6" }}
-          >
-            Identity Variant
-          </span>
-          <ArrowRight className="w-3 h-3 ml-auto text-muted-foreground/40" />
-        </div>
-        <p className="text-sm font-bold text-foreground mb-1">{variant.variant_name}</p>
-        <div className="flex flex-wrap gap-1">
-          {variant.emergent_traits.slice(0, 4).map((trait, i) => (
-            <span
-              key={i}
-              className="text-[10px] px-2 py-0.5 rounded-full bg-accent text-accent-foreground border border-border"
-            >
-              {trait}
-            </span>
-          ))}
-        </div>
-      </div>
-    </Link>
-  );
-}
-
-// ── Signal Forecast ────────────────────────────────────────
-interface ForecastData {
-  archetype_signals: Record<string, string>;
-  dominant_mode: string;
-  good_conditions: string[];
-  forecast_narrative: string;
-  operating_rules: string[];
-  rare_pattern: string | null;
-}
-
-const SIGNAL_ICON: Record<string, { icon: typeof TrendingUp; color: string }> = {
-  rising: { icon: TrendingUp, color: "text-emerald-500" },
-  elevated: { icon: Zap, color: "text-amber-500" },
-  stable: { icon: Minus, color: "text-muted-foreground" },
-  low: { icon: TrendingDown, color: "text-blue-400" },
-  dormant: { icon: Minus, color: "text-muted-foreground/40" },
-};
-
-function SignalForecast() {
-  const { data } = useQuery<{ forecast: ForecastData | null }>({
-    queryKey: ["/api/forecast"],
-    staleTime: 10 * 60 * 1000, // cache 10 min
-  });
-
-  const forecast = data?.forecast;
-  if (!forecast) return null;
-
-  const dominant = ARCHETYPE_MAP[forecast.dominant_mode];
-
-  return (
-    <div
-      data-testid="card-signal-forecast"
-      className="p-4 rounded-[10px] border border-border bg-card/80 space-y-3"
-    >
-      {/* Header */}
-      <div className="flex items-center gap-2">
-        <Radio className="w-3.5 h-3.5 text-primary" />
-        <span className="text-[10px] font-semibold tracking-wider uppercase text-primary">
-          Today's Signal Forecast
-        </span>
-      </div>
-
-      {/* Archetype signal levels */}
-      <div className="grid grid-cols-5 gap-1">
-        {ARCHETYPES.map(arch => {
-          const level = forecast.archetype_signals[arch.key] || "stable";
-          const sig = SIGNAL_ICON[level] || SIGNAL_ICON.stable;
-          const SigIcon = sig.icon;
-          return (
-            <div key={arch.key} className="text-center">
-              <div className="text-base font-display mb-0.5" style={{ color: arch.color }}>{arch.emoji}</div>
-              <div className={`flex items-center justify-center gap-0.5 ${sig.color}`}>
-                <SigIcon className="w-3 h-3" />
-              </div>
-              <p className="text-[9px] text-muted-foreground mt-0.5 capitalize">{level}</p>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Narrative */}
-      <p className="text-xs text-muted-foreground leading-relaxed italic">
-        {forecast.forecast_narrative}
-      </p>
-
-      {/* Good conditions */}
-      <div>
-        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">
-          Good conditions for
-        </p>
-        <div className="flex flex-wrap gap-1.5">
-          {forecast.good_conditions.map((cond, i) => (
-            <span
-              key={i}
-              className="text-[11px] px-2.5 py-1 rounded-full border border-primary/20 text-primary bg-primary/5"
-            >
-              {cond}
-            </span>
-          ))}
-        </div>
-      </div>
-
-      {/* Operating rules */}
-      {forecast.operating_rules.length > 0 && (
-        <div>
-          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">
-            Your patterns
-          </p>
-          <div className="space-y-1">
-            {forecast.operating_rules.map((rule, i) => (
-              <p key={i} className="text-[11px] text-foreground/80 leading-relaxed">
-                {rule}
-              </p>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Rare pattern */}
-      {forecast.rare_pattern && (
-        <div className="p-2.5 rounded-lg bg-amber-500/5 border border-amber-500/20">
-          <div className="flex items-center gap-1.5 mb-1">
-            <BookOpen className="w-3 h-3 text-amber-500" />
-            <span className="text-[10px] font-medium text-amber-500 uppercase tracking-wider">Rare Pattern</span>
-          </div>
-          <p className="text-[11px] text-muted-foreground leading-relaxed">
-            {forecast.rare_pattern}
-          </p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── Data Source Summary ───────────────────────────────────────
-function DataSourceSummary() {
-  const { data: writings = [] } = useQuery<Writing[]>({
-    queryKey: ["/api/writings"],
-  });
-  const { data: spotifyHistory } = useQuery<{ stats: { totalTracks: number } }>({
-    queryKey: ["/api/spotify/history"],
-  });
-
-  const trackCount = spotifyHistory?.stats?.totalTracks || 0;
-  const writingCount = writings.length;
-
-  return (
-    <div
-      data-testid="card-data-sources"
-      className="flex items-center justify-center gap-4 text-[11px] text-muted-foreground"
-    >
-      <Link href="/mirrors/sonic" className="hover:text-foreground transition-colors">
-        {trackCount > 0 ? `${trackCount} tracks logged` : "Not connected"}
-      </Link>
-      <Link href="/mirrors/inner" className="hover:text-foreground transition-colors">
-        {writingCount > 0 ? `${writingCount} writings analyzed` : "No writing yet"}
-      </Link>
     </div>
   );
 }
@@ -620,7 +398,7 @@ export default function CharacterApp() {
     onSuccess: () => {
       toast({ title: "Saved", description: "Check-in saved successfully" });
       queryClient.invalidateQueries({ queryKey: ["/api/checkins"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/mythology"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/daily-reading"] });
     },
     onError: () => {
       toast({ title: "Error", description: "Could not save check-in", variant: "destructive" });
@@ -646,18 +424,8 @@ export default function CharacterApp() {
         {/* Parallax Mirror — one-liner identity synopsis */}
         <ParallaxMirror />
 
-        {/* Signal Forecast — today's conditions */}
-        <SignalForecast />
-
-        {/* Data Sources — interactive pills with connect buttons */}
-        <SourcePills
-          onFetchSpotify={fetchSpotify}
-          onFetchFitness={fetchFitness}
-          onFetchWriting={fetchWriting}
-          spotifySummary={spotifySummary}
-          fitnessSummary={fitnessSummary}
-          writingSummary={writingSummary}
-        />
+        {/* Daily Reading — merged forecast + mythology */}
+        <DailyReading />
 
         {/* Feeling Input */}
         <FeelingInput
@@ -668,9 +436,6 @@ export default function CharacterApp() {
           narrative={llmNarrative}
         />
 
-        {/* Archetype Phase Indicator */}
-        <ArchetypePhaseIndicator />
-
         {/* Gauge Section */}
         <GaugeSection
           selfVec={selfVec}
@@ -679,14 +444,8 @@ export default function CharacterApp() {
           dataArchetype={dataArchetypeKey}
         />
 
-        {/* Mythology Card */}
-        <MythologyCard />
-
         {/* Insight Feed */}
         <InsightFeed />
-
-        {/* Variant Badge — links to Discover */}
-        <VariantBadge />
 
         {/* Save Check-in */}
         <div>

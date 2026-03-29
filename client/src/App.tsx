@@ -9,6 +9,8 @@ import WritingPage from "./pages/WritingPage";
 import SpotifyPage from "./pages/SpotifyPage";
 import DecisionsPage from "./pages/DecisionsPage";
 import DiscoverPage from "./pages/DiscoverPage";
+import SignalsInsightsPage from "./pages/SignalsInsightsPage";
+import SignalsPatternsPage from "./pages/SignalsPatternsPage";
 import HealthPage from "./pages/HealthPage";
 import TrajectoryPage from "./pages/TrajectoryPage";
 import HolisticPage from "./pages/HolisticPage";
@@ -42,6 +44,8 @@ function AppContent() {
         <Route path="/mirrors/inner" component={WritingPage} />
         <Route path="/mirrors/body" component={HealthPage} />
         <Route path="/signals" component={DiscoverPage} />
+        <Route path="/signals/insights" component={SignalsInsightsPage} />
+        <Route path="/signals/patterns" component={SignalsPatternsPage} />
         <Route path="/motion" component={TrajectoryPage} />
         <Route path="/decisions" component={DecisionsPage} />
         <Route path="/about" component={AboutPage} />

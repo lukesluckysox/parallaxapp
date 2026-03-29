@@ -1092,6 +1092,7 @@ Return ONLY valid JSON:
       if (userId) {
         storage.clearUserCache(userId, "mythology");
         storage.clearUserCache(userId, "forecast");
+        storage.clearUserCache(userId, "daily-reading");
       }
 
       // --- Echo detection ---
@@ -2394,6 +2395,87 @@ Return ONLY the single line, no quotes, no explanation.`
       } : null,
       history: enrichedHistory,
     });
+  });
+
+  // ===================== DAILY READING (merged mythology + forecast) =====================
+
+  app.get("/api/daily-reading", async (req, res) => {
+    const userId = getUserId(req);
+    if (!userId) return res.json({ reading: null });
+
+    // Check cache (30 min)
+    const cached = storage.getCachedResponse(userId, "daily-reading", 30);
+    if (cached) {
+      try { return res.json(JSON.parse(cached)); } catch {}
+    }
+
+    const tz = getUserTimezone(req);
+    const ctx = gatherUserContext(userId, tz);
+    
+    const allCheckins = storage.getCheckins(userId);
+    if (allCheckins.length === 0) {
+      return res.json({ reading: null, empty: true });
+    }
+
+    if (!anthropic) return res.json({ reading: null, error: "LLM unavailable" });
+
+    const checkinArchetypes = allCheckins.slice(0, 10).map(c => c.self_archetype).join(", ");
+    const latestFeeling = allCheckins[0]?.feeling_text || "";
+
+    try {
+      const message = await anthropic.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1500,
+        system: "You MUST respond with ONLY valid JSON. No markdown, no explanation.",
+        messages: [{
+          role: "user",
+          content: `You are the Parallax daily reading engine — a personal behavioral forecast system. Combine narrative identity interpretation with practical signal forecasting into ONE unified reading.
+
+The 5 archetypes: Observer (understanding), Builder (structure), Explorer (novelty), Dissenter (autonomy), Seeker (meaning).
+
+User data:
+CHECK-INS (recent archetypes): ${checkinArchetypes}
+Latest feeling: "${latestFeeling}"
+
+${ctx.hasData ? `MUSIC: ${ctx.musicSummary}
+WRITING: ${ctx.writingSummary}
+Listening: ${ctx.listenTimestamps || "None"}` : "Limited data available."}
+
+Generate a DAILY READING with these exact JSON keys:
+- arc_name: Short evocative name for current phase (2-3 words, e.g., "The Threshold", "The Forge")
+- narrative: 2-3 sentences describing where the user is in their journey AND what today looks like. Combine mythological interpretation with practical forecast. Second person, slightly poetic.
+- archetype_signals: For each archetype, a signal level: "rising", "elevated", "stable", "low", or "dormant"
+  Format: {"observer": "stable", "builder": "rising", "explorer": "elevated", "dissenter": "low", "seeker": "dormant"}
+- dominant_mode: Which archetype key is strongest right now
+- good_conditions: Array of 3 activities well-suited for today
+- operating_rules: Array of 2 personal behavioral patterns (e.g., "Solo mornings → deep focus → strongest output")
+- observation: One poetic sentence connecting behavior, emotion, and identity. The "how did it know?" moment.
+
+Return ONLY valid JSON:
+{"arc_name":"...","narrative":"...","archetype_signals":{"observer":"...","builder":"...","explorer":"...","dissenter":"...","seeker":"..."},"dominant_mode":"...","good_conditions":["..."],"operating_rules":["..."],"observation":"..."}`
+        }],
+      });
+
+      const raw = message.content[0].type === "text" ? message.content[0].text : "";
+      let text = raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
+      const match = text.match(/\{[\s\S]*\}/);
+      if (!match) return res.json({ reading: null });
+
+      let parsed;
+      try {
+        parsed = JSON.parse(match[0]);
+      } catch {
+        const fixed = match[0].replace(/,\s*}/g, "}").replace(/,\s*]/g, "]");
+        try { parsed = JSON.parse(fixed); } catch { return res.json({ reading: null }); }
+      }
+
+      const responseData = { reading: parsed };
+      storage.setCachedResponse(userId, "daily-reading", JSON.stringify(responseData));
+      return res.json(responseData);
+    } catch (err: any) {
+      console.error("Daily reading error:", err?.message || err);
+      return res.json({ reading: null, error: err.message });
+    }
   });
 
   return httpServer;

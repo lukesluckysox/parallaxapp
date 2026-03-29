@@ -266,42 +266,39 @@ function MoodRadar({ clusters }: { clusters: Record<string, number> }) {
 function MusicSynopsis({ stats, recentTracks }: { stats: HistoryData["stats"]; recentTracks: SpotifyListen[] }) {
   const [synopsis, setSynopsis] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [fetched, setFetched] = useState(false);
 
-  useEffect(() => {
-    if (fetched || stats.totalTracks === 0) return;
+  const generate = async () => {
+    if (loading || stats.totalTracks === 0) return;
     setLoading(true);
-    setFetched(true);
-    (async () => {
-      try {
-        const trackList = recentTracks.slice(0, 10).map(t =>
-          `"${t.track_name}" by ${t.artist_name} (energy:${t.energy ?? "?"}, valence:${t.valence ?? "?"})`
-        ).join(", ");
-        const res = await apiRequest("POST", "/api/interpret", {
-          text: `Based on my music listening patterns: ${stats.totalTracks} tracks, average energy ${stats.avgEnergy}%, average valence ${stats.avgValence}%, top artists: ${stats.topArtists.map(a => a.name).join(", ")}. Recent tracks: ${trackList}. What does my music listening suggest about my current psychological state? Answer in 2-3 sentences, focusing on identity and emotional patterns, not just describing the music.`,
-          spotifySummary: `${stats.totalTracks} tracks, avg energy ${stats.avgEnergy}%, avg valence ${stats.avgValence}%`,
-        });
-        const data = await res.json();
-        if (data.narrative) setSynopsis(data.narrative);
-      } catch { /* skip */ }
-      setLoading(false);
-    })();
-  }, [stats, recentTracks, fetched]);
-
-  if (!synopsis && !loading) return null;
+    try {
+      const trackList = recentTracks.slice(0, 10).map(t =>
+        `"${t.track_name}" by ${t.artist_name} (energy:${t.energy ?? "?"}, valence:${t.valence ?? "?"})`
+      ).join(", ");
+      const res = await apiRequest("POST", "/api/interpret", {
+        text: `Based on my music listening patterns: ${stats.totalTracks} tracks, average energy ${stats.avgEnergy}%, average valence ${stats.avgValence}%, top artists: ${stats.topArtists.map(a => a.name).join(", ")}. Recent tracks: ${trackList}. What does my music listening suggest about my current psychological state? Answer in 2-3 sentences, focusing on identity and emotional patterns, not just describing the music.`,
+        spotifySummary: `${stats.totalTracks} tracks, avg energy ${stats.avgEnergy}%, avg valence ${stats.avgValence}%`,
+      });
+      const data = await res.json();
+      if (data.narrative) setSynopsis(data.narrative);
+    } catch { /* skip */ }
+    setLoading(false);
+  };
 
   return (
     <div className="p-3 rounded-[10px] border border-primary/20 bg-primary/5" data-testid="card-music-synopsis">
       <p className="text-[10px] font-semibold uppercase tracking-wider text-primary/60 mb-1.5">
         Sonic reading
       </p>
-      {loading ? (
-        <div className="space-y-1.5">
-          <div className="h-3 bg-muted rounded animate-pulse w-full" />
-          <div className="h-3 bg-muted rounded animate-pulse w-4/5" />
-        </div>
-      ) : (
+      {synopsis ? (
         <p className="text-sm text-foreground leading-relaxed italic">{synopsis}</p>
+      ) : (
+        <button
+          onClick={generate}
+          disabled={loading}
+          className="text-xs text-primary/60 hover:text-primary transition-colors disabled:opacity-50"
+        >
+          {loading ? "Generating..." : "Generate sonic reading →"}
+        </button>
       )}
     </div>
   );

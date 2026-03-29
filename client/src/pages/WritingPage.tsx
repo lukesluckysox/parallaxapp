@@ -483,7 +483,7 @@ export default function WritingPage() {
 
   // Analysis depth checkboxes
   const [depthPrimary, setDepthPrimary] = useState(true);
-  const [depthSecondary, setDepthSecondary] = useState(true);
+  const [depthSecondary, setDepthSecondary] = useState(false);
   const [depthDeep, setDepthDeep] = useState(false);
 
   const { data: writings = [], refetch } = useQuery<Writing[]>({

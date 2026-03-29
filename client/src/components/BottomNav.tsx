@@ -26,6 +26,8 @@ export default function BottomNav() {
             isActive = location === href || location === "";
           } else if (href === "/mirrors") {
             isActive = location === href || location.startsWith("/mirrors/");
+          } else if (href === "/signals") {
+            isActive = location === href || location.startsWith("/signals/");
           } else {
             isActive = location === href;
           }
