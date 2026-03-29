@@ -1,11 +1,11 @@
-import { Home, Music, PenLine, Scale, TrendingUp } from "lucide-react";
+import { Home, Music, PenLine, Compass, TrendingUp } from "lucide-react";
 import { Link, useLocation } from "wouter";
 
 const NAV_ITEMS = [
   { href: "/", icon: Home, label: "Home" },
   { href: "/spotify", icon: Music, label: "Music" },
   { href: "/writing", icon: PenLine, label: "Writing" },
-  { href: "/decisions", icon: Scale, label: "Decisions" },
+  { href: "/discover", icon: Compass, label: "Discover" },
   { href: "/trajectory", icon: TrendingUp, label: "Trajectory" },
 ];
 

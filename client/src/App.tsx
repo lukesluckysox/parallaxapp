@@ -8,6 +8,8 @@ import CharacterApp from "./pages/CharacterApp";
 import WritingPage from "./pages/WritingPage";
 import SpotifyPage from "./pages/SpotifyPage";
 import DecisionsPage from "./pages/DecisionsPage";
+import DiscoverPage from "./pages/DiscoverPage";
+import HealthPage from "./pages/HealthPage";
 import TrajectoryPage from "./pages/TrajectoryPage";
 import AboutPage from "./pages/AboutPage";
 import AuthPage from "./pages/AuthPage";
@@ -35,6 +37,8 @@ function AppContent() {
         <Route path="/writing" component={WritingPage} />
         <Route path="/spotify" component={SpotifyPage} />
         <Route path="/decisions" component={DecisionsPage} />
+        <Route path="/discover" component={DiscoverPage} />
+        <Route path="/health" component={HealthPage} />
         <Route path="/trajectory" component={TrajectoryPage} />
         <Route path="/about" component={AboutPage} />
         <Route component={NotFound} />

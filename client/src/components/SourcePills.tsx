@@ -191,22 +191,12 @@ export default function SourcePills({
         </div>
 
         <button
-          data-testid="button-fitness"
-          onClick={handleFitness}
-          disabled={fitnessLoading}
-          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
-            fitnessSummary
-              ? "bg-red-500/10 text-red-500 border-red-500/20"
-              : "bg-card text-muted-foreground border-border hover:border-foreground/20"
-          }`}
+          data-testid="button-health"
+          onClick={() => setLocation("/health")}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all border bg-card text-muted-foreground border-border hover:border-foreground/20"
         >
-          {fitnessLoading ? (
-            <RefreshCw className="w-3 h-3 animate-spin" />
-          ) : (
-            <Heart className="w-3 h-3" />
-          )}
-          Fitness
-          {fitnessSummary && <span className="w-1.5 h-1.5 rounded-full bg-red-500" />}
+          <Heart className="w-3 h-3" />
+          Coming soon
         </button>
 
         <button

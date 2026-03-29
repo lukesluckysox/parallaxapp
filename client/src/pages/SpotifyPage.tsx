@@ -184,6 +184,9 @@ export default function SpotifyPage() {
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
+      // Call with ?log=true to actually log tracks to DB
+      await apiRequest("GET", "/api/spotify/now?log=true");
+      // Then refetch to update the UI
       await refetchNow();
       await refetchHistory();
     } finally {

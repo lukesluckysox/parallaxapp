@@ -1076,9 +1076,10 @@ Respond ONLY with valid JSON:
 
       const audioFeatures = trackId ? audioFeaturesMap.get(trackId) || null : null;
 
-      // Log current track
+      // Only log tracks when explicitly requested (manual refresh, not auto-query on page load)
+      const shouldLog = req.query.log === "true";
       let logged = false;
-      if (playing && trackId) {
+      if (shouldLog && playing && trackId) {
         try {
           const listenData: any = {
             user_id: userId,
@@ -1105,8 +1106,8 @@ Respond ONLY with valid JSON:
         }
       }
 
-      // Smart import of recently played tracks:
-      // Only log tracks with played_at NEWER than our most recent DB entry
+      // Smart import of recently played tracks (only on manual refresh)
+      if (shouldLog) {
       const existingListens = storage.getSpotifyListens(userId, 1);
       const latestTimestamp = existingListens.length > 0 ? existingListens[0].timestamp : "1970-01-01T00:00:00.000Z";
 
@@ -1136,6 +1137,7 @@ Respond ONLY with valid JSON:
           });
         } catch (e) { /* dedup or error, skip */ }
       }
+      } // end shouldLog
 
       // Compute nudges
       const nudges: Record<string, number> = {};
@@ -1196,6 +1198,105 @@ Respond ONLY with valid JSON:
     } catch (err: any) {
       console.error("Spotify history error:", err);
       return res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ===================== DISCOVER (INSIGHT ENGINE) =====================
+
+  app.get("/api/discover", async (req, res) => {
+    const userId = getUserId(req);
+    if (!userId) return res.json({ insights: [] });
+
+    // Gather all data
+    const allCheckins = storage.getCheckins(userId);
+    const checkinSlice = allCheckins.slice(0, 10);
+    const allWritings = storage.getWritings(10, userId);
+    const spotifyListensAll = storage.getSpotifyListens(userId, 30);
+    const spotifyStats = storage.getSpotifyStats(userId);
+
+    // Build context
+    const checkinSummary = checkinSlice.map(c => {
+      return `${c.timestamp.slice(0,10)}: self=${c.self_archetype}, data=${c.data_archetype || "n/a"}, feeling="${c.feeling_text || ""}"`;
+    }).join("\n");
+
+    const writingSummary = allWritings.map(w => {
+      const a = w.analysis ? JSON.parse(w.analysis) : null;
+      return `${w.timestamp.slice(0,10)}: "${w.title || "untitled"}" - archetype=${a?.archetype_lean || "?"}, mbti=${a?.mbti?.type || "?"}, themes=${a?.word_themes?.join(",") || "?"}`;
+    }).join("\n");
+
+    const musicSummary = `${spotifyStats.totalTracks} tracks, avg energy ${spotifyStats.avgEnergy}%, avg valence ${spotifyStats.avgValence}%, top artists: ${spotifyStats.topArtists.map((a: any) => a.name).join(", ")}`;
+
+    // Recent tracks for pattern analysis
+    const recentTracks = spotifyListensAll.slice(0, 15).map(t =>
+      `"${t.track_name}" by ${t.artist_name} (energy:${t.energy}, valence:${t.valence})`
+    ).join("\n");
+
+    const hasData = checkinSlice.length > 0 || allWritings.length > 0 || spotifyListensAll.length > 0;
+    if (!hasData) {
+      return res.json({ insights: [], hasData: false });
+    }
+
+    try {
+      const message = await anthropic.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 2048,
+        messages: [{
+          role: "user",
+          content: `You are the Parallax insight engine — a personal pattern recognition system for the psyche. You analyze behavioral data to reveal hidden patterns, identity signals, and psychological blind spots.
+
+User data:
+
+CHECK-INS (self-report + data-driven archetype):
+${checkinSummary || "No check-ins yet"}
+
+WRITING ANALYSIS (Inner Mirror):
+${writingSummary || "No writings yet"}
+
+MUSIC PATTERNS:
+${musicSummary || "No music data"}
+Recent tracks:
+${recentTracks || "None"}
+
+Generate exactly 4 insights. Each should be a different TYPE. Return ONLY valid JSON:
+{
+  "insights": [
+    {
+      "type": "observation",
+      "title": "Short evocative title (3-6 words)",
+      "body": "2-3 sentence observation connecting multiple data sources. Should feel thoughtful and slightly poetic, not clinical.",
+      "icon": "eye"
+    },
+    {
+      "type": "blind_spot",
+      "title": "Potential blind spot title",
+      "body": "2-3 sentences about a contradiction between how the user sees themselves and what their behavior indicates.",
+      "icon": "alert"
+    },
+    {
+      "type": "creative_signal",
+      "title": "Creative state signal title",
+      "body": "2-3 sentences about conditions that seem to correlate with the user's best/most expressive output.",
+      "icon": "sparkle"
+    },
+    {
+      "type": "trajectory",
+      "title": "Where you're heading",
+      "body": "2-3 sentences about the direction current patterns suggest, framed as identity progression not prediction.",
+      "icon": "trending"
+    }
+  ]
+}`
+        }],
+      });
+
+      const text = message.content[0].type === "text" ? message.content[0].text : "";
+      const match = text.match(/\{[\s\S]*\}/);
+      if (!match) return res.json({ insights: [], hasData: true });
+      const parsed = JSON.parse(match[0]);
+      return res.json({ ...parsed, hasData: true });
+    } catch (err) {
+      console.error("Discover error:", err);
+      return res.json({ insights: [], hasData: true, error: "Could not generate insights" });
     }
   });
 
