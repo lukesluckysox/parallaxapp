@@ -602,7 +602,7 @@ export async function registerRoutes(
       const contextStr = contextParts.length > 0 ? `\nData context: ${contextParts.join(". ")}` : "";
 
       const message = await anthropic.messages.create({
-        model: "claude_haiku_4_5",
+        model: "claude-3-5-haiku-20241022",
         max_tokens: 1024,
         messages: [{
           role: "user",
@@ -646,7 +646,7 @@ Respond ONLY with valid JSON:
       const stateStr = currentState ? `\nCurrent state: ${JSON.stringify(currentState)}` : "";
 
       const message = await anthropic.messages.create({
-        model: "claude_haiku_4_5",
+        model: "claude-3-5-haiku-20241022",
         max_tokens: 1024,
         messages: [{
           role: "user",
@@ -708,7 +708,7 @@ Respond ONLY with valid JSON:
       }).filter(Boolean).join("\n");
 
       const message = await anthropic.messages.create({
-        model: "claude_haiku_4_5",
+        model: "claude-3-5-haiku-20241022",
         max_tokens: 1024,
         messages: [{
           role: "user",
@@ -763,7 +763,7 @@ Return ONLY valid JSON:
       const dateStr = dateWritten ? `\nDate written: ${dateWritten}` : "";
 
       const message = await anthropic.messages.create({
-        model: "claude_haiku_4_5",
+        model: "claude-3-5-haiku-20241022",
         max_tokens: 4096,
         messages: [{
           role: "user",
