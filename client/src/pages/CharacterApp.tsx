@@ -318,32 +318,66 @@ export default function CharacterApp() {
 
   // Load latest check-in + all data sources on page load
   useEffect(() => {
-    // Restore state from last saved check-in so gauges persist
+    // Restore CUMULATIVE state from ALL check-ins (weighted average, recent weighted heavier)
     (async () => {
       try {
         const res = await apiRequest("GET", "/api/checkins");
         const checkins = await res.json();
         if (Array.isArray(checkins) && checkins.length > 0) {
+          // Compute weighted average of all self_vecs (recent entries count more)
+          const avgSelf: Record<string, number> = {};
+          const avgData: Record<string, number> = {};
+          let selfCount = 0;
+          let dataCount = 0;
+          
+          for (let i = 0; i < checkins.length; i++) {
+            const c = checkins[i];
+            // Weight: older entries get weight 1, newest gets weight 3
+            const weight = 1 + (2 * i / Math.max(checkins.length - 1, 1));
+            
+            if (c.self_vec) {
+              try {
+                const sv = JSON.parse(c.self_vec);
+                for (const dim of DIMENSIONS) {
+                  avgSelf[dim] = (avgSelf[dim] || 0) + (sv[dim] || 50) * weight;
+                }
+                selfCount += weight;
+              } catch {}
+            }
+            if (c.data_vec) {
+              try {
+                const dv = JSON.parse(c.data_vec);
+                for (const dim of DIMENSIONS) {
+                  avgData[dim] = (avgData[dim] || 0) + (dv[dim] || 50) * weight;
+                }
+                dataCount += weight;
+              } catch {}
+            }
+          }
+          
+          // Apply averaged self vec
+          if (selfCount > 0) {
+            const finalSelf: DimensionVec = {} as DimensionVec;
+            for (const dim of DIMENSIONS) {
+              finalSelf[dim as keyof DimensionVec] = Math.round((avgSelf[dim] || 0) / selfCount);
+            }
+            setSelfVec(finalSelf);
+          }
+          
+          // Apply averaged data vec as nudges
+          if (dataCount > 0) {
+            const nudges: Partial<DimensionVec> = {};
+            for (const dim of DIMENSIONS) {
+              const avg = Math.round((avgData[dim] || 0) / dataCount);
+              const diff = avg - 50;
+              if (diff !== 0) nudges[dim as keyof DimensionVec] = diff;
+            }
+            setDataNudges(nudges);
+            setHasDataSources(true);
+          }
+          
+          // Latest summaries for display
           const latest = checkins[checkins.length - 1];
-          if (latest.self_vec) {
-            try {
-              const sv = JSON.parse(latest.self_vec);
-              setSelfVec(sv);
-            } catch {}
-          }
-          if (latest.data_vec) {
-            try {
-              const dv = JSON.parse(latest.data_vec);
-              // Convert absolute vec back to nudges (diff from baseline)
-              const nudges: Partial<DimensionVec> = {};
-              for (const dim of DIMENSIONS) {
-                const diff = (dv[dim] || 50) - 50;
-                if (diff !== 0) nudges[dim as keyof DimensionVec] = diff;
-              }
-              setDataNudges(nudges);
-              setHasDataSources(true);
-            } catch {}
-          }
           if (latest.spotify_summary) setSpotifySummary(latest.spotify_summary);
           if (latest.llm_narrative) setLlmNarrative(latest.llm_narrative);
         }
@@ -452,6 +486,16 @@ export default function CharacterApp() {
           >
             {saveCheckinMutation.isPending ? "Saving..." : "Save check-in"}
           </button>
+        </div>
+
+        {/* About link */}
+        <div className="text-center pt-4 pb-2">
+          <Link
+            href="/about"
+            className="text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors"
+          >
+            About Parallax
+          </Link>
         </div>
       </div>
     </div>

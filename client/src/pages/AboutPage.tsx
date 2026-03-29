@@ -12,7 +12,6 @@ export default function AboutPage() {
           <Link
             href="/"
             className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-            data-testid="link-back-about"
           >
             <ArrowLeft className="w-4 h-4" />
             Back
@@ -20,152 +19,180 @@ export default function AboutPage() {
           <ThemeToggle />
         </header>
 
-        {/* Hero */}
-        <section className="text-center mb-16" data-testid="section-hero">
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <img src="/logo.png" alt="Parallax" className="w-14 h-14 rounded-lg dark:brightness-90 dark:contrast-125" />
-          </div>
-          <h1 className="text-3xl font-bold tracking-tight mb-2">Parallax</h1>
-          <p className="text-base text-muted-foreground mb-6">
-            See yourself from every angle
-          </p>
-          <p className="text-sm text-muted-foreground leading-relaxed max-w-lg mx-auto">
-            Parallax is a personal pattern recognition engine. It synthesizes signals from your writing, music, body, and self-reports to reveal meaning in the patterns of your life.
-          </p>
-        </section>
+        <div className="space-y-12">
+          {/* Hero */}
+          <section className="text-center mb-8">
+            <div className="flex items-center justify-center gap-3 mb-4">
+              <img src="/logo.png" alt="Parallax" className="w-14 h-14 rounded-lg dark:brightness-90 dark:contrast-125" />
+            </div>
+            <h1 className="text-3xl font-bold tracking-tight mb-2">Parallax</h1>
+            <p className="text-base text-muted-foreground mb-4">
+              See yourself from every angle
+            </p>
+            <p className="text-sm text-muted-foreground leading-relaxed max-w-md mx-auto">
+              Parallax is a personal pattern recognition engine. It synthesizes signals from your writing, music, mood, and self-reports to reveal meaning in the patterns of your life.
+            </p>
+          </section>
 
-        {/* How it works */}
-        <section className="mb-16" data-testid="section-how-it-works">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-6 text-center">
-            How it works
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="p-4 rounded-[10px] border border-border bg-card text-center">
-              <div className="text-2xl mb-3">📡</div>
-              <h3 className="text-sm font-bold mb-1.5">Collect</h3>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Music, fitness, writing, and self-reports feed your profile.
+          {/* How the Gauges Work */}
+          <section>
+            <h2 className="text-lg font-bold mb-4">How the gauges work</h2>
+            <div className="space-y-3 text-sm text-muted-foreground leading-relaxed">
+              <p>
+                Your dashboard shows two types of gauges: a <strong className="text-foreground">self-report gauge</strong> (what you say you are) and a <strong className="text-foreground">data-driven gauge</strong> (what your behavior reveals).
               </p>
-            </div>
-            <div className="p-4 rounded-[10px] border border-border bg-card text-center">
-              <div className="text-2xl mb-3">🔮</div>
-              <h3 className="text-sm font-bold mb-1.5">Synthesize</h3>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                AI connects signals across data sources to find hidden patterns.
+              <p>
+                Each gauge shows your alignment percentage with the prevailing archetype. Below them, five mini gauges show your alignment with all five archetypes simultaneously — like instrument gauges on a car dashboard.
               </p>
-            </div>
-            <div className="p-4 rounded-[10px] border border-border bg-card text-center">
-              <div className="text-2xl mb-3">🪞</div>
-              <h3 className="text-sm font-bold mb-1.5">Reflect</h3>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Insights reveal who you are, who you're becoming, and what your blind spots might be.
-              </p>
-            </div>
-          </div>
-        </section>
 
-        {/* The Five Archetypes */}
-        <section className="mb-16" data-testid="section-archetypes">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-6 text-center">
-            The Five Archetypes
-          </h2>
-          <div className="space-y-3">
-            {ARCHETYPES.map((arch) => (
-              <div
-                key={arch.key}
-                data-testid={`card-about-archetype-${arch.key}`}
-                className="p-4 rounded-[10px] border border-border bg-card"
-              >
-                <div className="flex items-start gap-3">
-                  <span className="text-xl flex-shrink-0 mt-0.5">{arch.emoji}</span>
-                  <div className="min-w-0">
-                    <div className="flex items-baseline gap-2 mb-1">
-                      <h3 className="text-sm font-bold" style={{ color: arch.color }}>
-                        {arch.name}
-                      </h3>
-                      <span className="text-xs text-muted-foreground">
-                        {arch.coreDrive}
+              <div className="p-3 rounded-[10px] bg-card border border-border space-y-2 text-xs">
+                <p className="font-semibold text-foreground">The math behind the gauges:</p>
+                <p>Your state is represented as 8 dimensions (focus, calm, discipline, health, social, creativity, exploration, ambition), each scored 0-100. Each archetype has a "target" profile — the ideal dimension scores for that archetype.</p>
+                <p>The gauge shows <strong className="text-foreground">cosine similarity</strong> between your current dimensions and each archetype's target, normalized so all five sum to 100%. The archetype you most closely resemble gets the highest percentage.</p>
+                <p>Because all five must sum to 100%, the minimum is around 15-20% (when you're equidistant from all archetypes) and the maximum is around 35-40% (when your profile strongly matches one archetype). A gauge reading of 25%+ for any single archetype indicates a meaningful lean.</p>
+              </div>
+            </div>
+          </section>
+
+          {/* What Moves the Gauges */}
+          <section>
+            <h2 className="text-lg font-bold mb-4">What moves the gauges</h2>
+            <div className="space-y-4 text-sm">
+              <div className="p-3 rounded-[10px] bg-card border border-border">
+                <p className="font-semibold text-foreground mb-1">Self-report gauge</p>
+                <p className="text-muted-foreground text-xs leading-relaxed">
+                  When you type how you're feeling and hit "Read me," the AI interprets your words into dimension scores. Saying "I ran a marathon and feel powerful" would push health and discipline high, ambition up — shifting you toward Builder/Observer. These scores get saved when you save a check-in.
+                </p>
+              </div>
+              <div className="p-3 rounded-[10px] bg-card border border-border">
+                <p className="font-semibold text-foreground mb-1">Data-driven gauge</p>
+                <p className="text-muted-foreground text-xs leading-relaxed">
+                  This gauge is fed by three data sources, each contributing dimension nudges:
+                </p>
+                <ul className="text-xs text-muted-foreground mt-2 space-y-1.5">
+                  <li><strong className="text-foreground">Music (Spotify):</strong> High energy → ambition/health. Low valence → creativity. Instrumental → focus/discipline. Danceable → social/exploration. Nudges are averaged across today's listening, not just one track.</li>
+                  <li><strong className="text-foreground">Writing (Inner Mirror):</strong> Emotion analysis, MBTI inference, political compass, and moral foundations all generate dimension nudges. Introverted writing → focus/calm. Libertarian themes → exploration. High care moral → social. Nudges are averaged across your last 7 days of writing.</li>
+                  <li><strong className="text-foreground">Fitness (coming soon):</strong> Steps, sleep, heart rate, HRV → health, calm, discipline nudges.</li>
+                </ul>
+              </div>
+              <div className="p-3 rounded-[10px] bg-card border border-border">
+                <p className="font-semibold text-foreground mb-1">Cumulative weighting</p>
+                <p className="text-muted-foreground text-xs leading-relaxed">
+                  The gauges are cumulative — they reflect a <strong className="text-foreground">weighted average of all your saved check-ins</strong>, with recent entries counting up to 3x more than older ones. This means:
+                </p>
+                <ul className="text-xs text-muted-foreground mt-2 space-y-1">
+                  <li>• Your first check-in sets the baseline</li>
+                  <li>• Each additional check-in shifts the gauges, but gradually — one entry doesn't override everything</li>
+                  <li>• Over time, the gauges converge on your actual pattern, not any single mood snapshot</li>
+                  <li>• Recent behavior matters more than old behavior (recency weighting)</li>
+                </ul>
+              </div>
+            </div>
+          </section>
+
+          {/* Example */}
+          <section>
+            <h2 className="text-lg font-bold mb-4">Example: "I ran a marathon"</h2>
+            <div className="text-sm text-muted-foreground leading-relaxed space-y-2">
+              <p>You type "I ran a marathon today and feel unstoppable." The AI might set:</p>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="p-2 rounded-lg bg-card border border-border">Health: <strong className="text-foreground">92</strong></div>
+                <div className="p-2 rounded-lg bg-card border border-border">Discipline: <strong className="text-foreground">85</strong></div>
+                <div className="p-2 rounded-lg bg-card border border-border">Ambition: <strong className="text-foreground">88</strong></div>
+                <div className="p-2 rounded-lg bg-card border border-border">Calm: <strong className="text-foreground">60</strong></div>
+                <div className="p-2 rounded-lg bg-card border border-border">Focus: <strong className="text-foreground">75</strong></div>
+                <div className="p-2 rounded-lg bg-card border border-border">Social: <strong className="text-foreground">40</strong></div>
+              </div>
+              <p>This profile most closely matches <strong className="text-foreground">Builder</strong> (high discipline, ambition, health) with <strong className="text-foreground">Observer</strong> traits (high focus). The Builder gauge might jump to 28%, pushing it ahead of the others.</p>
+              <p>If you save this check-in and it's your 5th entry, it accounts for roughly 25-30% of the cumulative average (due to recency weighting). By your 20th check-in, any single entry moves the needle about 8-12%.</p>
+            </div>
+          </section>
+
+          {/* The Five Archetypes */}
+          <section>
+            <h2 className="text-lg font-bold mb-4">The five archetypes</h2>
+            <div className="space-y-3">
+              {ARCHETYPES.map(arch => (
+                <div key={arch.key} className="p-3 rounded-[10px] bg-card border border-border">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-lg">{arch.emoji}</span>
+                    <span className="font-semibold" style={{ color: arch.color }}>{arch.name}</span>
+                    <span className="text-xs text-muted-foreground ml-auto">{arch.coreDrive}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed mb-2">{arch.philosophy}</p>
+                  <div className="flex flex-wrap gap-1">
+                    {arch.subtypes.map(s => (
+                      <span key={s.key} className="text-[10px] px-2 py-0.5 rounded-full bg-accent text-accent-foreground border border-border">
+                        {s.name}
                       </span>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5 mt-2">
-                      {arch.subtypes.map((sub) => (
-                        <span
-                          key={sub.key}
-                          className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-accent text-accent-foreground border border-border"
-                        >
-                          {sub.name}
-                        </span>
-                      ))}
-                    </div>
+                    ))}
                   </div>
                 </div>
+              ))}
+            </div>
+          </section>
+
+          {/* Data Sources */}
+          <section>
+            <h2 className="text-lg font-bold mb-4">Data sources</h2>
+            <div className="space-y-3 text-sm">
+              <div className="p-3 rounded-[10px] bg-card border border-border">
+                <p className="font-semibold text-foreground">🎵 Music (Sonic Mirror)</p>
+                <p className="text-xs text-muted-foreground mt-1">Connect your Spotify account. Parallax reads your currently playing track and recently played history, analyzes audio features (energy, valence, danceability, acousticness, instrumentalness, tempo), and converts them into personality dimension scores. Your listening patterns reveal emotional states you might not articulate.</p>
               </div>
-            ))}
-          </div>
-        </section>
+              <div className="p-3 rounded-[10px] bg-card border border-border">
+                <p className="font-semibold text-foreground">✍️ Writing (Inner Mirror)</p>
+                <p className="text-xs text-muted-foreground mt-1">Submit poetry, journal entries, or any personal writing. The AI performs deep analysis: emotional tone, MBTI inference, political compass positioning, moral foundations scoring, theme extraction, and mirror moments (your most revealing lines reflected back with interpretation). Each analysis feeds the archetype engine.</p>
+              </div>
+              <div className="p-3 rounded-[10px] bg-card border border-border">
+                <p className="font-semibold text-foreground">🧠 Self-report (Check-ins)</p>
+                <p className="text-xs text-muted-foreground mt-1">Type how you're feeling in your own words. The AI interprets your state across 8 dimensions. Save check-ins regularly to build your cumulative profile. Each check-in is a data point that moves the gauges.</p>
+              </div>
+              <div className="p-3 rounded-[10px] bg-card border border-border">
+                <p className="font-semibold text-foreground">❤️ Health (Body Mirror — coming soon)</p>
+                <p className="text-xs text-muted-foreground mt-1">Will connect fitness trackers to add physical data: steps, sleep, heart rate, HRV, exercise. Your body is a signal source for identity patterns.</p>
+              </div>
+            </div>
+          </section>
 
-        {/* Philosophy */}
-        <section className="mb-16" data-testid="section-philosophy">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-6 text-center">
-            Philosophy
-          </h2>
-          <div className="space-y-4">
-            <blockquote className="p-4 rounded-[10px] border-l-4 border-l-primary/60 bg-primary/5">
-              <p className="text-sm text-foreground leading-relaxed italic font-serif">
+          {/* Pages */}
+          <section>
+            <h2 className="text-lg font-bold mb-4">Pages</h2>
+            <div className="space-y-2 text-sm">
+              {[
+                { name: "Home", desc: "Dashboard with dual gauges (data vs self), mini archetype gauges, insight feed, and check-in." },
+                { name: "Music", desc: "Sonic Mirror — now playing, listening history, audio feature analysis, and AI-generated sonic reading." },
+                { name: "Writing", desc: "Inner Mirror — submit writing for deep analysis including MBTI, political compass, moral foundations, emotions, quotes, and reading recommendations. Cumulative portrait across all entries." },
+                { name: "Discover", desc: "AI-generated insights: pattern observations, blind spots, creative state signals, and trajectory readings. Powered by all your data sources." },
+                { name: "Trajectory", desc: "Where you've been and where you're heading. Archetype evolution path, behavioral drivers, and future self alignment." },
+                { name: "Decisions", desc: "Decision lab — evaluate choices against your archetype profile. Predicted identity shifts, risk/gain analysis, and per-archetype verdicts." },
+              ].map(p => (
+                <div key={p.name} className="p-2.5 rounded-[10px] bg-card border border-border">
+                  <p className="font-semibold text-foreground text-xs">{p.name}</p>
+                  <p className="text-[11px] text-muted-foreground">{p.desc}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* Philosophy */}
+          <section>
+            <h2 className="text-lg font-bold mb-4">Philosophy</h2>
+            <div className="space-y-4">
+              <blockquote className="border-l-2 border-primary pl-4 italic text-sm text-muted-foreground">
                 "Parallax should not feel like a tracker. It should feel like a mirror that reveals meaning in the patterns of a person's life."
-              </p>
-            </blockquote>
-            <blockquote className="p-4 rounded-[10px] border-l-4 border-l-primary/40 bg-primary/5">
-              <p className="text-sm text-foreground leading-relaxed italic font-serif">
+              </blockquote>
+              <blockquote className="border-l-2 border-primary pl-4 italic text-sm text-muted-foreground">
                 "The most successful insights connect multiple data sources, reveal patterns you hadn't consciously noticed, frame them in identity-level language, and encourage reflection rather than prescribe behavior."
-              </p>
-            </blockquote>
-          </div>
-        </section>
+              </blockquote>
+            </div>
+          </section>
 
-        {/* What makes it different */}
-        <section className="mb-16" data-testid="section-different">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-6 text-center">
-            What makes it different
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="p-4 rounded-[10px] border border-border bg-card">
-              <h3 className="text-sm font-bold mb-1">Signal Detection</h3>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Finds correlations you can't see yourself — across music, movement, writing, and mood.
-              </p>
-            </div>
-            <div className="p-4 rounded-[10px] border border-border bg-card">
-              <h3 className="text-sm font-bold mb-1">Mirror Moments</h3>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Your own words reflected back with interpretation — the "how did it know?" effect.
-              </p>
-            </div>
-            <div className="p-4 rounded-[10px] border border-border bg-card">
-              <h3 className="text-sm font-bold mb-1">Dynamic Phases</h3>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                You're not a fixed type. You evolve. Parallax tracks your baseline, current, and emerging archetypes.
-              </p>
-            </div>
-            <div className="p-4 rounded-[10px] border border-border bg-card">
-              <h3 className="text-sm font-bold mb-1">Decision Simulation</h3>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                See how choices reshape your identity before you commit — predicted archetype shifts and risk/gain analysis.
-              </p>
-            </div>
+          {/* Footer */}
+          <div className="text-center py-8 text-xs text-muted-foreground/50">
+            Parallax — a personal pattern recognition engine for the psyche
           </div>
-        </section>
-
-        {/* Footer */}
-        <footer className="text-center pb-8">
-          <Link
-            href="/"
-            className="text-xs text-primary hover:text-primary/80 transition-colors font-medium"
-            data-testid="link-start"
-          >
-            Start exploring →
-          </Link>
-        </footer>
+        </div>
       </div>
     </div>
   );

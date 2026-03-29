@@ -204,21 +204,30 @@ export default function SpotifyPage() {
 
   // Fetch history (only if connected)
   const { data: history, refetch: refetchHistory } = useQuery<HistoryData>({
-    queryKey: ["/api/spotify/history", "?days=14"],
+    queryKey: ["/api/spotify/history?days=14"],
     staleTime: 0,
     enabled: isConnected,
   });
 
   // Listen for postMessage from the Spotify auth popup
   useEffect(() => {
-    const handler = (event: MessageEvent) => {
+    const handler = async (event: MessageEvent) => {
       if (event.data?.type === "SPOTIFY_CONNECTED") {
         refetchStatus();
-        // Short delay to let status update, then fetch data
-        setTimeout(() => {
-          refetchNow();
-          refetchHistory();
-        }, 500);
+        // After first connection, do an initial import with ?log=true
+        // so the user immediately sees their recent listening history
+        setTimeout(async () => {
+          try {
+            const res = await apiRequest("GET", "/api/spotify/now?log=true");
+            const data = await res.json();
+            queryClient.setQueryData(["/api/spotify/now"], data);
+            await refetchHistory();
+          } catch {
+            // Fallback to read-only fetch if logging fails
+            refetchNow();
+            refetchHistory();
+          }
+        }, 800);
       }
     };
     window.addEventListener("message", handler);
@@ -256,7 +265,7 @@ export default function SpotifyPage() {
       refetchStatus();
       queryClient.invalidateQueries({ queryKey: ["/api/spotify"] });
       queryClient.invalidateQueries({ queryKey: ["/api/spotify/now"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/spotify/history"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/spotify/history?days=14"] });
     } catch {
       // ignore
     }
