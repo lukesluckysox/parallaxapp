@@ -188,18 +188,25 @@ export class DatabaseStorage implements IStorage {
 
   // ---- Spotify Listens ----
   logSpotifyListen(data: InsertSpotifyListen): SpotifyListen | null {
-    // Dedup check: skip if same track_id was logged in the last 5 minutes
-    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-    const existing = db.select()
-      .from(spotifyListens)
-      .where(
-        and(
-          eq(spotifyListens.track_id, data.track_id),
-          gte(spotifyListens.timestamp, fiveMinutesAgo)
-        )
-      )
-      .get();
-    if (existing) return null;
+    // Dedup: skip if the most recent entry for this user is the same track
+    const userId = data.user_id;
+    let lastListen: SpotifyListen | undefined;
+    if (userId) {
+      lastListen = db.select().from(spotifyListens)
+        .where(eq(spotifyListens.user_id, userId))
+        .orderBy(desc(spotifyListens.id))
+        .limit(1)
+        .get();
+    } else {
+      lastListen = db.select().from(spotifyListens)
+        .orderBy(desc(spotifyListens.id))
+        .limit(1)
+        .get();
+    }
+    // If the last logged track is the same song, skip it
+    if (lastListen && lastListen.track_id === data.track_id) {
+      return null;
+    }
 
     return db.insert(spotifyListens).values(data).returning().get();
   }

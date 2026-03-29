@@ -23,11 +23,7 @@ export default function AboutPage() {
         {/* Hero */}
         <section className="text-center mb-16" data-testid="section-hero">
           <div className="flex items-center justify-center gap-3 mb-4">
-            <svg width="40" height="40" viewBox="0 0 32 32" fill="none" aria-label="Parallax logo">
-              <line x1="8" y1="4" x2="14" y2="28" stroke="hsl(var(--primary))" strokeWidth="2.5" strokeLinecap="round" />
-              <line x1="14" y1="4" x2="20" y2="28" stroke="hsl(var(--primary))" strokeWidth="2.5" strokeLinecap="round" opacity="0.6" />
-              <line x1="20" y1="4" x2="26" y2="28" stroke="hsl(var(--primary))" strokeWidth="2.5" strokeLinecap="round" opacity="0.3" />
-            </svg>
+            <img src="/logo.png" alt="Parallax" className="w-14 h-14 rounded-lg dark:brightness-90 dark:contrast-125" />
           </div>
           <h1 className="text-3xl font-bold tracking-tight mb-2">Parallax</h1>
           <p className="text-base text-muted-foreground mb-6">

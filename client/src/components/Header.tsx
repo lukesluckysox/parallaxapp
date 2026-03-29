@@ -10,11 +10,7 @@ export default function Header() {
       <div className="flex items-center justify-between mb-1">
         <div className="w-8" />
         <div className="flex items-center gap-2">
-          <svg width="28" height="28" viewBox="0 0 32 32" fill="none" aria-label="Parallax logo">
-            <line x1="8" y1="4" x2="14" y2="28" stroke="hsl(var(--primary))" strokeWidth="2.5" strokeLinecap="round" />
-            <line x1="14" y1="4" x2="20" y2="28" stroke="hsl(var(--primary))" strokeWidth="2.5" strokeLinecap="round" opacity="0.6" />
-            <line x1="20" y1="4" x2="26" y2="28" stroke="hsl(var(--primary))" strokeWidth="2.5" strokeLinecap="round" opacity="0.3" />
-          </svg>
+          <img src="/logo.png" alt="Parallax" className="w-8 h-8 rounded-md dark:brightness-90 dark:contrast-125" />
           <h1 className="text-xl font-bold tracking-tight" data-testid="text-title">Parallax</h1>
         </div>
         <div className="flex items-center gap-1">

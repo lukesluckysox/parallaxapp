@@ -43,11 +43,7 @@ export default function AuthPage() {
         {/* Logo + tagline */}
         <div className="text-center space-y-3">
           <div className="flex items-center justify-center gap-2.5">
-            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-label="Parallax logo">
-              <line x1="8" y1="4" x2="14" y2="28" stroke="hsl(var(--primary))" strokeWidth="2.5" strokeLinecap="round" />
-              <line x1="14" y1="4" x2="20" y2="28" stroke="hsl(var(--primary))" strokeWidth="2.5" strokeLinecap="round" opacity="0.6" />
-              <line x1="20" y1="4" x2="26" y2="28" stroke="hsl(var(--primary))" strokeWidth="2.5" strokeLinecap="round" opacity="0.3" />
-            </svg>
+            <img src="/logo.png" alt="Parallax" className="w-10 h-10 rounded-md dark:brightness-90 dark:contrast-125" />
             <h1 className="text-xl font-bold tracking-tight" data-testid="text-auth-title">Parallax</h1>
           </div>
           <p className="text-xs text-muted-foreground">See yourself from every angle</p>
