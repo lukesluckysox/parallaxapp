@@ -39,6 +39,23 @@ function getUserId(req: Request): number | null {
   return parseInt(id as string, 10) || null;
 }
 
+function getUserTimezone(req: Request): string {
+  const tz = req.headers["x-timezone"] as string;
+  // Validate it's a real timezone
+  if (tz) {
+    try {
+      Intl.DateTimeFormat(undefined, { timeZone: tz });
+      return tz;
+    } catch { /* invalid timezone */ }
+  }
+  return "UTC";
+}
+
+function formatTimestampLocal(isoTimestamp: string, tz: string): string {
+  const d = new Date(isoTimestamp);
+  return d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: tz });
+}
+
 /** Get a valid Spotify access token for a user, refreshing if expired */
 async function getValidToken(userId: number): Promise<string | null> {
   const tokenData = storage.getSpotifyToken(userId);
@@ -723,6 +740,10 @@ Return ONLY valid JSON:
         return res.status(400).json({ error: "content is required" });
       }
 
+      if (!anthropic) {
+        return res.status(503).json({ error: "LLM service unavailable. Check ANTHROPIC_API_KEY." });
+      }
+
       const userId = getUserId(req);
 
       const titleStr = title ? `\nTitle: "${title}"` : "";
@@ -730,7 +751,7 @@ Return ONLY valid JSON:
 
       const message = await anthropic.messages.create({
         model: "claude-sonnet-4-20250514",
-        max_tokens: 4096,
+        max_tokens: 6000,
         messages: [{
           role: "user",
           content: `You are an Inner Mirror — a literary psychologist who reads writing to reveal the author's inner state. Analyze this writing sample:${titleStr}${dateStr}
@@ -768,12 +789,26 @@ Respond ONLY with valid JSON:
       });
 
       const responseText = message.content[0].type === "text" ? message.content[0].text : "";
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      
+      // Strip markdown code fences if present
+      let cleanText = responseText.trim();
+      if (cleanText.startsWith("```")) {
+        cleanText = cleanText.replace(/^```(?:json)?\s*/, "").replace(/\s*```$/, "");
+      }
+      
+      const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
-        return res.status(500).json({ error: "Could not parse LLM response" });
+        console.error("Writing analyze: no JSON in response. First 200 chars:", responseText.slice(0, 200));
+        return res.status(500).json({ error: "Analysis failed — the AI response could not be parsed. Try again." });
       }
 
-      const parsed = JSON.parse(jsonMatch[0]);
+      let parsed;
+      try {
+        parsed = JSON.parse(jsonMatch[0]);
+      } catch (parseErr) {
+        console.error("Writing analyze: JSON parse error:", parseErr, "First 300 chars:", jsonMatch[0].slice(0, 300));
+        return res.status(500).json({ error: "Analysis failed — malformed response. Try again." });
+      }
 
       // Save to database with user_id
       const writing = storage.createWriting({
@@ -803,8 +838,19 @@ Respond ONLY with valid JSON:
         id: writing.id,
       });
     } catch (err: any) {
-      console.error("Writing analyze error:", err);
-      return res.status(500).json({ error: err.message });
+      console.error("Writing analyze error:", err?.message || err);
+      // Surface more helpful error messages
+      const msg = err?.message || "Unknown error";
+      if (msg.includes("rate") || msg.includes("429")) {
+        return res.status(429).json({ error: "Rate limited by AI provider. Wait a moment and try again." });
+      }
+      if (msg.includes("timeout") || msg.includes("ETIMEDOUT")) {
+        return res.status(504).json({ error: "Analysis timed out. Try again with shorter text." });
+      }
+      if (msg.includes("key") || msg.includes("auth") || msg.includes("401")) {
+        return res.status(503).json({ error: "AI service authentication error. Check API key." });
+      }
+      return res.status(500).json({ error: "Analysis failed — " + msg.slice(0, 100) });
     }
   });
 
@@ -1203,7 +1249,7 @@ Respond ONLY with valid JSON:
 
   // ===================== HELPER: gather user data context =====================
 
-  function gatherUserContext(userId: number) {
+  function gatherUserContext(userId: number, tz: string = "UTC") {
     const allCheckins = storage.getCheckins(userId);
     const checkinSlice = allCheckins.slice(0, 15);
     const allWritings = storage.getWritings(15, userId);
@@ -1221,10 +1267,9 @@ Respond ONLY with valid JSON:
 
     const musicSummary = `${spotifyStats.totalTracks} tracks, avg energy ${spotifyStats.avgEnergy}%, avg valence ${spotifyStats.avgValence}%, avg danceability ${spotifyStats.avgDanceability}%, top artists: ${spotifyStats.topArtists.map((a: any) => `${a.name} (${a.count})`).join(", ")}`;
 
-    // Temporal patterns: timestamps of listening
+    // Temporal patterns: timestamps of listening — converted to user's local timezone
     const listenTimestamps = spotifyListensAll.slice(0, 30).map(t => {
-      const d = new Date(t.timestamp);
-      return `${t.track_name} by ${t.artist_name} at ${d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true })} (energy:${t.energy}, valence:${t.valence}, dance:${t.danceability}, acoustic:${t.acousticness})`;
+      return `${t.track_name} by ${t.artist_name} at ${formatTimestampLocal(t.timestamp, tz)} (energy:${t.energy}, valence:${t.valence}, dance:${t.danceability}, acoustic:${t.acousticness})`;
     }).join("\n");
 
     // Archetype timeline for state transitions
@@ -1252,7 +1297,8 @@ Respond ONLY with valid JSON:
     const userId = getUserId(req);
     if (!userId) return res.json({ variant: null });
 
-    const ctx = gatherUserContext(userId);
+    const tz = getUserTimezone(req);
+    const ctx = gatherUserContext(userId, tz);
     if (!ctx.hasData) return res.json({ variant: null, hasData: false });
 
     if (!anthropic) return res.json({ variant: null, error: "LLM unavailable" });
@@ -1328,7 +1374,8 @@ Return ONLY valid JSON:
     const userId = getUserId(req);
     if (!userId) return res.json({ insights: [] });
 
-    const ctx = gatherUserContext(userId);
+    const tz = getUserTimezone(req);
+    const ctx = gatherUserContext(userId, tz);
     if (!ctx.hasData) return res.json({ insights: [], hasData: false });
 
     if (!anthropic) return res.json({ insights: [], error: "LLM unavailable" });
@@ -1409,7 +1456,8 @@ Return ONLY valid JSON:
     const userId = getUserId(req);
     if (!userId) return res.json({ forecast: null });
 
-    const ctx = gatherUserContext(userId);
+    const tz = getUserTimezone(req);
+    const ctx = gatherUserContext(userId, tz);
     if (!ctx.hasData) return res.json({ forecast: null, hasData: false });
 
     if (!anthropic) return res.json({ forecast: null, error: "LLM unavailable" });

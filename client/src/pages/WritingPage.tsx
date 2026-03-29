@@ -465,8 +465,19 @@ export default function WritingPage() {
       const data = await res.json();
       setResult(data);
       refetch();
-    } catch (err) {
-      toast({ title: "Error", description: "Could not analyze writing", variant: "destructive" });
+    } catch (err: any) {
+      // Try to extract the server error message
+      let msg = "Could not analyze writing. Try again.";
+      try {
+        const errText = err?.message || "";
+        if (errText.includes(":")) {
+          // apiRequest throws "STATUS: body" — extract the body
+          const body = errText.substring(errText.indexOf(":") + 1).trim();
+          const parsed = JSON.parse(body);
+          if (parsed.error) msg = parsed.error;
+        }
+      } catch { /* use default */ }
+      toast({ title: "Error", description: msg, variant: "destructive" });
     } finally {
       setAnalyzing(false);
     }

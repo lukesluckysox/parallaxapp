@@ -9,10 +9,15 @@ export function setCurrentUserId(id: number | null) {
 }
 
 function getUserHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {};
   if (currentUserId) {
-    return { "X-User-Id": String(currentUserId) };
+    headers["X-User-Id"] = String(currentUserId);
   }
-  return {};
+  // Always send the user's timezone so the server can format timestamps correctly
+  try {
+    headers["X-Timezone"] = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  } catch { /* fallback: server uses UTC */ }
+  return headers;
 }
 
 async function throwIfResNotOk(res: Response) {
