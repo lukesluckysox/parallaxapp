@@ -19,9 +19,18 @@ import AboutPage from "./pages/AboutPage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/not-found";
 import BottomNav from "./components/BottomNav";
+import Onboarding from "./components/Onboarding";
 
 function AppContent() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading, justRegistered, clearOnboarding } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-sm text-muted-foreground/40 font-display">Parallax</p>
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     return (
@@ -32,6 +41,10 @@ function AppContent() {
         </Switch>
       </Router>
     );
+  }
+
+  if (justRegistered) {
+    return <Onboarding onComplete={clearOnboarding} />;
   }
 
   return (

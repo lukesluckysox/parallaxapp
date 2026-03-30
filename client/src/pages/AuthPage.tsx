@@ -1,6 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
 import ThemeToggle from "@/components/ThemeToggle";
+
+const MIRROR_LINES = [
+  "You write like someone who builds their freedom in private.",
+  "You listen like someone preparing to leave.",
+  "You think in spirals, not lines.",
+  "You carry silence like a language.",
+  "You move toward what you can't yet name.",
+];
 
 export default function AuthPage() {
   const { login, register } = useAuth();
@@ -10,6 +18,21 @@ export default function AuthPage() {
   const [displayName, setDisplayName] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Rotating mirror lines
+  const [mirrorIndex, setMirrorIndex] = useState(0);
+  const [mirrorVisible, setMirrorVisible] = useState(true);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setMirrorVisible(false);
+      setTimeout(() => {
+        setMirrorIndex(i => (i + 1) % MIRROR_LINES.length);
+        setMirrorVisible(true);
+      }, 500);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,18 +57,69 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4">
-      <div className="absolute top-4 right-4">
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4 relative overflow-hidden">
+      {/* Background animated radar SVG */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none" aria-hidden="true">
+        <svg
+          viewBox="0 0 400 400"
+          className="w-[500px] h-[500px]"
+          style={{ opacity: 0.06 }}
+        >
+          <style>{`
+            @keyframes radar-morph {
+              0%   { d: path("M200,80 L262,118 L280,188 L240,250 L180,268 L118,238 L100,168 L138,110 Z"); }
+              25%  { d: path("M200,70 L275,125 L295,200 L250,260 L190,275 L115,240 L90,165 L130,105 Z"); }
+              50%  { d: path("M200,85 L255,115 L270,185 L230,245 L175,265 L110,230 L95,160 L145,115 Z"); }
+              75%  { d: path("M200,75 L268,120 L285,195 L242,255 L182,270 L112,242 L92,162 L135,108 Z"); }
+              100% { d: path("M200,80 L262,118 L280,188 L240,250 L180,268 L118,238 L100,168 L138,110 Z"); }
+            }
+            @keyframes radar-morph-2 {
+              0%   { d: path("M200,110 L242,135 L255,178 L228,218 L188,230 L148,210 L135,168 L158,128 Z"); }
+              33%  { d: path("M200,105 L248,138 L262,183 L232,222 L185,234 L142,212 L128,168 L155,124 Z"); }
+              66%  { d: path("M200,115 L238,132 L250,175 L224,215 L190,228 L152,208 L140,170 L162,132 Z"); }
+              100% { d: path("M200,110 L242,135 L255,178 L228,218 L188,230 L148,210 L135,168 L158,128 Z"); }
+            }
+            .radar-outer { animation: radar-morph 12s ease-in-out infinite; }
+            .radar-mid   { animation: radar-morph-2 9s ease-in-out infinite reverse; }
+          `}</style>
+          {/* Rings */}
+          <circle cx="200" cy="200" r="150" fill="none" stroke="currentColor" strokeWidth="0.5" />
+          <circle cx="200" cy="200" r="100" fill="none" stroke="currentColor" strokeWidth="0.5" />
+          <circle cx="200" cy="200" r="50"  fill="none" stroke="currentColor" strokeWidth="0.5" />
+          {/* Spokes */}
+          {Array.from({ length: 8 }).map((_, i) => {
+            const angle = (i * Math.PI * 2) / 8 - Math.PI / 2;
+            const x2 = 200 + 150 * Math.cos(angle);
+            const y2 = 200 + 150 * Math.sin(angle);
+            return <line key={i} x1="200" y1="200" x2={x2} y2={y2} stroke="currentColor" strokeWidth="0.5" />;
+          })}
+          {/* Morphing polygons */}
+          <path className="radar-outer" fill="currentColor" fillOpacity="0.15" stroke="currentColor" strokeWidth="1" d="M200,80 L262,118 L280,188 L240,250 L180,268 L118,238 L100,168 L138,110 Z" />
+          <path className="radar-mid" fill="currentColor" fillOpacity="0.2" stroke="currentColor" strokeWidth="1" d="M200,110 L242,135 L255,178 L228,218 L188,230 L148,210 L135,168 L158,128 Z" />
+        </svg>
+      </div>
+
+      <div className="absolute top-4 right-4 z-10">
         <ThemeToggle />
       </div>
 
-      <div className="w-full max-w-sm space-y-8">
+      <div className="w-full max-w-sm space-y-8 relative z-10">
         {/* Logo + tagline */}
-        <div className="text-center space-y-3">
+        <div className="text-center space-y-2">
           <div className="flex items-center justify-center">
             <h1 className="text-4xl font-display font-semibold tracking-tight" data-testid="text-auth-title">Parallax</h1>
           </div>
-          <p className="text-xs text-muted-foreground/60 tracking-wide">See yourself from every angle</p>
+          <p className="text-[10px] text-muted-foreground/50 font-mono tracking-widest uppercase">a personal pattern recognition engine</p>
+
+          {/* Rotating mirror line */}
+          <div className="min-h-[40px] flex items-center justify-center px-4 pt-1">
+            <p
+              className="text-xs font-display italic text-foreground/40 leading-relaxed text-center transition-opacity duration-500"
+              style={{ opacity: mirrorVisible ? 1 : 0 }}
+            >
+              "{MIRROR_LINES[mirrorIndex]}"
+            </p>
+          </div>
         </div>
 
         {/* Tab switcher */}

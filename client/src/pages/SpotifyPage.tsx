@@ -368,17 +368,14 @@ export default function SpotifyPage() {
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      // Single call with ?log=true — logs new tracks AND returns now-playing data
-      const res = await apiRequest("GET", "/api/spotify/now?log=true");
+      // Read-only refresh — just update what's currently playing, no logging
+      const res = await apiRequest("GET", "/api/spotify/now");
       const data = await res.json();
-      // Manually update the query cache instead of refetching (avoids double call)
       queryClient.setQueryData(["/api/spotify/now"], data);
-      // Refresh history from DB
-      await refetchHistory();
     } finally {
       setRefreshing(false);
     }
-  }, [refetchHistory]);
+  }, []);
 
   const handleConnect = () => {
     if (!user?.id) return;

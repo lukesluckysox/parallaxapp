@@ -44,11 +44,18 @@ function getUserId(req: Request): number | null {
     try {
       const decoded = jwt.verify(authHeader.slice(7), JWT_SECRET) as { userId: number };
       return decoded.userId;
-    } catch {
-      return null;
-    }
+    } catch { /* invalid token */ }
   }
-  // Fallback to X-User-Id for backward compat during transition
+  // Try cookie
+  const cookieHeader = req.headers.cookie || "";
+  const tokenMatch = cookieHeader.match(/parallax_token=([^;]+)/);
+  if (tokenMatch) {
+    try {
+      const decoded = jwt.verify(tokenMatch[1], JWT_SECRET) as { userId: number };
+      return decoded.userId;
+    } catch { /* invalid token */ }
+  }
+  // Fallback to X-User-Id for backward compat
   const id = req.headers["x-user-id"];
   if (id) return parseInt(id as string, 10) || null;
   return null;
@@ -155,6 +162,13 @@ export async function registerRoutes(
       });
 
       const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "30d" });
+      res.cookie("parallax_token", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+        path: "/",
+      });
       return res.json({
         id: user.id,
         username: user.username,
@@ -187,6 +201,13 @@ export async function registerRoutes(
       }
 
       const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "30d" });
+      res.cookie("parallax_token", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+        path: "/",
+      });
       return res.json({
         id: user.id,
         username: user.username,
@@ -202,18 +223,22 @@ export async function registerRoutes(
   // GET /api/auth/me
   app.get("/api/auth/me", async (req, res) => {
     const userId = getUserId(req);
-    if (!userId) {
-      return res.json(null);
-    }
+    if (!userId) return res.json(null);
     const user = storage.getUserById(userId);
-    if (!user) {
-      return res.json(null);
-    }
+    if (!user) return res.json(null);
+    const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "30d" });
     return res.json({
       id: user.id,
       username: user.username,
       displayName: user.display_name,
+      token,
     });
+  });
+
+  // POST /api/auth/logout
+  app.post("/api/auth/logout", (req, res) => {
+    res.cookie("parallax_token", "", { httpOnly: true, maxAge: 0, path: "/" });
+    return res.json({ ok: true });
   });
 
   // ===================== SPOTIFY OAUTH ROUTES =====================
@@ -1247,68 +1272,42 @@ Return ONLY valid JSON:
 
       const audioFeatures = trackId ? audioFeaturesMap.get(trackId) || null : null;
 
-      // Only log tracks when explicitly requested (manual refresh, not auto-query on page load)
+      // Smart import: only on explicit ?log=true (first connection only)
+      // This uses Spotify's played_at timestamps, NOT server time
       const shouldLog = req.query.log === "true";
       let logged = false;
-      if (shouldLog && playing && trackId) {
-        try {
-          const listenData: any = {
-            user_id: userId,
-            timestamp: new Date().toISOString(),
-            track_id: trackId,
-            track_name: trackName,
-            artist_name: artistName,
-            album_name: albumName,
-            album_art_url: albumArtUrl,
-            duration_ms: durationMs,
-          };
-          if (audioFeatures) {
-            listenData.energy = Math.round((audioFeatures.energy || 0) * 100);
-            listenData.valence = Math.round((audioFeatures.valence || 0) * 100);
-            listenData.danceability = Math.round((audioFeatures.danceability || 0) * 100);
-            listenData.acousticness = Math.round((audioFeatures.acousticness || 0) * 100);
-            listenData.instrumentalness = Math.round((audioFeatures.instrumentalness || 0) * 100);
-            listenData.tempo = Math.round(audioFeatures.tempo || 0);
-          }
-          const result = storage.logSpotifyListen(listenData);
-          logged = result !== null;
-        } catch (e) {
-          console.error("Failed to log listen:", e);
+      if (shouldLog) {
+        const existingListens = storage.getSpotifyListens(userId, 1);
+        const latestTimestamp = existingListens.length > 0 ? existingListens[0].timestamp : "1970-01-01T00:00:00.000Z";
+
+        for (const item of recentTracks) {
+          const track = item.track;
+          if (!track?.id || !item.played_at) continue;
+          // Only import tracks played AFTER our last recorded entry
+          if (item.played_at <= latestTimestamp) continue;
+          const features = audioFeaturesMap.get(track.id);
+          const albumImages = track.album?.images || [];
+          try {
+            const result = storage.logSpotifyListen({
+              user_id: userId,
+              timestamp: item.played_at,
+              track_id: track.id,
+              track_name: track.name || "Unknown",
+              artist_name: track.artists?.[0]?.name || "Unknown",
+              album_name: track.album?.name || null,
+              album_art_url: albumImages[0]?.url || null,
+              duration_ms: track.duration_ms || null,
+              energy: features ? Math.round((features.energy || 0) * 100) : null,
+              valence: features ? Math.round((features.valence || 0) * 100) : null,
+              danceability: features ? Math.round((features.danceability || 0) * 100) : null,
+              acousticness: features ? Math.round((features.acousticness || 0) * 100) : null,
+              instrumentalness: features ? Math.round((features.instrumentalness || 0) * 100) : null,
+              tempo: features ? Math.round(features.tempo || 0) : null,
+            });
+            if (result) logged = true;
+          } catch (e) { /* dedup or error, skip */ }
         }
       }
-
-      // Smart import of recently played tracks (only on manual refresh)
-      if (shouldLog) {
-      const existingListens = storage.getSpotifyListens(userId, 1);
-      const latestTimestamp = existingListens.length > 0 ? existingListens[0].timestamp : "1970-01-01T00:00:00.000Z";
-
-      for (const item of recentTracks) {
-        const track = item.track;
-        if (!track?.id || !item.played_at) continue;
-        // Only import if this play happened after our last recorded entry
-        if (item.played_at <= latestTimestamp) continue;
-        const features = audioFeaturesMap.get(track.id);
-        const albumImages = track.album?.images || [];
-        try {
-          storage.logSpotifyListen({
-            user_id: userId,
-            timestamp: item.played_at,
-            track_id: track.id,
-            track_name: track.name || "Unknown",
-            artist_name: track.artists?.[0]?.name || "Unknown",
-            album_name: track.album?.name || null,
-            album_art_url: albumImages[0]?.url || null,
-            duration_ms: track.duration_ms || null,
-            energy: features ? Math.round((features.energy || 0) * 100) : null,
-            valence: features ? Math.round((features.valence || 0) * 100) : null,
-            danceability: features ? Math.round((features.danceability || 0) * 100) : null,
-            acousticness: features ? Math.round((features.acousticness || 0) * 100) : null,
-            instrumentalness: features ? Math.round((features.instrumentalness || 0) * 100) : null,
-            tempo: features ? Math.round(features.tempo || 0) : null,
-          });
-        } catch (e) { /* dedup or error, skip */ }
-      }
-      } // end shouldLog
 
       // Compute nudges
       const nudges: Record<string, number> = {};
@@ -1360,10 +1359,37 @@ Return ONLY valid JSON:
     try {
       const userId = getUserId(req);
       const days = parseInt(req.query.days as string) || 7;
+      const tz = getUserTimezone(req);
 
       const listens = storage.getSpotifyListens(userId, 200);
       const stats = storage.getSpotifyStats(userId);
-      const byDay = storage.getSpotifyListensByDay(userId, days);
+
+      // Group by local date using user's timezone
+      const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+      const byDayMap: Record<string, { tracks: any[]; totalMs: number }> = {};
+      
+      for (const listen of listens) {
+        const d = new Date(listen.timestamp);
+        if (d < cutoff) continue;
+        let localDate: string;
+        try {
+          localDate = d.toLocaleDateString("en-CA", { timeZone: tz }); // en-CA gives YYYY-MM-DD
+        } catch {
+          localDate = listen.timestamp.slice(0, 10);
+        }
+        if (!byDayMap[localDate]) byDayMap[localDate] = { tracks: [], totalMs: 0 };
+        byDayMap[localDate].tracks.push(listen);
+        byDayMap[localDate].totalMs += listen.duration_ms || 0;
+      }
+
+      const byDay = Object.entries(byDayMap)
+        .sort(([a], [b]) => b.localeCompare(a))
+        .map(([date, data]) => ({
+          date,
+          tracks: data.tracks,
+          totalMinutes: Math.round(data.totalMs / 60000),
+          trackCount: data.tracks.length,
+        }));
 
       return res.json({ listens, stats, byDay });
     } catch (err: any) {
@@ -2475,6 +2501,44 @@ Return ONLY valid JSON:
     } catch (err: any) {
       console.error("Daily reading error:", err?.message || err);
       return res.json({ reading: null, error: err.message });
+    }
+  });
+
+  // GET /api/export — export all user data as JSON
+  app.get("/api/export", async (req, res) => {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Not authenticated" });
+
+    const user = storage.getUserById(userId);
+    const checkins = storage.getCheckins(userId);
+    const writings = storage.getWritings(1000, userId);
+    const listens = storage.getSpotifyListens(userId, 10000);
+    const decisions = storage.getDecisions(userId);
+
+    const exportData = {
+      exported_at: new Date().toISOString(),
+      user: { username: user?.username, displayName: user?.display_name },
+      checkins: checkins.map(c => ({ ...c, password_hash: undefined })),
+      writings: writings.map(w => ({ id: w.id, title: w.title, content: w.content, timestamp: w.timestamp, analysis: w.analysis ? JSON.parse(w.analysis) : null })),
+      spotify_listens: listens,
+      decisions,
+    };
+
+    res.setHeader("Content-Type", "application/json");
+    res.setHeader("Content-Disposition", `attachment; filename="parallax-export-${user?.username || "data"}.json"`);
+    return res.json(exportData);
+  });
+
+  // DELETE /api/auth/account — delete account and all data
+  app.delete("/api/auth/account", async (req, res) => {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Not authenticated" });
+    try {
+      storage.deleteUserAndData(userId);
+      res.cookie("parallax_token", "", { httpOnly: true, maxAge: 0, path: "/" });
+      return res.json({ ok: true });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
     }
   });
 

@@ -70,6 +70,9 @@ export interface IStorage {
   getIdentityEchoes(userId: number, limit?: number): IdentityEcho[];
   saveIdentityEcho(data: InsertIdentityEcho): IdentityEcho;
   getActiveEcho(userId: number): (IdentityEcho & { mode_name: string; dominant_archetype: string }) | null;
+
+  // Account deletion
+  deleteUserAndData(userId: number): void;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -243,38 +246,28 @@ export class DatabaseStorage implements IStorage {
 
   // ---- Spotify Listens ----
   logSpotifyListen(data: InsertSpotifyListen): SpotifyListen | null {
-    // Dedup: skip if this track_id already exists in the last 50 entries for this user
-    // This prevents duplicates from page refreshes, multiple routes logging, etc.
+    // Dedup: skip if this exact track_id was logged for this user in the last 30 minutes
     const userId = data.user_id;
-    let recentListens: SpotifyListen[];
-    if (userId) {
-      recentListens = db.select().from(spotifyListens)
-        .where(eq(spotifyListens.user_id, userId))
-        .orderBy(desc(spotifyListens.id))
-        .limit(1)
-        .all();
-    } else {
-      recentListens = db.select().from(spotifyListens)
-        .orderBy(desc(spotifyListens.id))
-        .limit(1)
-        .all();
-    }
-    // If the most recent entry is the same track, skip
-    if (recentListens.length > 0 && recentListens[0].track_id === data.track_id) {
-      return null;
-    }
-    // Also check: don't log if this exact track was logged in the last 30 min
     const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
-    const recentSame = db.select().from(spotifyListens)
-      .where(
-        and(
+    
+    if (userId) {
+      const recent = db.select().from(spotifyListens)
+        .where(and(
+          eq(spotifyListens.user_id, userId),
           eq(spotifyListens.track_id, data.track_id),
-          gte(spotifyListens.timestamp, thirtyMinAgo),
-          userId ? eq(spotifyListens.user_id, userId) : undefined as any
-        )
-      )
-      .get();
-    if (recentSame) return null;
+          gte(spotifyListens.timestamp, thirtyMinAgo)
+        ))
+        .get();
+      if (recent) return null;
+    } else {
+      const recent = db.select().from(spotifyListens)
+        .where(and(
+          eq(spotifyListens.track_id, data.track_id),
+          gte(spotifyListens.timestamp, thirtyMinAgo)
+        ))
+        .get();
+      if (recent) return null;
+    }
 
     return db.insert(spotifyListens).values(data).returning().get();
   }
@@ -497,6 +490,19 @@ export class DatabaseStorage implements IStorage {
     if (!mode) return null;
 
     return { ...echo, mode_name: mode.mode_name, dominant_archetype: mode.dominant_archetype };
+  }
+
+  // ---- Account Deletion ----
+  deleteUserAndData(userId: number): void {
+    sqlite.exec(`DELETE FROM checkins WHERE user_id = ${userId}`);
+    sqlite.exec(`DELETE FROM writings WHERE user_id = ${userId}`);
+    sqlite.exec(`DELETE FROM decisions WHERE user_id = ${userId}`);
+    sqlite.exec(`DELETE FROM spotify_listens WHERE user_id = ${userId}`);
+    sqlite.exec(`DELETE FROM spotify_tokens WHERE user_id = ${userId}`);
+    sqlite.exec(`DELETE FROM cached_responses WHERE user_id = ${userId}`);
+    sqlite.exec(`DELETE FROM identity_modes WHERE user_id = ${userId}`);
+    sqlite.exec(`DELETE FROM identity_echoes WHERE user_id = ${userId}`);
+    sqlite.exec(`DELETE FROM users WHERE id = ${userId}`);
   }
 }
 

@@ -5,6 +5,7 @@ import { ARCHETYPES, ARCHETYPE_MAP, DIMENSIONS } from "@shared/archetypes";
 import { computeMixture } from "@shared/archetype-math";
 import type { DimensionVec } from "@shared/archetypes";
 import { ChevronRight } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -762,6 +763,30 @@ export default function HolisticPage() {
 
             {/* ── About Parallax Collapsible ── */}
             <AboutParallaxSection />
+
+            {/* ── Data Controls ── */}
+            <div className="flex items-center justify-center gap-3">
+              <a
+                href="./api/export"
+                download
+                className="text-[10px] font-mono text-muted-foreground/30 hover:text-muted-foreground/60 transition-colors"
+              >
+                export your data
+              </a>
+              <span className="text-muted-foreground/20 text-[10px]">·</span>
+              <button
+                onClick={async () => {
+                  if (!window.confirm("Delete your account and all data? This cannot be undone.")) return;
+                  try {
+                    await apiRequest("DELETE", "/api/auth/account");
+                    window.location.reload();
+                  } catch {}
+                }}
+                className="text-[10px] font-mono text-destructive/30 hover:text-destructive/60 transition-colors"
+              >
+                delete account
+              </button>
+            </div>
 
             {/* ── Footer ── */}
             <div className="text-center pt-4 pb-8">

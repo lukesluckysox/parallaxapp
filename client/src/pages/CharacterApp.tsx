@@ -191,6 +191,62 @@ function InsightFeed() {
   );
 }
 
+// ── Streak Counter ───────────────────────────────────────────
+function StreakCounter() {
+  const { data: checkins = [] } = useQuery<Checkin[]>({
+    queryKey: ["/api/checkins"],
+  });
+
+  if (checkins.length === 0) return null;
+
+  // Calculate streak: consecutive days with check-ins
+  const today = new Date().toISOString().slice(0, 10);
+  const checkinDates = new Set(checkins.map(c => c.timestamp.slice(0, 10)));
+  
+  let streak = 0;
+  let checkDate = new Date();
+  
+  // Check today or yesterday as starting point
+  if (checkinDates.has(today)) {
+    streak = 1;
+    checkDate = new Date(Date.now() - 86400000);
+  } else {
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    if (checkinDates.has(yesterday)) {
+      streak = 1;
+      checkDate = new Date(Date.now() - 2 * 86400000);
+    } else {
+      // Show last check-in date instead
+      const lastDate = checkins[0]?.timestamp.slice(0, 10);
+      const daysAgo = Math.floor((Date.now() - new Date(lastDate + "T12:00:00").getTime()) / 86400000);
+      return (
+        <p className="text-center text-[10px] font-mono text-muted-foreground/30">
+          last check-in: {daysAgo === 0 ? "today" : daysAgo === 1 ? "yesterday" : `${daysAgo} days ago`}
+        </p>
+      );
+    }
+  }
+
+  // Count consecutive previous days
+  while (true) {
+    const dateStr = checkDate.toISOString().slice(0, 10);
+    if (checkinDates.has(dateStr)) {
+      streak++;
+      checkDate = new Date(checkDate.getTime() - 86400000);
+    } else {
+      break;
+    }
+  }
+
+  if (streak <= 1) return null;
+
+  return (
+    <p className="text-center text-[10px] font-mono text-muted-foreground/30">
+      {streak} day streak
+    </p>
+  );
+}
+
 // ── Main Dashboard ────────────────────────────────────────────
 export default function CharacterApp() {
   const { toast } = useToast();
@@ -420,6 +476,9 @@ export default function CharacterApp() {
             <p className="text-[10px] text-muted-foreground/40 font-mono mt-0.5">how are you feeling right now?</p>
           </div>
         </header>
+
+        {/* Streak Counter */}
+        <StreakCounter />
 
         {/* Parallax Mirror — one-liner identity synopsis */}
         <ParallaxMirror />

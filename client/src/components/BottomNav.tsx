@@ -1,5 +1,6 @@
 import { Home, Aperture, Layers, Radio, TrendingUp } from "lucide-react";
 import { Link, useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 
 const NAV_ITEMS = [
   { href: "/", icon: Home, label: "Home" },
@@ -11,6 +12,12 @@ const NAV_ITEMS = [
 
 export default function BottomNav() {
   const [location] = useLocation();
+
+  const { data: echoData } = useQuery<{ active: any }>({
+    queryKey: ["/api/echo"],
+    staleTime: 5 * 60 * 1000,
+  });
+  const hasActiveEcho = !!echoData?.active;
 
   if (location === "/about") return null;
 
@@ -36,7 +43,7 @@ export default function BottomNav() {
               key={href}
               href={href}
               data-testid={`nav-${label.toLowerCase()}`}
-              className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition-all ${
+              className={`relative flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition-all ${
                 isActive
                   ? "text-foreground"
                   : "text-muted-foreground/40 hover:text-muted-foreground"
@@ -46,6 +53,9 @@ export default function BottomNav() {
               <span className={`text-[8px] font-mono ${isActive ? "text-foreground/70" : "text-muted-foreground/30"}`}>
                 {label.toLowerCase()}
               </span>
+              {label === "Signals" && hasActiveEcho && (
+                <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
+              )}
             </Link>
           );
         })}
