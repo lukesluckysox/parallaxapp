@@ -132,7 +132,7 @@ export async function registerRoutes(
   // POST /api/auth/register
   app.post("/api/auth/register", async (req, res) => {
     try {
-      const { username, password, displayName } = req.body;
+      const { username, password, displayName, age, gender, location } = req.body;
 
       // Validate username: 3+ chars, alphanumeric + underscore
       if (!username || typeof username !== "string" || username.length < 3 || !/^[a-zA-Z0-9_]+$/.test(username)) {
@@ -142,6 +142,11 @@ export async function registerRoutes(
       // Validate password: 6+ chars
       if (!password || typeof password !== "string" || password.length < 6) {
         return res.status(400).json({ error: "Password must be at least 6 characters" });
+      }
+
+      // Validate registration fields
+      if (!age || !gender || !location) {
+        return res.status(400).json({ error: "Age, gender, and location are required" });
       }
 
       // Check if username already taken
@@ -159,6 +164,9 @@ export async function registerRoutes(
         password_hash,
         display_name: displayName || null,
         created_at: new Date().toISOString(),
+        age: age || null,
+        gender: gender || null,
+        location: location || null,
       });
 
       const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "30d" });
@@ -2541,6 +2549,51 @@ Return ONLY valid JSON:
     } catch (err: any) {
       return res.status(500).json({ error: err.message });
     }
+  });
+
+  // ===================== ADMIN (oracle only) =====================
+
+  app.get("/api/admin/stats", async (req, res) => {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Not authenticated" });
+
+    const user = storage.getUserById(userId);
+    if (!user || user.username !== "oracle") {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+
+    const users = storage.getAllUsersWithStats();
+    const aggregate = storage.getAggregateStats();
+
+    // Demographics
+    const genderCounts: Record<string, number> = {};
+    const ageCounts: Record<string, number> = {};
+    const locationCounts: Record<string, number> = {};
+
+    for (const u of users) {
+      if (u.gender) genderCounts[u.gender] = (genderCounts[u.gender] || 0) + 1;
+      if (u.age) ageCounts[u.age] = (ageCounts[u.age] || 0) + 1;
+      if (u.location) locationCounts[u.location] = (locationCounts[u.location] || 0) + 1;
+    }
+
+    return res.json({
+      users: users.map(u => ({
+        id: u.id,
+        username: u.username,
+        displayName: u.display_name,
+        joinDate: u.created_at,
+        age: u.age,
+        gender: u.gender,
+        location: u.location,
+        checkins: u.checkin_count,
+        writings: u.writing_count,
+        listens: u.listen_count,
+        spotifyConnected: u.spotify_connected > 0,
+        lastActive: u.last_checkin || u.last_writing || u.created_at,
+      })),
+      aggregate,
+      demographics: { genderCounts, ageCounts, locationCounts },
+    });
   });
 
   return httpServer;

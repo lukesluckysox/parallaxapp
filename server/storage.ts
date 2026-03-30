@@ -182,6 +182,9 @@ export class DatabaseStorage implements IStorage {
     try { sqlite.exec("ALTER TABLE decisions ADD COLUMN user_id INTEGER"); } catch { /* column already exists */ }
     try { sqlite.exec("ALTER TABLE writings ADD COLUMN user_id INTEGER"); } catch { /* column already exists */ }
     try { sqlite.exec("ALTER TABLE writings ADD COLUMN status TEXT DEFAULT 'complete'"); } catch { /* column already exists */ }
+    try { sqlite.exec("ALTER TABLE users ADD COLUMN age TEXT"); } catch { /* already exists */ }
+    try { sqlite.exec("ALTER TABLE users ADD COLUMN gender TEXT"); } catch { /* already exists */ }
+    try { sqlite.exec("ALTER TABLE users ADD COLUMN location TEXT"); } catch { /* already exists */ }
   }
 
   // ---- User methods ----
@@ -490,6 +493,31 @@ export class DatabaseStorage implements IStorage {
     if (!mode) return null;
 
     return { ...echo, mode_name: mode.mode_name, dominant_archetype: mode.dominant_archetype };
+  }
+
+  // ---- Admin Stats ----
+  getAllUsersWithStats(): any[] {
+    const rows = sqlite.prepare(`
+      SELECT 
+        u.id, u.username, u.display_name, u.created_at, u.age, u.gender, u.location,
+        (SELECT COUNT(*) FROM checkins WHERE user_id = u.id) as checkin_count,
+        (SELECT COUNT(*) FROM writings WHERE user_id = u.id) as writing_count,
+        (SELECT COUNT(*) FROM spotify_listens WHERE user_id = u.id) as listen_count,
+        (SELECT COUNT(*) FROM spotify_tokens WHERE user_id = u.id) as spotify_connected,
+        (SELECT MAX(timestamp) FROM checkins WHERE user_id = u.id) as last_checkin,
+        (SELECT MAX(timestamp) FROM writings WHERE user_id = u.id) as last_writing
+      FROM users u
+      ORDER BY u.created_at DESC
+    `).all();
+    return rows;
+  }
+
+  getAggregateStats(): { totalUsers: number; totalCheckins: number; totalWritings: number; totalListens: number } {
+    const totalUsers = (sqlite.prepare("SELECT COUNT(*) as c FROM users").get() as any)?.c || 0;
+    const totalCheckins = (sqlite.prepare("SELECT COUNT(*) as c FROM checkins").get() as any)?.c || 0;
+    const totalWritings = (sqlite.prepare("SELECT COUNT(*) as c FROM writings").get() as any)?.c || 0;
+    const totalListens = (sqlite.prepare("SELECT COUNT(*) as c FROM spotify_listens").get() as any)?.c || 0;
+    return { totalUsers, totalCheckins, totalWritings, totalListens };
   }
 
   // ---- Account Deletion ----

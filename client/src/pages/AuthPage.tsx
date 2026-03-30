@@ -16,6 +16,9 @@ export default function AuthPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [age, setAge] = useState("");
+  const [gender, setGender] = useState("");
+  const [location, setLocation] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -46,7 +49,7 @@ export default function AuthPage() {
           setError(result.error || "Login failed");
         }
       } else {
-        const result = await register(username, password, displayName || undefined);
+        const result = await register(username, password, displayName || undefined, { age, gender, location });
         if (!result.ok) {
           setError(result.error || "Registration failed");
         }
@@ -165,17 +168,63 @@ export default function AuthPage() {
           </div>
 
           {mode === "register" && (
-            <div>
-              <input
-                data-testid="input-display-name"
-                type="text"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="Display name (optional)"
-                autoComplete="name"
-                className="w-full px-3 py-2.5 rounded-[10px] border border-border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-muted-foreground/50"
-              />
-            </div>
+            <>
+              <div>
+                <input
+                  data-testid="input-display-name"
+                  type="text"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="Display name (optional)"
+                  autoComplete="name"
+                  className="w-full px-3 py-2.5 rounded-[10px] border border-border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-muted-foreground/50"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <select
+                  data-testid="select-age"
+                  value={age}
+                  onChange={(e) => setAge(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-[10px] border border-border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 text-muted-foreground"
+                >
+                  <option value="">Age range</option>
+                  <option value="18-24">18-24</option>
+                  <option value="25-34">25-34</option>
+                  <option value="35-44">35-44</option>
+                  <option value="45-54">45-54</option>
+                  <option value="55+">55+</option>
+                </select>
+                <select
+                  data-testid="select-gender"
+                  value={gender}
+                  onChange={(e) => setGender(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-[10px] border border-border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 text-muted-foreground"
+                >
+                  <option value="">Gender</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="non-binary">Non-binary</option>
+                  <option value="prefer-not">Prefer not to say</option>
+                </select>
+              </div>
+              <div>
+                <input
+                  data-testid="input-location"
+                  type="text"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  placeholder="Reflecting from (city, state, or country)"
+                  autoComplete="address-level1"
+                  className="w-full px-3 py-2.5 rounded-[10px] border border-border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-muted-foreground/50"
+                  list="location-suggestions"
+                />
+                <datalist id="location-suggestions">
+                  {["Hawaii", "California", "New York", "Texas", "Florida", "Oregon", "Washington", "Colorado", "Arizona", "Nevada", "Utah", "North Carolina", "Georgia", "Virginia", "Massachusetts", "Pennsylvania", "Illinois", "Ohio", "Michigan", "Tennessee", "United Kingdom", "Canada", "Australia", "Germany", "Japan", "Philippines", "Brazil", "India", "Mexico", "France"].map(loc => (
+                    <option key={loc} value={loc} />
+                  ))}
+                </datalist>
+              </div>
+            </>
           )}
 
           <div>
@@ -199,7 +248,7 @@ export default function AuthPage() {
           <button
             data-testid="button-auth-submit"
             type="submit"
-            disabled={loading || !username || !password}
+            disabled={loading || !username || !password || (mode === "register" && (!age || !gender || !location))}
             className="w-full py-2.5 rounded-[10px] bg-primary text-primary-foreground text-sm font-medium transition-all hover:opacity-90 disabled:opacity-40"
           >
             {loading
