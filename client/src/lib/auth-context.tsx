@@ -10,7 +10,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   login: (username: string, password: string) => Promise<{ ok: boolean; error?: string }>;
-  register: (username: string, password: string, displayName?: string) => Promise<{ ok: boolean; error?: string }>;
+  register: (username: string, password: string, displayName?: string, age?: number, gender?: string, location?: string) => Promise<{ ok: boolean; error?: string }>;
   logout: () => void;
   isAuthenticated: boolean;
   isLoading: boolean;
@@ -64,12 +64,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const register = useCallback(async (username: string, password: string, displayName?: string) => {
+  const register = useCallback(async (username: string, password: string, displayName?: string, age?: number, gender?: string, location?: string) => {
     try {
       const res = await fetch("./api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password, displayName }),
+        body: JSON.stringify({ username, password, displayName, age, gender, location }),
         credentials: "same-origin",
       });
       if (!res.ok) {

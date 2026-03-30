@@ -8,6 +8,9 @@ import bcrypt from "bcryptjs";
 import { getAuthUrl, exchangeCode, refreshAccessToken, spotifyApi } from "./spotify-auth";
 import jwt from "jsonwebtoken";
 import type { InsertIdentityMode } from "@shared/schema";
+import { users, checkins, writings, spotifyListens } from "@shared/schema";
+import { db } from "./storage";
+import { eq, desc } from "drizzle-orm";
 
 const JWT_SECRET = process.env.JWT_SECRET || "parallax-dev-secret-change-in-production";
 
@@ -238,7 +241,7 @@ export async function registerRoutes(
   // POST /api/auth/register
   app.post("/api/auth/register", async (req, res) => {
     try {
-      const { username, password, displayName } = req.body;
+      const { username, password, displayName, age, gender, location } = req.body;
 
       // Validate username: 3+ chars, alphanumeric + underscore
       if (!username || typeof username !== "string" || username.length < 3 || !/^[a-zA-Z0-9_]+$/.test(username)) {
@@ -265,6 +268,9 @@ export async function registerRoutes(
         password_hash,
         display_name: displayName || null,
         created_at: new Date().toISOString(),
+        age: age ? parseInt(age, 10) : null,
+        gender: gender || null,
+        location: location || null,
       });
 
       const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "30d" });
@@ -2633,6 +2639,70 @@ Return ONLY valid JSON:
       return res.json({ ok: true });
     } catch (err: any) {
       return res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ===================== ORACLE ADMIN STATS =====================
+
+  // GET /api/admin/stats — only accessible to the "oracle" account
+  app.get("/api/admin/stats", async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
+
+      const requestingUser = storage.getUserById(userId);
+      if (!requestingUser || requestingUser.username !== "oracle") {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+
+      // Pull all users
+      const allUsers = db.select().from(users).all();
+
+      // Per-user stats
+      const userStats = allUsers
+        .filter(u => u.username !== "oracle")
+        .map(u => {
+          const checkinCount = db.select().from(checkins).where(eq(checkins.user_id, u.id)).all().length;
+          const writingCount = db.select().from(writings).where(eq(writings.user_id, u.id)).all().length;
+          const spotifyCount = db.select().from(spotifyListens).where(eq(spotifyListens.user_id, u.id)).all().length;
+          const spotifyConnected = !!storage.getSpotifyToken(u.id);
+          const lastCheckin = db.select().from(checkins)
+            .where(eq(checkins.user_id, u.id))
+            .orderBy(desc(checkins.id))
+            .limit(1)
+            .get();
+
+          return {
+            id: u.id,
+            username: u.username,
+            displayName: u.display_name,
+            joinedAt: u.created_at,
+            age: u.age,
+            gender: u.gender,
+            location: u.location,
+            checkinCount,
+            writingCount,
+            spotifyListens: spotifyCount,
+            spotifyConnected,
+            lastActiveAt: lastCheckin?.timestamp || u.created_at,
+          };
+        });
+
+      // Aggregates
+      const totalCheckins = db.select().from(checkins).all().length;
+      const totalWritings = db.select().from(writings).all().length;
+      const totalSpotifyListens = db.select().from(spotifyListens).all().length;
+
+      return res.json({
+        totalUsers: userStats.length,
+        totalCheckins,
+        totalWritings,
+        totalSpotifyListens,
+        users: userStats,
+      });
+    } catch (err: any) {
+      console.error("Admin stats error:", err);
+      return res.status(500).json({ error: "Server error" });
     }
   });
 

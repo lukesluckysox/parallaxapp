@@ -8,6 +8,9 @@ export const users = sqliteTable("users", {
   password_hash: text("password_hash").notNull(),
   display_name: text("display_name"),
   created_at: text("created_at").notNull(),
+  age: integer("age"),
+  gender: text("gender"),
+  location: text("location"),
 });
 
 export const checkins = sqliteTable("checkins", {

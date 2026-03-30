@@ -182,6 +182,10 @@ export class DatabaseStorage implements IStorage {
     try { sqlite.exec("ALTER TABLE decisions ADD COLUMN user_id INTEGER"); } catch { /* column already exists */ }
     try { sqlite.exec("ALTER TABLE writings ADD COLUMN user_id INTEGER"); } catch { /* column already exists */ }
     try { sqlite.exec("ALTER TABLE writings ADD COLUMN status TEXT DEFAULT 'complete'"); } catch { /* column already exists */ }
+    // Add demographic columns to users if they don't exist
+    try { sqlite.exec("ALTER TABLE users ADD COLUMN age INTEGER"); } catch { /* column already exists */ }
+    try { sqlite.exec("ALTER TABLE users ADD COLUMN gender TEXT"); } catch { /* column already exists */ }
+    try { sqlite.exec("ALTER TABLE users ADD COLUMN location TEXT"); } catch { /* column already exists */ }
   }
 
   // ---- User methods ----
