@@ -25,6 +25,7 @@ interface HolisticData {
   };
   latestArchetype: string | null;
   latestDataArchetype: string | null;
+  lastCheckinAt: string | null;
 }
 
 interface ProfileData {
@@ -35,17 +36,6 @@ interface ProfileData {
     emergent_traits: string[];
     exploration_channels: string[];
     description: string;
-  } | null;
-}
-
-interface ForecastData {
-  forecast: {
-    archetype_signals: Record<string, string>;
-    dominant_mode: string;
-    good_conditions: string[];
-    forecast_narrative: string;
-    operating_rules: string[];
-    rare_pattern: string | null;
   } | null;
 }
 
@@ -397,11 +387,6 @@ export default function HolisticPage() {
     staleTime: 5 * 60 * 1000,
   });
 
-  const { data: forecastData } = useQuery<ForecastData>({
-    queryKey: ["/api/forecast"],
-    staleTime: 10 * 60 * 1000,
-  });
-
   const { data: echoData } = useQuery<{ active: { modeName: string; dominantArchetype: string; similarityScore: number; detectedAt: string } | null }>({
     queryKey: ["/api/echo"],
     staleTime: 2 * 60 * 1000,
@@ -410,7 +395,6 @@ export default function HolisticPage() {
   const selfVec = data?.selfVec || {};
   const dataVec = data?.dataVec || null;
   const variant = profileData?.variant || null;
-  const forecast = forecastData?.forecast || null;
   const hasData = data?.hasData ?? false;
   const latestArch = data?.latestArchetype
     ? ARCHETYPE_MAP[data.latestArchetype]
@@ -422,6 +406,23 @@ export default function HolisticPage() {
     const vec = data.selfVec as DimensionVec;
     return computeMixture(vec);
   }, [data?.selfVec]);
+
+  // Staleness: days since last check-in → visual degradation
+  const staleDays = useMemo(() => {
+    if (!data?.lastCheckinAt) return 0;
+    return Math.floor((Date.now() - new Date(data.lastCheckinAt).getTime()) / (24 * 60 * 60 * 1000));
+  }, [data?.lastCheckinAt]);
+  // Opacity multiplier: 1.0 at 0 days, fades to 0.4 at 7+ days
+  const freshness = Math.max(0.4, 1 - staleDays * 0.1);
+
+  // Passive Spotify import: fire once on mount, silently import recent tracks
+  useEffect(() => {
+    (async () => {
+      try {
+        await apiRequest("GET", "/api/spotify/now?log=true");
+      } catch { /* not connected or failed — silent */ }
+    })();
+  }, []);
 
   // Scroll-based parallax
   const containerRef = useRef<HTMLDivElement>(null);
@@ -454,11 +455,17 @@ export default function HolisticPage() {
     );
   }
 
+  // Ambient background: subtle radial glow from dominant archetype color
+  const ambientColor = latestArch?.color || "#5eaaa8";
+  const ambientBg = hasData
+    ? `radial-gradient(ellipse at 50% 20%, ${ambientColor}08 0%, transparent 60%)`
+    : undefined;
+
   return (
     <div
       ref={containerRef}
       className="min-h-screen bg-background noise-overlay pb-24 overflow-y-auto"
-      style={{ perspective: "1200px" }}
+      style={{ perspective: "1200px", backgroundImage: ambientBg }}
     >
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-8">
         {/* Header */}
@@ -531,12 +538,21 @@ export default function HolisticPage() {
               <ActiveEchoCard echo={echoData.active} />
             )}
 
+            {/* Stale data notice */}
+            {staleDays >= 3 && (
+              <p className="text-center text-[10px] font-mono text-muted-foreground/30 -mt-4">
+                signals fading — last check-in {staleDays} day{staleDays !== 1 ? "s" : ""} ago
+              </p>
+            )}
+
             {/* ── Layer 2: Radar Chart (mid) ── */}
             <section
               className="flex justify-center transition-transform duration-300"
               style={{
                 transform: `translateZ(${10 - scrollY * 0.02}px)`,
                 transformStyle: "preserve-3d",
+                opacity: freshness,
+                transition: "opacity 0.5s ease",
               }}
             >
               <RadarChart selfVec={selfVec} dataVec={dataVec} size={320} />
@@ -569,6 +585,7 @@ export default function HolisticPage() {
               style={{
                 transform: `translateZ(${-10 - scrollY * 0.01}px)`,
                 transformStyle: "preserve-3d",
+                opacity: freshness,
               }}
             >
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground/40 font-medium text-center mb-2">
