@@ -6,7 +6,7 @@ import { ARCHETYPES, ARCHETYPE_MAP, DIMENSIONS, type DimensionVec } from "@share
 import { topArchetype, computeMixture, applyNudges, defaultVec } from "@shared/archetype-math";
 import FeelingInput from "@/components/FeelingInput";
 import GaugeSection from "@/components/GaugeSection";
-import { ArrowLeft, Scale } from "lucide-react";
+import { ArrowLeft, Scale, ChevronRight, Clock } from "lucide-react";
 import { Link } from "wouter";
 import type { Writing, Checkin } from "@shared/schema";
 
@@ -184,6 +184,91 @@ function InsightFeed() {
           <p className="text-xs text-muted-foreground leading-relaxed">
             {mythology.observation}
           </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Reflection History ──────────────────────────────────────
+
+function ReflectionHistory() {
+  const [open, setOpen] = useState(false);
+  const { data: checkins = [] } = useQuery<Checkin[]>({
+    queryKey: ["/api/checkins"],
+  });
+
+  if (checkins.length === 0) return null;
+
+  return (
+    <div className="rounded-[10px] border border-border/40 bg-card/20 overflow-hidden" data-testid="section-reflections">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between px-4 py-3 hover:bg-card/40 transition-colors"
+        data-testid="button-toggle-reflections"
+      >
+        <div className="flex items-center gap-2">
+          <Clock className="w-3.5 h-3.5 text-muted-foreground/40" />
+          <span className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-widest">
+            Past Reflections
+          </span>
+          <span className="px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[9px] font-mono font-semibold">
+            {checkins.length}
+          </span>
+        </div>
+        <ChevronRight className={`w-3.5 h-3.5 text-muted-foreground/40 transition-transform duration-200 ${open ? "rotate-90" : ""}`} />
+      </button>
+
+      {open && (
+        <div className="px-4 pb-4 pt-1 space-y-2 max-h-[400px] overflow-y-auto">
+          {checkins.map((c) => {
+            const arch = c.self_archetype ? ARCHETYPE_MAP[c.self_archetype] : null;
+            const ts = new Date(c.timestamp);
+            const dateStr = ts.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+            const timeStr = ts.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+            let selfVecParsed: Record<string, number> = {};
+            try { selfVecParsed = JSON.parse(c.self_vec); } catch {}
+            const topDim = Object.entries(selfVecParsed).sort((a, b) => b[1] - a[1])[0];
+
+            return (
+              <div
+                key={c.id}
+                className="p-3 rounded-lg bg-card/30 border border-border/20"
+                data-testid={`reflection-${c.id}`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-2">
+                    {arch && (
+                      <span className="text-sm font-display" style={{ color: arch.color }}>
+                        {arch.emoji}
+                      </span>
+                    )}
+                    <span className="text-xs font-medium" style={{ color: arch?.color }}>
+                      {arch?.name || "Reflection"}
+                    </span>
+                  </div>
+                  <span className="text-[9px] font-mono text-muted-foreground/30">
+                    {dateStr} {timeStr}
+                  </span>
+                </div>
+                {c.feeling_text && (
+                  <p className="text-[11px] text-muted-foreground/60 leading-relaxed mb-1.5 italic">
+                    "{c.feeling_text}"
+                  </p>
+                )}
+                {c.llm_narrative && (
+                  <p className="text-[11px] text-muted-foreground/50 leading-relaxed">
+                    {c.llm_narrative}
+                  </p>
+                )}
+                {topDim && (
+                  <p className="text-[9px] font-mono text-muted-foreground/30 mt-1">
+                    top signal: {topDim[0]} ({topDim[1]})
+                  </p>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
@@ -471,7 +556,9 @@ export default function CharacterApp() {
             <div />
           </div>
           <div className="text-center">
-            <h1 className="text-xl font-display font-semibold tracking-tight text-foreground">Instant Reflection</h1>
+            <div className="flex items-center justify-center gap-2">
+              <h1 className="text-xl font-display font-semibold tracking-tight text-foreground">Instant Reflection</h1>
+            </div>
             <p className="text-[10px] text-muted-foreground/40 font-mono mt-0.5">how are you feeling right now?</p>
           </div>
         </header>
@@ -516,6 +603,9 @@ export default function CharacterApp() {
             {saveCheckinMutation.isPending ? "Saving..." : "Save check-in"}
           </button>
         </div>
+
+        {/* Reflection History */}
+        <ReflectionHistory />
 
         {/* Decision Lab */}
         <Link href="/decisions">

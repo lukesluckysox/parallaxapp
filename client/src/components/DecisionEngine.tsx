@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { ARCHETYPES, DIMENSIONS, ARCHETYPE_MAP, type DimensionVec } from "@shared/archetypes";
 import { topArchetype, applyImpact, similarity } from "@shared/archetype-math";
@@ -55,6 +55,20 @@ export default function DecisionEngine({ selfVec, dataVec }: DecisionEngineProps
     },
   });
 
+  const saveMutation = useMutation({
+    mutationFn: async (data: { decision_text: string; impact_vec: string; target_archetype: string | null; verdict: string; alignment_before: number; alignment_after: number }) => {
+      const res = await apiRequest("POST", "/api/decisions", {
+        ...data,
+        timestamp: new Date().toISOString(),
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/decisions"] });
+      toast({ title: "Saved", description: "Decision recorded" });
+    },
+  });
+
   const handleEvaluate = () => {
     const impactVec: Partial<DimensionVec> = {};
     for (const dim of DIMENSIONS) {
@@ -67,11 +81,29 @@ export default function DecisionEngine({ selfVec, dataVec }: DecisionEngineProps
 
     // Net positive = do, net negative = skip, balanced = neutral
     const totalImpact = Object.values(impacts).reduce((sum, v) => sum + v, 0);
-    if (totalImpact > 10) setVerdict("do");
-    else if (totalImpact < -10) setVerdict("skip");
-    else setVerdict("neutral");
-
+    let v: "do" | "skip" | "neutral";
+    if (totalImpact > 10) v = "do";
+    else if (totalImpact < -10) v = "skip";
+    else v = "neutral";
+    setVerdict(v);
     setEvaluated(true);
+
+    // Compute alignment scores
+    const beforeSim = Math.round(similarity(selfVec, selfVec) * 100);
+    const afterSim = Math.round(similarity(afterVec, selfVec) * 100);
+    const targetArch = afterTop[0]?.key || beforeTop[0]?.key || null;
+
+    // Auto-save
+    if (decisionText.trim()) {
+      saveMutation.mutate({
+        decision_text: decisionText,
+        impact_vec: JSON.stringify(impactVec),
+        target_archetype: targetArch,
+        verdict: v,
+        alignment_before: beforeSim,
+        alignment_after: afterSim,
+      });
+    }
   };
 
   const handleImpactChange = (dim: string, val: number) => {

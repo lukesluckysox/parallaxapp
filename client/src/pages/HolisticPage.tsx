@@ -366,6 +366,17 @@ function AboutParallaxSection() {
   );
 }
 
+// ── Forecast Types ───────────────────────────────────────────
+
+interface ForecastData {
+  archetype_signals: Record<string, string>;
+  dominant_mode: string;
+  good_conditions: string[];
+  forecast_narrative: string;
+  operating_rules: string[];
+  rare_pattern: string | null;
+}
+
 // ── Main Page ────────────────────────────────────────────────
 
 // ── Active Echo Card ──────────────────────────────────────────
@@ -409,6 +420,13 @@ export default function HolisticPage() {
     staleTime: 2 * 60 * 1000,
     retry: false,
   });
+
+  const { data: forecastData } = useQuery<{ forecast: ForecastData | null }>({
+    queryKey: ["/api/forecast"],
+    staleTime: 10 * 60 * 1000,
+    retry: false,
+  });
+  const forecast = forecastData?.forecast || null;
 
   const selfVec = data?.selfVec || {};
   const dataVec = data?.dataVec || null;
@@ -590,7 +608,44 @@ export default function HolisticPage() {
               />
             </section>
 
-
+            {/* ── Layer 4: Signal Forecast ── */}
+            {forecast && (
+              <section className="space-y-3">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground/40 font-medium text-center">
+                  Current Signal
+                </p>
+                <div className="flex items-center justify-center gap-3 flex-wrap">
+                  {ARCHETYPES.map((arch) => {
+                    const level = forecast.archetype_signals[arch.key] || "stable";
+                    return (
+                      <div key={arch.key} className="flex items-center gap-1">
+                        <span className="text-sm font-display" style={{ color: arch.color }}>
+                          {arch.emoji}
+                        </span>
+                        <span className="text-[10px] font-mono text-muted-foreground/50 capitalize">
+                          {level}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-muted-foreground/40 text-center italic leading-relaxed max-w-sm mx-auto">
+                  {forecast.forecast_narrative}
+                </p>
+                {forecast.good_conditions.length > 0 && (
+                  <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                    {forecast.good_conditions.map((c, i) => (
+                      <span
+                        key={i}
+                        className="text-[10px] px-2 py-0.5 rounded-full border border-border/40 text-muted-foreground/50"
+                      >
+                        {c}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </section>
+            )}
 
             {/* ── Layer 5: Data Sources Panel ── */}
             <section>
@@ -693,7 +748,21 @@ export default function HolisticPage() {
                   </div>
                 )}
 
-
+              {/* Operating rules */}
+              {forecast?.operating_rules && forecast.operating_rules.length > 0 && (
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground/40 font-medium text-center mb-2">
+                    Operating Patterns
+                  </p>
+                  <div className="space-y-1.5 max-w-sm mx-auto">
+                    {forecast.operating_rules.map((rule, i) => (
+                      <p key={i} className="text-[11px] text-muted-foreground/50 text-center leading-relaxed">
+                        {rule}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )}
             </section>
 
             {/* ── About Parallax Collapsible ── */}
