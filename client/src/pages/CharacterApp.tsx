@@ -6,7 +6,7 @@ import { ARCHETYPES, ARCHETYPE_MAP, DIMENSIONS, type DimensionVec } from "@share
 import { topArchetype, computeMixture, applyNudges, defaultVec } from "@shared/archetype-math";
 import FeelingInput from "@/components/FeelingInput";
 import GaugeSection from "@/components/GaugeSection";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Scale } from "lucide-react";
 import { Link } from "wouter";
 import ThemeToggle from "@/components/ThemeToggle";
 import type { Writing, Checkin } from "@shared/schema";
@@ -518,6 +518,19 @@ export default function CharacterApp() {
           </button>
         </div>
 
+        {/* Decision Lab */}
+        <Link href="/decisions">
+          <div className="flex items-center justify-between p-3 rounded-[10px] border border-border/30 bg-card/20 hover:bg-card/40 transition-colors cursor-pointer group">
+            <div className="flex items-center gap-2.5">
+              <Scale className="w-4 h-4 text-muted-foreground/40" />
+              <div>
+                <p className="text-xs font-medium text-foreground/70">Decision Lab</p>
+                <p className="text-[10px] text-muted-foreground/40">Evaluate choices against your archetype profile</p>
+              </div>
+            </div>
+            <ArrowLeft className="w-3.5 h-3.5 text-muted-foreground/20 group-hover:text-muted-foreground/40 rotate-180 transition-colors" />
+          </div>
+        </Link>
 
       </div>
     </div>

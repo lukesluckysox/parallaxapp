@@ -303,13 +303,11 @@ function AboutParallaxSection() {
 
       {open && (
         <div className="px-4 pb-5 pt-3 space-y-6 bg-card/10">
-          {/* How gauges work */}
-          <div>
-            <h3 className="text-xs font-semibold mb-2 text-foreground/70">How the gauges work</h3>
-            <p className="text-[11px] text-muted-foreground/60 leading-relaxed">
-              Your dashboard shows two types of gauges: a <strong className="text-foreground/70">self-report gauge</strong> (what you say you are) and a <strong className="text-foreground/70">data-driven gauge</strong> (what your behavior reveals). Values come from 8 dimensions (focus, calm, discipline, health, social, creativity, exploration, ambition), each scored 0–100. Archetype alignment is computed as cosine similarity, normalized so all five sum to 100%.
-            </p>
-          </div>
+          {/* Overview */}
+          <p className="text-[11px] text-muted-foreground/60 leading-relaxed">
+            Parallax synthesizes signals from your writing, music, mood, and self-reports to reveal
+            recurring identity patterns. Identity is treated as dynamic, cyclical, and multi-signal.
+          </p>
 
           {/* Archetypes */}
           <div>
@@ -320,7 +318,7 @@ function AboutParallaxSection() {
                   <div className="flex items-center gap-2 mb-0.5">
                     <span className="font-display" style={{ color: arch.color }}>{arch.emoji}</span>
                     <span className="text-xs font-semibold" style={{ color: arch.color }}>{arch.name}</span>
-                    <span className="text-[10px] text-muted-foreground/50 ml-auto">{arch.coreDrive}</span>
+                    <span className="text-[10px] text-muted-foreground/50 ml-auto font-mono">{arch.coreDrive}</span>
                   </div>
                   <p className="text-[11px] text-muted-foreground/50 leading-relaxed">{arch.philosophy}</p>
                 </div>
@@ -328,22 +326,40 @@ function AboutParallaxSection() {
             </div>
           </div>
 
+          {/* Identity System */}
+          <div>
+            <h3 className="text-xs font-semibold mb-2 text-foreground/70">Identity system</h3>
+            <div className="space-y-1.5 text-[11px] text-muted-foreground/50 leading-relaxed">
+              <p><strong className="text-foreground/60">Variants:</strong> LLM-derived identity patterns like "The Night Cartographer" — limitless, synthesized from all your data.</p>
+              <p><strong className="text-foreground/60">Constellations:</strong> After 15+ check-ins, k-means clustering discovers recurring identity modes you cycle through.</p>
+              <p><strong className="text-foreground/60">Echoes:</strong> Detected when current signals match a previous mode at 85%+ similarity. Reveals cyclical patterns.</p>
+              <p><strong className="text-foreground/60">Mirror Line:</strong> A single shareable sentence distilled from your writing's most revealing moment.</p>
+            </div>
+          </div>
+
           {/* Data Sources */}
           <div>
             <h3 className="text-xs font-semibold mb-2 text-foreground/70">Data sources</h3>
             <div className="space-y-1.5 text-[11px] text-muted-foreground/50 leading-relaxed">
-              <p><strong className="text-foreground/60">Sonic Mirror:</strong> Spotify listening history. Audio features (energy, valence, danceability, acousticness, tempo) → dimension nudges.</p>
-              <p><strong className="text-foreground/60">Inner Mirror:</strong> Writing analysis. Emotional tone, MBTI inference, political compass, moral foundations → archetype signals.</p>
-              <p><strong className="text-foreground/60">Check-ins:</strong> Self-reported state interpreted by AI across 8 dimensions. Cumulative weighted average.</p>
-              <p><strong className="text-foreground/60">Body Mirror (coming soon):</strong> Fitness data — steps, sleep, heart rate, HRV → health and calm nudges.</p>
+              <p><strong className="text-foreground/60">Sonic Mirror:</strong> Spotify listening — mood clustering radar, temporal patterns, passive import on app open.</p>
+              <p><strong className="text-foreground/60">Inner Mirror:</strong> Writing analysis in 3 tiers — primary (mirror moment, narrative, emotions), secondary (dimensions, quotes, books), deep (MBTI, compass, moral foundations).</p>
+              <p><strong className="text-foreground/60">Check-ins:</strong> Self-reported feelings → 8-dimension scores. Cumulative weighted average, recent entries count 3x.</p>
+              <p><strong className="text-foreground/60">Body Mirror:</strong> Coming soon — fitness data.</p>
             </div>
           </div>
 
           {/* Philosophy */}
           <div>
             <blockquote className="border-l-2 border-primary/30 pl-3 italic text-[11px] text-muted-foreground/50 leading-relaxed">
-              "Parallax should not feel like a tracker. It should feel like a mirror that reveals meaning in the patterns of a person's life."
+              "Identity is not static. It moves between recurring patterns. The system reveals the modes you cycle through and the conditions that produce them."
             </blockquote>
+          </div>
+
+          {/* Full about link */}
+          <div className="text-center">
+            <a href="/#/about" className="text-[10px] font-mono text-muted-foreground/30 hover:text-muted-foreground/50 transition-colors">
+              full documentation →
+            </a>
           </div>
         </div>
       )}
