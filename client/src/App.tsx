@@ -18,7 +18,6 @@ import MirrorsPage from "./pages/MirrorsPage";
 import AboutPage from "./pages/AboutPage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/not-found";
-import OraclePage from "./pages/OraclePage";
 import BottomNav from "./components/BottomNav";
 import Onboarding from "./components/Onboarding";
 
@@ -63,7 +62,6 @@ function AppContent() {
         <Route path="/motion" component={TrajectoryPage} />
         <Route path="/decisions" component={DecisionsPage} />
         <Route path="/about" component={AboutPage} />
-        <Route path="/oracle" component={OraclePage} />
         <Route component={NotFound} />
       </Switch>
       <BottomNav />

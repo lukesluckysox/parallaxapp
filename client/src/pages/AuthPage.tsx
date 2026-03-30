@@ -10,43 +10,12 @@ const MIRROR_LINES = [
   "You move toward what you can't yet name.",
 ];
 
-const LOCATIONS = [
-  // US States
-  "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado",
-  "Connecticut", "Delaware", "Florida", "Georgia", "Hawaii", "Idaho",
-  "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana",
-  "Maine", "Maryland", "Massachusetts", "Michigan", "Minnesota",
-  "Mississippi", "Missouri", "Montana", "Nebraska", "Nevada",
-  "New Hampshire", "New Jersey", "New Mexico", "New York",
-  "North Carolina", "North Dakota", "Ohio", "Oklahoma", "Oregon",
-  "Pennsylvania", "Rhode Island", "South Carolina", "South Dakota",
-  "Tennessee", "Texas", "Utah", "Vermont", "Virginia", "Washington",
-  "West Virginia", "Wisconsin", "Wyoming",
-  // Countries
-  "Australia", "Austria", "Belgium", "Brazil", "Canada", "Chile",
-  "China", "Colombia", "Croatia", "Czech Republic", "Denmark",
-  "Egypt", "Finland", "France", "Germany", "Greece", "Hungary",
-  "India", "Indonesia", "Ireland", "Israel", "Italy", "Japan",
-  "Kenya", "Malaysia", "Mexico", "Netherlands", "New Zealand",
-  "Nigeria", "Norway", "Pakistan", "Philippines", "Poland",
-  "Portugal", "Romania", "Russia", "Saudi Arabia", "Singapore",
-  "South Africa", "South Korea", "Spain", "Sweden", "Switzerland",
-  "Thailand", "Turkey", "Ukraine", "United Kingdom", "United States",
-  "Vietnam",
-];
-
 export default function AuthPage() {
   const { login, register } = useAuth();
   const [mode, setMode] = useState<"login" | "register">("login");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
-  const [age, setAge] = useState("");
-  const [gender, setGender] = useState("");
-  const [location, setLocation] = useState("");
-  const [locationQuery, setLocationQuery] = useState("");
-  const [locationSuggestions, setLocationSuggestions] = useState<string[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -65,24 +34,6 @@ export default function AuthPage() {
     return () => clearInterval(interval);
   }, []);
 
-  // Location autocomplete filter
-  useEffect(() => {
-    if (locationQuery.length < 1) {
-      setLocationSuggestions([]);
-      return;
-    }
-    const q = locationQuery.toLowerCase();
-    setLocationSuggestions(
-      LOCATIONS.filter(l => l.toLowerCase().startsWith(q)).slice(0, 6)
-    );
-  }, [locationQuery]);
-
-  const handleLocationSelect = (loc: string) => {
-    setLocation(loc);
-    setLocationQuery(loc);
-    setShowSuggestions(false);
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -91,22 +42,14 @@ export default function AuthPage() {
     try {
       if (mode === "login") {
         const result = await login(username, password);
-        if (!result.ok) setError(result.error || "Login failed");
-      } else {
-        const ageNum = age ? parseInt(age, 10) : undefined;
-        if (age && (isNaN(ageNum!) || ageNum! < 13 || ageNum! > 110)) {
-          setError("Please enter a valid age");
-          setLoading(false);
-          return;
+        if (!result.ok) {
+          setError(result.error || "Login failed");
         }
-        const result = await register(
-          username, password,
-          displayName || undefined,
-          ageNum,
-          gender || undefined,
-          location || undefined
-        );
-        if (!result.ok) setError(result.error || "Registration failed");
+      } else {
+        const result = await register(username, password, displayName || undefined);
+        if (!result.ok) {
+          setError(result.error || "Registration failed");
+        }
       }
     } finally {
       setLoading(false);
@@ -139,15 +82,18 @@ export default function AuthPage() {
             .radar-outer { animation: radar-morph 12s ease-in-out infinite; }
             .radar-mid   { animation: radar-morph-2 9s ease-in-out infinite reverse; }
           `}</style>
+          {/* Rings */}
           <circle cx="200" cy="200" r="150" fill="none" stroke="currentColor" strokeWidth="0.5" />
           <circle cx="200" cy="200" r="100" fill="none" stroke="currentColor" strokeWidth="0.5" />
           <circle cx="200" cy="200" r="50"  fill="none" stroke="currentColor" strokeWidth="0.5" />
+          {/* Spokes */}
           {Array.from({ length: 8 }).map((_, i) => {
             const angle = (i * Math.PI * 2) / 8 - Math.PI / 2;
             const x2 = 200 + 150 * Math.cos(angle);
             const y2 = 200 + 150 * Math.sin(angle);
             return <line key={i} x1="200" y1="200" x2={x2} y2={y2} stroke="currentColor" strokeWidth="0.5" />;
           })}
+          {/* Morphing polygons */}
           <path className="radar-outer" fill="currentColor" fillOpacity="0.15" stroke="currentColor" strokeWidth="1" d="M200,80 L262,118 L280,188 L240,250 L180,268 L118,238 L100,168 L138,110 Z" />
           <path className="radar-mid" fill="currentColor" fillOpacity="0.2" stroke="currentColor" strokeWidth="1" d="M200,110 L242,135 L255,178 L228,218 L188,230 L148,210 L135,168 L158,128 Z" />
         </svg>
@@ -164,6 +110,8 @@ export default function AuthPage() {
             <h1 className="text-4xl font-display font-semibold tracking-tight" data-testid="text-auth-title">Parallax</h1>
           </div>
           <p className="text-[10px] text-muted-foreground/50 font-mono tracking-widest uppercase">a personal pattern recognition engine</p>
+
+          {/* Rotating mirror line */}
           <div className="min-h-[40px] flex items-center justify-center px-4 pt-1">
             <p
               className="text-xs font-display italic text-foreground/40 leading-relaxed text-center transition-opacity duration-500"
@@ -181,7 +129,9 @@ export default function AuthPage() {
             type="button"
             onClick={() => { setMode("login"); setError(""); }}
             className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors ${
-              mode === "login" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+              mode === "login"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
             Sign in
@@ -191,7 +141,9 @@ export default function AuthPage() {
             type="button"
             onClick={() => { setMode("register"); setError(""); }}
             className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors ${
-              mode === "register" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+              mode === "register"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
             Register
@@ -200,18 +152,20 @@ export default function AuthPage() {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-3">
-          <input
-            data-testid="input-username"
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            placeholder="Username"
-            autoComplete="username"
-            className="w-full px-3 py-2.5 rounded-[10px] border border-border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-muted-foreground/50"
-          />
+          <div>
+            <input
+              data-testid="input-username"
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="Username"
+              autoComplete="username"
+              className="w-full px-3 py-2.5 rounded-[10px] border border-border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-muted-foreground/50"
+            />
+          </div>
 
           {mode === "register" && (
-            <>
+            <div>
               <input
                 data-testid="input-display-name"
                 type="text"
@@ -221,73 +175,20 @@ export default function AuthPage() {
                 autoComplete="name"
                 className="w-full px-3 py-2.5 rounded-[10px] border border-border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-muted-foreground/50"
               />
-
-              {/* Age + Gender row */}
-              <div className="flex gap-2">
-                <input
-                  type="number"
-                  value={age}
-                  onChange={(e) => setAge(e.target.value)}
-                  placeholder="Age"
-                  min="13"
-                  max="110"
-                  className="w-1/2 px-3 py-2.5 rounded-[10px] border border-border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-muted-foreground/50"
-                />
-                <select
-                  value={gender}
-                  onChange={(e) => setGender(e.target.value)}
-                  className="w-1/2 px-3 py-2.5 rounded-[10px] border border-border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 text-muted-foreground/80"
-                >
-                  <option value="">Gender</option>
-                  <option value="male">Male</option>
-                  <option value="female">Female</option>
-                  <option value="nonbinary">Non-binary</option>
-                  <option value="prefer_not">Prefer not to say</option>
-                </select>
-              </div>
-
-              {/* Location autocomplete */}
-              <div className="relative">
-                <input
-                  type="text"
-                  value={locationQuery}
-                  onChange={(e) => {
-                    setLocationQuery(e.target.value);
-                    setLocation(e.target.value);
-                    setShowSuggestions(true);
-                  }}
-                  onFocus={() => setShowSuggestions(true)}
-                  onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
-                  placeholder="State or country (optional)"
-                  className="w-full px-3 py-2.5 rounded-[10px] border border-border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-muted-foreground/50"
-                />
-                {showSuggestions && locationSuggestions.length > 0 && (
-                  <div className="absolute z-20 w-full mt-1 bg-card border border-border rounded-[10px] shadow-lg overflow-hidden">
-                    {locationSuggestions.map(loc => (
-                      <button
-                        key={loc}
-                        type="button"
-                        onMouseDown={() => handleLocationSelect(loc)}
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors"
-                      >
-                        {loc}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </>
+            </div>
           )}
 
-          <input
-            data-testid="input-password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Password"
-            autoComplete={mode === "login" ? "current-password" : "new-password"}
-            className="w-full px-3 py-2.5 rounded-[10px] border border-border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-muted-foreground/50"
-          />
+          <div>
+            <input
+              data-testid="input-password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Password"
+              autoComplete={mode === "login" ? "current-password" : "new-password"}
+              className="w-full px-3 py-2.5 rounded-[10px] border border-border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-muted-foreground/50"
+            />
+          </div>
 
           {error && (
             <p data-testid="text-auth-error" className="text-xs text-destructive text-center py-1">
@@ -301,7 +202,12 @@ export default function AuthPage() {
             disabled={loading || !username || !password}
             className="w-full py-2.5 rounded-[10px] bg-primary text-primary-foreground text-sm font-medium transition-all hover:opacity-90 disabled:opacity-40"
           >
-            {loading ? "..." : mode === "login" ? "Sign in" : "Create account"}
+            {loading
+              ? "..."
+              : mode === "login"
+                ? "Sign in"
+                : "Create account"
+            }
           </button>
         </form>
 

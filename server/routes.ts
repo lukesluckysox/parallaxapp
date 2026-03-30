@@ -8,9 +8,6 @@ import bcrypt from "bcryptjs";
 import { getAuthUrl, exchangeCode, refreshAccessToken, spotifyApi } from "./spotify-auth";
 import jwt from "jsonwebtoken";
 import type { InsertIdentityMode } from "@shared/schema";
-import { users, checkins, writings, spotifyListens } from "@shared/schema";
-import { db } from "./storage";
-import { eq, desc } from "drizzle-orm";
 
 const JWT_SECRET = process.env.JWT_SECRET || "parallax-dev-secret-change-in-production";
 
@@ -62,112 +59,6 @@ function getUserId(req: Request): number | null {
   const id = req.headers["x-user-id"];
   if (id) return parseInt(id as string, 10) || null;
   return null;
-}
-
-/**
- * Approximate Spotify audio features from artist genres + track popularity.
- * Replaces the deprecated /audio-features Spotify API endpoint.
- * Returns values shaped like Spotify's audio features (0-1 floats), except tempo (BPM).
- */
-function approximateFeaturesFromGenres(
-  genres: string[],
-  popularity: number
-): { energy: number; valence: number; danceability: number; acousticness: number; instrumentalness: number; tempo: number } {
-  const g = genres.join(" ").toLowerCase();
-  const pop = clamp(popularity, 0, 100) / 100; // 0-1
-
-  // Energy
-  let energy = 0.5;
-  if (/metal|punk|hardcore|drum.and.bass|dubstep|hardstyle|industrial/.test(g)) energy = 0.87;
-  else if (/hard rock|edm|electronic|electro|house|techno|trance|rave|dance/.test(g)) energy = 0.73;
-  else if (/hip.hop|hip hop|rap|reggaeton|latin|pop/.test(g)) energy = 0.63;
-  else if (/r.b|soul|funk|disco/.test(g)) energy = 0.60;
-  else if (/indie|alternative|folk rock/.test(g)) energy = 0.50;
-  else if (/jazz|blues|country|singer.songwriter/.test(g)) energy = 0.40;
-  else if (/classical|ambient|acoustic|sleep|meditation|new age|lo.fi/.test(g)) energy = 0.22;
-  // Blend popularity — mainstream tracks skew slightly more energetic
-  energy = clamp(energy + (pop - 0.5) * 0.08, 0.05, 0.97);
-
-  // Valence (happiness / positivity)
-  let valence = 0.5;
-  if (/happy|tropical|disco|reggae|latin|funk|pop/.test(g)) valence = 0.74;
-  else if (/dance|house|hip.hop|hip hop|r.b|soul|electronic/.test(g)) valence = 0.58;
-  else if (/indie|alternative|country/.test(g)) valence = 0.46;
-  else if (/rock|jazz|blues/.test(g)) valence = 0.42;
-  else if (/emo|post.punk|gothic|dark wave/.test(g)) valence = 0.27;
-  else if (/metal|black metal/.test(g)) valence = 0.20;
-  else if (/classical|ambient/.test(g)) valence = 0.47;
-
-  // Danceability
-  let danceability = 0.5;
-  if (/dance|disco|funk|latin|reggaeton|hip.hop|hip hop|r.b|house|techno|edm/.test(g)) danceability = 0.80;
-  else if (/pop|soul|electronic/.test(g)) danceability = 0.65;
-  else if (/rock|indie|alternative/.test(g)) danceability = 0.46;
-  else if (/metal|classical|ambient|folk|acoustic/.test(g)) danceability = 0.28;
-
-  // Acousticness
-  let acousticness = 0.28;
-  if (/acoustic|folk|singer.songwriter|classical|bluegrass|country/.test(g)) acousticness = 0.80;
-  else if (/jazz|blues|bossa nova|soul/.test(g)) acousticness = 0.55;
-  else if (/indie|alternative|rock/.test(g)) acousticness = 0.22;
-  else if (/electronic|edm|dance|techno|house/.test(g)) acousticness = 0.04;
-
-  // Instrumentalness
-  let instrumentalness = 0.04;
-  if (/classical|ambient|post.rock|instrumental/.test(g)) instrumentalness = 0.77;
-  else if (/jazz/.test(g)) instrumentalness = 0.38;
-  else if (/electronic|edm|techno|house/.test(g)) instrumentalness = 0.22;
-
-  // Tempo (BPM — stored as raw BPM, not 0-1)
-  let tempo = 120;
-  if (/drum.and.bass|dubstep|hardstyle/.test(g)) tempo = 174;
-  else if (/metal|punk|edm|trance/.test(g)) tempo = 152;
-  else if (/dance|house|techno|disco/.test(g)) tempo = 128;
-  else if (/pop|hip.hop|hip hop|r.b/.test(g)) tempo = 100;
-  else if (/classical|ambient|folk|acoustic|ballad/.test(g)) tempo = 74;
-  else if (/jazz|blues/.test(g)) tempo = 108;
-
-  return { energy, valence, danceability, acousticness, instrumentalness, tempo };
-}
-
-/** Batch-fetch artist genres from Spotify (max 50 per request). */
-async function fetchArtistGenres(
-  accessToken: string,
-  artistIds: string[]
-): Promise<Map<string, { genres: string[]; popularity: number }>> {
-  const result: Map<string, { genres: string[]; popularity: number }> = new Map();
-  const unique = [...new Set(artistIds)].filter(Boolean);
-  for (let i = 0; i < unique.length; i += 50) {
-    const chunk = unique.slice(i, i + 50);
-    try {
-      const data = await spotifyApi(accessToken, `/artists?ids=${chunk.join(",")}`);
-      if (data?.artists) {
-        for (const artist of data.artists) {
-          if (artist?.id) {
-            result.set(artist.id, { genres: artist.genres || [], popularity: artist.popularity || 50 });
-          }
-        }
-      }
-    } catch (e) {
-      console.error("Artist genre fetch error:", e);
-    }
-  }
-  return result;
-}
-
-/** Build a pseudo-features map keyed by track ID using genre + popularity approximation. */
-function buildApproximateFeaturesMap(
-  tracks: Array<{ trackId: string; artistId: string; popularity?: number }>,
-  artistMap: Map<string, { genres: string[]; popularity: number }>
-): Map<string, ReturnType<typeof approximateFeaturesFromGenres>> {
-  const featureMap: Map<string, ReturnType<typeof approximateFeaturesFromGenres>> = new Map();
-  for (const { trackId, artistId, popularity } of tracks) {
-    const artist = artistMap.get(artistId);
-    const genres = artist?.genres || [];
-    const pop = popularity ?? artist?.popularity ?? 50;
-    featureMap.set(trackId, approximateFeaturesFromGenres(genres, pop));
-  }
-  return featureMap;
 }
 
 function getUserTimezone(req: Request): string {
@@ -241,7 +132,7 @@ export async function registerRoutes(
   // POST /api/auth/register
   app.post("/api/auth/register", async (req, res) => {
     try {
-      const { username, password, displayName, age, gender, location } = req.body;
+      const { username, password, displayName } = req.body;
 
       // Validate username: 3+ chars, alphanumeric + underscore
       if (!username || typeof username !== "string" || username.length < 3 || !/^[a-zA-Z0-9_]+$/.test(username)) {
@@ -268,9 +159,6 @@ export async function registerRoutes(
         password_hash,
         display_name: displayName || null,
         created_at: new Date().toISOString(),
-        age: age ? parseInt(age, 10) : null,
-        gender: gender || null,
-        location: location || null,
       });
 
       const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "30d" });
@@ -499,29 +387,36 @@ export async function registerRoutes(
         console.error("Recently played error:", e);
       }
 
-      // 3. Collect track + artist IDs for genre-based feature approximation
-      const trackInfoList: Array<{ trackId: string; artistId: string; popularity?: number }> = [];
+      // 3. Collect all track IDs for batch audio features
+      const allTrackIds: string[] = [];
+      if (currentTrack) allTrackIds.push(currentTrack.id);
       for (const item of recentTracks) {
-        const track = item.track;
-        if (track?.id && track?.artists?.[0]?.id) {
-          if (!trackInfoList.find(t => t.trackId === track.id)) {
-            trackInfoList.push({ trackId: track.id, artistId: track.artists[0].id, popularity: track.popularity });
-          }
-        }
-      }
-      // Include current track artist if available
-      if (currentTrack) {
-        const currentInRecent = recentTracks.find((i: any) => i.track?.id === currentTrack!.id);
-        const artistId = currentInRecent?.track?.artists?.[0]?.id || "";
-        if (artistId && !trackInfoList.find(t => t.trackId === currentTrack!.id)) {
-          trackInfoList.push({ trackId: currentTrack.id, artistId, popularity: currentInRecent?.track?.popularity });
+        const trackId = item.track?.id;
+        if (trackId && !allTrackIds.includes(trackId)) {
+          allTrackIds.push(trackId);
         }
       }
 
-      // 4. Fetch artist genres and approximate audio features
-      const artistIds = [...new Set(trackInfoList.map(t => t.artistId).filter(Boolean))];
-      const artistGenreMap = await fetchArtistGenres(accessToken, artistIds);
-      const audioFeaturesMap = buildApproximateFeaturesMap(trackInfoList, artistGenreMap);
+      // 4. Batch fetch audio features (up to 100 at a time)
+      const audioFeaturesMap: Map<string, any> = new Map();
+      if (allTrackIds.length > 0) {
+        try {
+          // Batch in chunks of 100
+          for (let i = 0; i < allTrackIds.length; i += 100) {
+            const chunk = allTrackIds.slice(i, i + 100);
+            const featuresResult = await spotifyApi(accessToken, `/audio-features?ids=${chunk.join(",")}`);
+            if (featuresResult?.audio_features) {
+              for (const feat of featuresResult.audio_features) {
+                if (feat && feat.id) {
+                  audioFeaturesMap.set(feat.id, feat);
+                }
+              }
+            }
+          }
+        } catch (e: any) {
+          console.error("Batch audio features error:", e);
+        }
+      }
 
       // Current track features
       if (currentTrack) {
@@ -1313,8 +1208,6 @@ Return ONLY valid JSON:
       let trackName = "";
       let artistName = "";
       let trackId = "";
-      let currentArtistId = "";
-      let currentTrackPopularity = 50;
       let albumName: string | null = null;
       let albumArtUrl: string | null = null;
       let durationMs: number | null = null;
@@ -1327,8 +1220,6 @@ Return ONLY valid JSON:
           trackName = item.name || "Unknown";
           artistName = item.artists?.[0]?.name || "Unknown";
           trackId = item.id;
-          currentArtistId = item.artists?.[0]?.id || "";
-          currentTrackPopularity = item.popularity ?? 50;
           albumName = item.album?.name || null;
           albumArtUrl = item.album?.images?.[0]?.url || null;
           durationMs = item.duration_ms || null;
@@ -1349,25 +1240,35 @@ Return ONLY valid JSON:
         console.error("Recently played error:", e);
       }
 
-      // Collect track + artist IDs for genre-based feature approximation
-      const nowTrackInfoList: Array<{ trackId: string; artistId: string; popularity?: number }> = [];
+      // Collect all track IDs for batch audio features
+      const allTrackIds: string[] = [];
+      if (trackId) allTrackIds.push(trackId);
       for (const item of recentTracks) {
-        const track = item.track;
-        if (track?.id && track?.artists?.[0]?.id) {
-          if (!nowTrackInfoList.find(t => t.trackId === track.id)) {
-            nowTrackInfoList.push({ trackId: track.id, artistId: track.artists[0].id, popularity: track.popularity });
-          }
+        const tid = item.track?.id;
+        if (tid && !allTrackIds.includes(tid)) {
+          allTrackIds.push(tid);
         }
       }
-      // Include currently playing track if not already in recent
-      if (trackId && !nowTrackInfoList.find(t => t.trackId === trackId)) {
-        nowTrackInfoList.push({ trackId, artistId: currentArtistId, popularity: currentTrackPopularity });
-      }
 
-      // Fetch artist genres and approximate audio features
-      const nowArtistIds = [...new Set(nowTrackInfoList.map(t => t.artistId).filter(Boolean))];
-      const nowArtistGenreMap = await fetchArtistGenres(accessToken, nowArtistIds);
-      const audioFeaturesMap = buildApproximateFeaturesMap(nowTrackInfoList, nowArtistGenreMap);
+      // Batch fetch audio features
+      const audioFeaturesMap: Map<string, any> = new Map();
+      if (allTrackIds.length > 0) {
+        try {
+          for (let i = 0; i < allTrackIds.length; i += 100) {
+            const chunk = allTrackIds.slice(i, i + 100);
+            const featuresResult = await spotifyApi(accessToken, `/audio-features?ids=${chunk.join(",")}`);
+            if (featuresResult?.audio_features) {
+              for (const feat of featuresResult.audio_features) {
+                if (feat && feat.id) {
+                  audioFeaturesMap.set(feat.id, feat);
+                }
+              }
+            }
+          }
+        } catch (e) {
+          console.error("Batch audio features error:", e);
+        }
+      }
 
       const audioFeatures = trackId ? audioFeaturesMap.get(trackId) || null : null;
 
@@ -2639,70 +2540,6 @@ Return ONLY valid JSON:
       return res.json({ ok: true });
     } catch (err: any) {
       return res.status(500).json({ error: err.message });
-    }
-  });
-
-  // ===================== ORACLE ADMIN STATS =====================
-
-  // GET /api/admin/stats — only accessible to the "oracle" account
-  app.get("/api/admin/stats", async (req, res) => {
-    try {
-      const userId = getUserId(req);
-      if (!userId) return res.status(401).json({ error: "Not authenticated" });
-
-      const requestingUser = storage.getUserById(userId);
-      if (!requestingUser || requestingUser.username !== "oracle") {
-        return res.status(403).json({ error: "Forbidden" });
-      }
-
-      // Pull all users
-      const allUsers = db.select().from(users).all();
-
-      // Per-user stats
-      const userStats = allUsers
-        .filter(u => u.username !== "oracle")
-        .map(u => {
-          const checkinCount = db.select().from(checkins).where(eq(checkins.user_id, u.id)).all().length;
-          const writingCount = db.select().from(writings).where(eq(writings.user_id, u.id)).all().length;
-          const spotifyCount = db.select().from(spotifyListens).where(eq(spotifyListens.user_id, u.id)).all().length;
-          const spotifyConnected = !!storage.getSpotifyToken(u.id);
-          const lastCheckin = db.select().from(checkins)
-            .where(eq(checkins.user_id, u.id))
-            .orderBy(desc(checkins.id))
-            .limit(1)
-            .get();
-
-          return {
-            id: u.id,
-            username: u.username,
-            displayName: u.display_name,
-            joinedAt: u.created_at,
-            age: u.age,
-            gender: u.gender,
-            location: u.location,
-            checkinCount,
-            writingCount,
-            spotifyListens: spotifyCount,
-            spotifyConnected,
-            lastActiveAt: lastCheckin?.timestamp || u.created_at,
-          };
-        });
-
-      // Aggregates
-      const totalCheckins = db.select().from(checkins).all().length;
-      const totalWritings = db.select().from(writings).all().length;
-      const totalSpotifyListens = db.select().from(spotifyListens).all().length;
-
-      return res.json({
-        totalUsers: userStats.length,
-        totalCheckins,
-        totalWritings,
-        totalSpotifyListens,
-        users: userStats,
-      });
-    } catch (err: any) {
-      console.error("Admin stats error:", err);
-      return res.status(500).json({ error: "Server error" });
     }
   });
 
