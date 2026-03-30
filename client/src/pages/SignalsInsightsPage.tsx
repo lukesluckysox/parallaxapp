@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { ArrowLeft, Eye, AlertTriangle, Sparkles, TrendingUp, Zap, Activity, ArrowRightLeft, RefreshCw } from "lucide-react";
-import ThemeToggle from "@/components/ThemeToggle";
 import { queryClient } from "@/lib/queryClient";
 
 type InsightType = "observation" | "blind_spot" | "creative_signal" | "trajectory" | "emotional_anomaly" | "creative_surge" | "state_transition";
@@ -46,7 +45,7 @@ export default function SignalsInsightsPage() {
             <ArrowLeft className="w-3.5 h-3.5" /> Signals
           </Link>
           <h1 className="text-base font-display font-semibold">Insights</h1>
-          <ThemeToggle />
+          <div />
         </header>
 
         {isLoading ? (

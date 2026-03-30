@@ -5,7 +5,6 @@ import {
   ArrowLeft, Sparkles, Zap, Activity, ArrowRightLeft, Clock,
   Music, PenLine, Repeat, TrendingUp, Eye, ChevronRight
 } from "lucide-react";
-import ThemeToggle from "@/components/ThemeToggle";
 import { ARCHETYPE_MAP } from "@shared/archetypes";
 
 // ── Types ────────────────────────────────────────────────────
@@ -336,7 +335,7 @@ export default function SignalsPatternsPage() {
             <ArrowLeft className="w-3.5 h-3.5" /> Signals
           </Link>
           <h1 className="text-base font-display font-semibold">Timeline & Patterns</h1>
-          <ThemeToggle />
+          <div />
         </header>
 
         {/* Identity Constellation */}

@@ -21,6 +21,7 @@ import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/not-found";
 import BottomNav from "./components/BottomNav";
 import Onboarding from "./components/Onboarding";
+import TopBar from "./components/TopBar";
 
 function AppContent() {
   const { isAuthenticated, isLoading, justRegistered, clearOnboarding } = useAuth();
@@ -50,6 +51,7 @@ function AppContent() {
 
   return (
     <Router hook={useHashLocation}>
+      <TopBar />
       <Switch>
         <Route path="/" component={HolisticPage} />
         <Route path="/snapshot" component={CharacterApp} />

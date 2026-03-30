@@ -1,6 +1,5 @@
 import { Link } from "wouter";
 import { ArrowLeft } from "lucide-react";
-import ThemeToggle from "@/components/ThemeToggle";
 import { ARCHETYPES } from "@shared/archetypes";
 
 export default function AboutPage() {
@@ -8,7 +7,7 @@ export default function AboutPage() {
     <div className="min-h-screen bg-background noise-overlay">
       <div className="max-w-2xl mx-auto px-4 py-6">
         {/* Header */}
-        <header className="flex items-center justify-between pt-2 pb-1 mb-8">
+        <header className="flex items-center pt-2 pb-1 mb-8">
           <Link
             href="/"
             className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
@@ -16,7 +15,6 @@ export default function AboutPage() {
             <ArrowLeft className="w-4 h-4" />
             Home
           </Link>
-          <ThemeToggle />
         </header>
 
         <div className="space-y-12">

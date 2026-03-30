@@ -4,7 +4,6 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { ArrowLeft, Sparkles, ChevronDown, ChevronRight, Trash2 } from "lucide-react";
-import ThemeToggle from "@/components/ThemeToggle";
 import PoliticalCompass from "@/components/PoliticalCompass";
 import MbtiRadar from "@/components/MbtiRadar";
 import MoralFoundations from "@/components/MoralFoundations";
@@ -610,7 +609,7 @@ export default function WritingPage() {
           <h1 className="text-base font-bold tracking-tight" data-testid="text-writing-title">
             Inner Mirror
           </h1>
-          <ThemeToggle />
+          <div />
         </header>
 
         <p className="text-xs text-muted-foreground text-center -mt-3">

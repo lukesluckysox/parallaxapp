@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { ArrowLeft, ChevronDown, Clock, Check, X, Minus } from "lucide-react";
-import ThemeToggle from "@/components/ThemeToggle";
 import DecisionEngine from "@/components/DecisionEngine";
 import { ARCHETYPE_MAP, DIMENSIONS, type DimensionVec } from "@shared/archetypes";
 import { defaultVec, applyNudges } from "@shared/archetype-math";
@@ -167,7 +166,7 @@ export default function DecisionsPage() {
             Snapshot
           </Link>
           <h1 className="text-base font-bold" data-testid="text-page-title">Decision Lab</h1>
-          <ThemeToggle />
+          <div />
         </header>
 
         {/* Decision Engine */}

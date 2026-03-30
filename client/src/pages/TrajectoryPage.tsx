@@ -2,7 +2,6 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { ArrowLeft, ArrowUp, ArrowDown, Minus, Compass } from "lucide-react";
-import ThemeToggle from "@/components/ThemeToggle";
 import FutureSelf from "@/components/FutureSelf";
 import ArchetypeBrowser from "@/components/ArchetypeBrowser";
 import { ARCHETYPE_MAP, DIMENSIONS, type DimensionVec } from "@shared/archetypes";
@@ -293,7 +292,7 @@ export default function TrajectoryPage() {
             Home
           </Link>
           <h1 className="text-base font-bold" data-testid="text-page-title">Motion</h1>
-          <ThemeToggle />
+          <div />
         </header>
 
         {/* Trajectory Path */}

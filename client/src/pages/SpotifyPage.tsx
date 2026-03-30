@@ -3,7 +3,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth-context";
 import { Link } from "wouter";
-import ThemeToggle from "@/components/ThemeToggle";
 import {
   ArrowLeft, RefreshCw, Music, Clock, Users, Zap, LinkIcon, Unlink, ChevronRight,
 } from "lucide-react";
@@ -65,12 +64,6 @@ interface HistoryData {
     avgDanceability: number;
     topArtists: { name: string; count: number }[];
   };
-  byDay: {
-    date: string;
-    tracks: SpotifyListen[];
-    totalMinutes: number;
-    trackCount: number;
-  }[];
 }
 
 interface PatternsData {
@@ -328,7 +321,7 @@ export default function SpotifyPage() {
 
   // Fetch history (only if connected)
   const { data: history, refetch: refetchHistory } = useQuery<HistoryData>({
-    queryKey: ["/api/spotify/history?days=14"],
+    queryKey: ["/api/spotify/history"],
     staleTime: 0,
     enabled: isConnected,
   });
@@ -393,7 +386,7 @@ export default function SpotifyPage() {
       refetchStatus();
       queryClient.invalidateQueries({ queryKey: ["/api/spotify"] });
       queryClient.invalidateQueries({ queryKey: ["/api/spotify/now"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/spotify/history?days=14"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/spotify/history"] });
       queryClient.invalidateQueries({ queryKey: ["/api/spotify/patterns"] });
     } catch {
       // ignore
@@ -401,7 +394,6 @@ export default function SpotifyPage() {
   };
 
   const stats = history?.stats;
-  const byDay = history?.byDay || [];
 
   return (
     <div className="min-h-screen bg-background noise-overlay">
@@ -420,7 +412,7 @@ export default function SpotifyPage() {
             <h1 className="text-lg font-bold tracking-tight" data-testid="text-sonic-mirror-title">
               Sonic Mirror
             </h1>
-            <ThemeToggle />
+            <div />
           </div>
           <p className="text-[11px] text-muted-foreground text-center mt-0.5">
             Your listening identity, tracked over time
@@ -536,7 +528,7 @@ export default function SpotifyPage() {
 
             {/* Sonic Reading */}
             {stats && stats.totalTracks > 0 && (
-              <MusicSynopsis stats={stats} recentTracks={byDay.length > 0 ? byDay[0]?.tracks || [] : []} />
+              <MusicSynopsis stats={stats} recentTracks={history?.listens?.slice(0, 10) || []} />
             )}
 
             {/* Stats Cards */}
@@ -663,60 +655,48 @@ export default function SpotifyPage() {
             {/* Listening History — Collapsible */}
             <div className="rounded-[10px] border border-border/40 bg-card/20 px-3" data-testid="section-history">
               <CollapsibleSection title="Listening History">
-                {byDay.length === 0 ? (
-                  <div className="p-6 rounded-[10px] bg-card border border-border text-center" data-testid="card-empty-history">
+                {(!history?.listens || history.listens.length === 0) ? (
+                  <div className="p-6 rounded-[10px] bg-card border border-border text-center">
                     <Music className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
                     <p className="text-sm text-muted-foreground">
-                      Start listening on Spotify and check back here. Your history builds over time.
+                      Start listening on Spotify and check back here.
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-4">
-                    {byDay.map((day) => (
-                      <div key={day.date}>
-                        {/* Day header */}
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-xs font-semibold">{formatDayLabel(day.date)}</span>
-                          <span className="text-[10px] text-muted-foreground">
-                            {day.trackCount} track{day.trackCount !== 1 ? "s" : ""} · {formatMinutes(day.totalMinutes)}
-                          </span>
+                  <div className="space-y-1">
+                    {history.listens.map((track) => (
+                      <div
+                        key={`${track.id}-${track.timestamp}`}
+                        className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-accent/40 transition-colors"
+                        data-testid={`track-${track.id}`}
+                      >
+                        {track.album_art_url ? (
+                          <img
+                            src={track.album_art_url}
+                            alt=""
+                            className="w-8 h-8 rounded shadow-sm object-cover shrink-0"
+                          />
+                        ) : (
+                          <div className="w-8 h-8 rounded bg-muted flex items-center justify-center shrink-0">
+                            <Music className="w-3.5 h-3.5 text-muted-foreground" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold truncate">{track.track_name}</p>
+                          <p className="text-[10px] text-muted-foreground truncate">{track.artist_name}</p>
                         </div>
-
-                        {/* Track list */}
-                        <div className="space-y-1">
-                          {day.tracks.map((track) => (
-                            <div
-                              key={`${track.id}-${track.timestamp}`}
-                              className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-accent/40 transition-colors"
-                              data-testid={`track-${track.id}`}
-                            >
-                              {track.album_art_url ? (
-                                <img
-                                  src={track.album_art_url}
-                                  alt=""
-                                  className="w-8 h-8 rounded shadow-sm object-cover shrink-0"
-                                />
-                              ) : (
-                                <div className="w-8 h-8 rounded bg-muted flex items-center justify-center shrink-0">
-                                  <Music className="w-3.5 h-3.5 text-muted-foreground" />
-                                </div>
-                              )}
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs font-semibold truncate">{track.track_name}</p>
-                                <p className="text-[10px] text-muted-foreground truncate">{track.artist_name}</p>
-                              </div>
-                              <div className="flex items-center gap-1.5 shrink-0">
-                                <MoodDot value={track.energy} type="energy" />
-                                <MoodDot value={track.valence} type="valence" />
-                                <span className="text-[10px] tabular-nums text-muted-foreground w-10 text-right">
-                                  {formatDuration(track.duration_ms)}
-                                </span>
-                              </div>
-                            </div>
-                          ))}
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <MoodDot value={track.energy} type="energy" />
+                          <MoodDot value={track.valence} type="valence" />
+                          <span className="text-[10px] tabular-nums text-muted-foreground w-10 text-right">
+                            {formatDuration(track.duration_ms)}
+                          </span>
                         </div>
                       </div>
                     ))}
+                    <p className="text-[9px] text-muted-foreground/30 font-mono text-center pt-2">
+                      showing last {history.listens.length} tracks
+                    </p>
                   </div>
                 )}
               </CollapsibleSection>

@@ -1,6 +1,5 @@
-import { useRef, useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import ThemeToggle from "@/components/ThemeToggle";
 import { ARCHETYPES, ARCHETYPE_MAP, DIMENSIONS } from "@shared/archetypes";
 import { computeMixture } from "@shared/archetype-math";
 import type { DimensionVec } from "@shared/archetypes";
@@ -440,27 +439,13 @@ export default function HolisticPage() {
     })();
   }, []);
 
-  // Scroll-based parallax
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [scrollY, setScrollY] = useState(0);
-
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const handleScroll = () => setScrollY(el.scrollTop);
-    el.addEventListener("scroll", handleScroll, { passive: true });
-    return () => el.removeEventListener("scroll", handleScroll);
-  }, []);
-
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background noise-overlay pb-20">
         <div className="max-w-2xl mx-auto px-4 py-6">
-          <header className="flex items-center justify-between mb-8">
-            <div />
-            <span className="text-base font-display font-semibold">Identity Parallax</span>
-            <ThemeToggle />
-          </header>
+          <div className="text-center pt-2 pb-4">
+            <h1 className="text-xl font-display font-semibold tracking-tight text-foreground">Identity Parallax</h1>
+          </div>
           <div className="flex items-center justify-center h-64">
             <div className="animate-pulse text-muted-foreground/30 font-display text-lg">
               Assembling your signal...
@@ -479,22 +464,19 @@ export default function HolisticPage() {
 
   return (
     <div
-      ref={containerRef}
-      className="min-h-screen bg-background noise-overlay pb-24 overflow-y-auto"
-      style={{ perspective: "1200px", backgroundImage: ambientBg }}
+      className="min-h-screen bg-background noise-overlay pb-24"
+      style={{ backgroundImage: ambientBg }}
     >
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-8">
         {/* Header */}
-        <header className="flex items-center justify-between">
-          <div />
+        <div className="text-center pt-2 pb-4">
           <h1
-            className="text-base font-display font-semibold"
+            className="text-xl font-display font-semibold tracking-tight text-foreground"
             data-testid="text-page-title"
           >
             Identity Parallax
           </h1>
-          <ThemeToggle />
-        </header>
+        </div>
 
         {!hasData ? (
           <div className="text-center py-20">
@@ -505,14 +487,8 @@ export default function HolisticPage() {
           </div>
         ) : (
           <>
-            {/* ── Layer 1: Variant Identity (front) ── */}
-            <section
-              className="text-center transition-transform duration-300"
-              style={{
-                transform: `translateZ(${40 - scrollY * 0.05}px) translateY(${scrollY * -0.02}px)`,
-                transformStyle: "preserve-3d",
-              }}
-            >
+            {/* ── Layer 1: Variant Identity ── */}
+            <section className="text-center">
               {variant ? (
                 <>
                   <h2
@@ -561,12 +537,10 @@ export default function HolisticPage() {
               </p>
             )}
 
-            {/* ── Layer 2: Radar Chart (mid) ── */}
+            {/* ── Layer 2: Radar Chart ── */}
             <section
-              className="flex justify-center transition-transform duration-300"
+              className="flex justify-center"
               style={{
-                transform: `translateZ(${10 - scrollY * 0.02}px)`,
-                transformStyle: "preserve-3d",
                 opacity: freshness,
                 transition: "opacity 0.5s ease",
               }}
@@ -595,12 +569,9 @@ export default function HolisticPage() {
               )}
             </div>
 
-            {/* ── Layer 3: Archetype Distribution (back) ── */}
+            {/* ── Layer 3: Archetype Distribution ── */}
             <section
-              className="transition-transform duration-300"
               style={{
-                transform: `translateZ(${-10 - scrollY * 0.01}px)`,
-                transformStyle: "preserve-3d",
                 opacity: freshness,
               }}
             >
@@ -616,11 +587,7 @@ export default function HolisticPage() {
             {/* ── Layer 4: Signal & Conditions ── */}
             {forecast && (
               <section
-                className="space-y-3 transition-transform duration-300"
-                style={{
-                  transform: `translateZ(${-20 - scrollY * 0.008}px)`,
-                  transformStyle: "preserve-3d",
-                }}
+                className="space-y-3"
               >
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground/40 font-medium text-center">
                   Current Signal
@@ -663,13 +630,7 @@ export default function HolisticPage() {
             )}
 
             {/* ── Layer 5: Data Sources Panel ── */}
-            <section
-              className="transition-transform duration-300"
-              style={{
-                transform: `translateZ(${-30 - scrollY * 0.005}px)`,
-                transformStyle: "preserve-3d",
-              }}
-            >
+            <section>
               <div className="p-4 rounded-[10px] bg-card/30 border border-border/30">
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground/40 font-medium mb-3">
                   Signal Sources
@@ -706,11 +667,7 @@ export default function HolisticPage() {
 
             {/* ── Layer 6: Themes & Traits ── */}
             <section
-              className="space-y-4 transition-transform duration-300"
-              style={{
-                transform: `translateZ(${-40 - scrollY * 0.003}px)`,
-                transformStyle: "preserve-3d",
-              }}
+              className="space-y-4"
             >
               {/* Top themes */}
               {data?.topThemes && data.topThemes.length > 0 && (

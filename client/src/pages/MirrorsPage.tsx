@@ -1,6 +1,5 @@
 import { Link } from "wouter";
 import { Music, PenLine, Heart, ArrowRight } from "lucide-react";
-import ThemeToggle from "@/components/ThemeToggle";
 
 const MIRRORS = [
   {
@@ -37,7 +36,7 @@ export default function MirrorsPage() {
         <header className="flex items-center justify-between">
           <div />
           <h1 className="text-base font-display font-semibold">Mirrors</h1>
-          <ThemeToggle />
+          <div />
         </header>
         <p className="text-xs text-muted-foreground/50 text-center -mt-2 font-mono">
           data collection — see yourself from every angle

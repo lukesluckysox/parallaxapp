@@ -1,6 +1,5 @@
 import { Link } from "wouter";
 import { ArrowLeft, Heart } from "lucide-react";
-import ThemeToggle from "@/components/ThemeToggle";
 
 const INTEGRATIONS = [
   "Apple Health",
@@ -27,7 +26,7 @@ export default function HealthPage() {
           <h1 className="text-base font-bold" data-testid="text-page-title">
             Body Mirror
           </h1>
-          <ThemeToggle />
+          <div />
         </header>
 
         {/* Center content */}

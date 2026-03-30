@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Radio, ArrowRight, Sparkles, Repeat, Eye } from "lucide-react";
-import ThemeToggle from "@/components/ThemeToggle";
 import { ARCHETYPE_MAP } from "@shared/archetypes";
 
 interface DiscoverResponse {
@@ -50,7 +49,7 @@ export default function DiscoverPage() {
             <Radio className="w-3.5 h-3.5" /> Home
           </Link>
           <h1 className="text-base font-display font-semibold">Signals</h1>
-          <ThemeToggle />
+          <div />
         </header>
 
         <p className="text-xs text-muted-foreground/50 text-center -mt-2 font-mono">

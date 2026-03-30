@@ -1366,40 +1366,12 @@ Return ONLY valid JSON:
   app.get("/api/spotify/history", async (req, res) => {
     try {
       const userId = getUserId(req);
-      const days = parseInt(req.query.days as string) || 7;
-      const tz = getUserTimezone(req);
 
-      const listens = storage.getSpotifyListens(userId, 200);
+      // Just the 20 most recent listens
+      const listens = storage.getSpotifyListens(userId, 20);
       const stats = storage.getSpotifyStats(userId);
 
-      // Group by local date using user's timezone
-      const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-      const byDayMap: Record<string, { tracks: any[]; totalMs: number }> = {};
-      
-      for (const listen of listens) {
-        const d = new Date(listen.timestamp);
-        if (d < cutoff) continue;
-        let localDate: string;
-        try {
-          localDate = d.toLocaleDateString("en-CA", { timeZone: tz }); // en-CA gives YYYY-MM-DD
-        } catch {
-          localDate = listen.timestamp.slice(0, 10);
-        }
-        if (!byDayMap[localDate]) byDayMap[localDate] = { tracks: [], totalMs: 0 };
-        byDayMap[localDate].tracks.push(listen);
-        byDayMap[localDate].totalMs += listen.duration_ms || 0;
-      }
-
-      const byDay = Object.entries(byDayMap)
-        .sort(([a], [b]) => b.localeCompare(a))
-        .map(([date, data]) => ({
-          date,
-          tracks: data.tracks,
-          totalMinutes: Math.round(data.totalMs / 60000),
-          trackCount: data.tracks.length,
-        }));
-
-      return res.json({ listens, stats, byDay });
+      return res.json({ listens, stats });
     } catch (err: any) {
       console.error("Spotify history error:", err);
       return res.status(500).json({ error: err.message });

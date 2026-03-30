@@ -1,6 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth-context";
-import ThemeToggle from "@/components/ThemeToggle";
 import { Link } from "wouter";
 import { ArrowLeft } from "lucide-react";
 
@@ -131,7 +130,7 @@ export default function OraclePage() {
             <ArrowLeft className="w-3.5 h-3.5" /> Home
           </Link>
           <h1 className="text-base font-display font-semibold">Oracle</h1>
-          <ThemeToggle />
+          <div />
         </header>
 
         {/* Aggregate Stats */}

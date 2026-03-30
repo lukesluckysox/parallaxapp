@@ -8,7 +8,6 @@ import FeelingInput from "@/components/FeelingInput";
 import GaugeSection from "@/components/GaugeSection";
 import { ArrowLeft, Scale } from "lucide-react";
 import { Link } from "wouter";
-import ThemeToggle from "@/components/ThemeToggle";
 import type { Writing, Checkin } from "@shared/schema";
 
 // ── Parallax Mirror (one-liner under username) ───────────────
@@ -464,12 +463,12 @@ export default function CharacterApp() {
   return (
     <div className="min-h-screen bg-background pb-20 noise-overlay">
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-5">
-        <header className="pt-3 pb-2">
+        <header className="pt-2 pb-2">
           <div className="flex items-center justify-between mb-2">
             <Link href="/" className="text-xs text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1">
               <ArrowLeft className="w-3.5 h-3.5" /> Home
             </Link>
-            <ThemeToggle />
+            <div />
           </div>
           <div className="text-center">
             <h1 className="text-xl font-display font-semibold tracking-tight text-foreground">Instant Reflection</h1>
