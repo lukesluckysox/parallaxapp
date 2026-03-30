@@ -1,10 +1,11 @@
 import { useState, useCallback, useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth-context";
 import { Link } from "wouter";
 import {
-  ArrowLeft, RefreshCw, Music, Clock, Users, Zap, LinkIcon, Unlink, ChevronRight,
+  ArrowLeft, RefreshCw, Music, Clock, Users, Zap, LinkIcon, Unlink, ChevronRight, Mail, CheckCircle,
 } from "lucide-react";
 
 // ── Interfaces ────────────────────────────────────────────────
@@ -297,6 +298,92 @@ function MusicSynopsis({ stats, recentTracks }: { stats: HistoryData["stats"]; r
   );
 }
 
+// ── Whitelist Request Card ────────────────────────────────────
+
+function WhitelistRequestCard() {
+  const [email, setEmail] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+  const [alreadyQueued, setAlreadyQueued] = useState(false);
+
+  // Check if user already has a pending request
+  const { data: statusData } = useQuery<{ requested: boolean }>({
+    queryKey: ["/api/spotify/whitelist-status"],
+    staleTime: 60000,
+  });
+
+  const mutation = useMutation({
+    mutationFn: async (emailVal: string) => {
+      const res = await apiRequest("POST", "/api/spotify/whitelist-request", { email: emailVal });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      if (data.alreadyQueued) {
+        setAlreadyQueued(true);
+      }
+      setSubmitted(true);
+      queryClient.invalidateQueries({ queryKey: ["/api/spotify/whitelist-status"] });
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim() || !email.includes("@")) return;
+    mutation.mutate(email.trim());
+  };
+
+  // Already submitted previously
+  if (statusData?.requested || submitted) {
+    return (
+      <div className="p-3 rounded-[10px] border border-[#1DB954]/20 bg-[#1DB954]/5 text-center" data-testid="card-whitelist-status">
+        <div className="flex items-center justify-center gap-2">
+          <CheckCircle className="w-3.5 h-3.5 text-[#1DB954]" />
+          <p className="text-xs text-[#1DB954]/80">
+            {alreadyQueued ? "Your email is already in the queue" : "Whitelist request submitted"}
+          </p>
+        </div>
+        <p className="text-[10px] text-muted-foreground/40 mt-1">
+          You'll be able to connect once your Spotify email is approved
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-4 rounded-[10px] border border-border/40 bg-card/30" data-testid="card-whitelist-request">
+      <div className="flex items-center gap-2 mb-2">
+        <Mail className="w-3.5 h-3.5 text-muted-foreground/60" />
+        <p className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider">
+          Spotify Access Request
+        </p>
+      </div>
+      <p className="text-xs text-muted-foreground/50 mb-3 leading-relaxed">
+        Spotify integration requires your email to be whitelisted. Enter the email tied to your Spotify account below.
+      </p>
+      <form onSubmit={handleSubmit} className="flex gap-2">
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="your-spotify-email@example.com"
+          className="flex-1 min-w-0 px-3 py-2 rounded-lg bg-background border border-border text-xs text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:ring-1 focus:ring-primary/30"
+          data-testid="input-whitelist-email"
+        />
+        <button
+          type="submit"
+          disabled={mutation.isPending || !email.includes("@")}
+          className="px-3 py-2 rounded-lg bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors disabled:opacity-40"
+          data-testid="button-submit-whitelist"
+        >
+          {mutation.isPending ? "..." : "Request"}
+        </button>
+      </form>
+      {mutation.isError && (
+        <p className="text-[10px] text-destructive/60 mt-1.5">Something went wrong. Try again.</p>
+      )}
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────
 
 export default function SpotifyPage() {
@@ -419,7 +506,9 @@ export default function SpotifyPage() {
           </p>
         </header>
 
-        {/* Connection Banner */}
+        {/* Whitelist Request + Connection Banner */}
+        {!isConnected && <WhitelistRequestCard />}
+
         {!isConnected ? (
           <div className="p-4 rounded-[10px] bg-card border border-border text-center space-y-3" data-testid="card-spotify-connect">
             <Music className="w-10 h-10 text-[#1DB954] mx-auto" />

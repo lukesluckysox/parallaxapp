@@ -1,7 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth-context";
 import { Link } from "wouter";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ChevronRight, Trash2, Copy, CheckCircle } from "lucide-react";
 
 interface UserStat {
   id: number;
@@ -86,6 +88,127 @@ function PieChart({ data, title }: { data: Record<string, number>; title: string
   );
 }
 
+// ── Whitelist Queue Panel ────────────────────────────────────
+
+interface WhitelistEntry {
+  id: number;
+  email: string;
+  username: string;
+  requested_at: string;
+}
+
+function WhitelistQueuePanel() {
+  const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const queryClient = useQueryClient();
+
+  const { data } = useQuery<{ queue: WhitelistEntry[] }>({
+    queryKey: ["/api/admin/whitelist-queue"],
+    staleTime: 30000,
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await apiRequest("DELETE", `/api/admin/whitelist-queue/${id}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/whitelist-queue"] });
+    },
+  });
+
+  const queue = data?.queue || [];
+
+  const copyAllEmails = () => {
+    const emails = queue.map(q => q.email).join("\n");
+    navigator.clipboard.writeText(emails).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  return (
+    <div className="rounded-[10px] border border-border/30 overflow-hidden" data-testid="section-whitelist-queue">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between px-4 py-3 bg-card/20 hover:bg-card/40 transition-colors"
+        data-testid="button-toggle-whitelist"
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-mono text-muted-foreground/50 uppercase tracking-widest">
+            Spotify Whitelist Queue
+          </span>
+          {queue.length > 0 && (
+            <span className="px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[9px] font-mono font-semibold">
+              {queue.length}
+            </span>
+          )}
+        </div>
+        <ChevronRight className={`w-3.5 h-3.5 text-muted-foreground/40 transition-transform duration-200 ${open ? "rotate-90" : ""}`} />
+      </button>
+
+      {open && (
+        <div className="px-4 pb-4 pt-2 bg-card/10">
+          {queue.length === 0 ? (
+            <p className="text-xs text-muted-foreground/40 text-center py-4">No pending requests</p>
+          ) : (
+            <>
+              {/* Copy all button */}
+              <div className="flex justify-end mb-3">
+                <button
+                  onClick={copyAllEmails}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-card/50 transition-colors"
+                  data-testid="button-copy-all-emails"
+                >
+                  {copied ? (
+                    <><CheckCircle className="w-3 h-3 text-green-500" /> Copied</>
+                  ) : (
+                    <><Copy className="w-3 h-3" /> Copy all emails</>
+                  )}
+                </button>
+              </div>
+
+              {/* Queue entries */}
+              <div className="space-y-2">
+                {queue.map(entry => (
+                  <div
+                    key={entry.id}
+                    className="flex items-center justify-between p-3 rounded-lg bg-card/30 border border-border/20"
+                    data-testid={`whitelist-entry-${entry.id}`}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-mono text-foreground/70 truncate">{entry.email}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-[9px] text-muted-foreground/40">@{entry.username}</span>
+                        <span className="text-[9px] text-muted-foreground/30">
+                          {new Date(entry.requested_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => deleteMutation.mutate(entry.id)}
+                      disabled={deleteMutation.isPending}
+                      className="p-1.5 rounded-lg text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0 ml-2"
+                      title="Remove (after whitelisting in Spotify dashboard)"
+                      data-testid={`button-delete-whitelist-${entry.id}`}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <p className="text-[9px] text-muted-foreground/30 font-mono mt-3 text-center">
+                Copy emails → paste in Spotify Developer Dashboard → remove here
+              </p>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main Page ────────────────────────────────────────────────
 
 export default function OraclePage() {
@@ -147,6 +270,9 @@ export default function OraclePage() {
             </div>
           ))}
         </div>
+
+        {/* Spotify Whitelist Queue */}
+        <WhitelistQueuePanel />
 
         {/* Demographics Pie Charts */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">

@@ -115,6 +115,17 @@ export const identityEchoes = sqliteTable("identity_echoes", {
   current_vec: text("current_vec").notNull(), // JSON
 });
 
+export const spotifyWhitelistQueue = sqliteTable("spotify_whitelist_queue", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  email: text("email").notNull(),
+  username: text("username").notNull(),
+  requested_at: text("requested_at").notNull(),
+});
+
+export const insertSpotifyWhitelistSchema = createInsertSchema(spotifyWhitelistQueue).omit({ id: true });
+export type InsertSpotifyWhitelist = z.infer<typeof insertSpotifyWhitelistSchema>;
+export type SpotifyWhitelist = typeof spotifyWhitelistQueue.$inferSelect;
+
 export const insertIdentityModeSchema = createInsertSchema(identityModes).omit({ id: true });
 export const insertIdentityEchoSchema = createInsertSchema(identityEchoes).omit({ id: true });
 

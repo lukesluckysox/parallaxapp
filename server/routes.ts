@@ -2568,5 +2568,80 @@ Return ONLY valid JSON:
     });
   });
 
+  // ===================== SPOTIFY WHITELIST QUEUE =====================
+
+  // Any authenticated user can request whitelisting
+  app.post("/api/spotify/whitelist-request", async (req, res) => {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Not authenticated" });
+
+    const user = storage.getUserById(userId);
+    if (!user) return res.status(401).json({ error: "Not authenticated" });
+
+    const { email } = req.body;
+    if (!email || typeof email !== "string" || !email.includes("@")) {
+      return res.status(400).json({ error: "Valid email required" });
+    }
+
+    // Check if already requested
+    const existing = storage.getWhitelistRequestByEmail(email.trim().toLowerCase());
+    if (existing) {
+      return res.json({ success: true, message: "Already in queue", alreadyQueued: true });
+    }
+
+    const entry = storage.addWhitelistRequest({
+      email: email.trim().toLowerCase(),
+      username: user.username,
+      requested_at: new Date().toISOString(),
+    });
+
+    return res.json({ success: true, entry });
+  });
+
+  // Check if current user already has a pending request
+  app.get("/api/spotify/whitelist-status", async (req, res) => {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Not authenticated" });
+
+    const user = storage.getUserById(userId);
+    if (!user) return res.status(401).json({ error: "Not authenticated" });
+
+    // Check by username match in the queue
+    const queue = storage.getWhitelistQueue();
+    const myRequest = queue.find(q => q.username === user.username);
+    return res.json({ requested: !!myRequest, entry: myRequest || null });
+  });
+
+  // Oracle-only: get full queue
+  app.get("/api/admin/whitelist-queue", async (req, res) => {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Not authenticated" });
+
+    const user = storage.getUserById(userId);
+    if (!user || user.username !== "oracle") {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+
+    const queue = storage.getWhitelistQueue();
+    return res.json({ queue });
+  });
+
+  // Oracle-only: delete from queue (after manually whitelisting)
+  app.delete("/api/admin/whitelist-queue/:id", async (req, res) => {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Not authenticated" });
+
+    const user = storage.getUserById(userId);
+    if (!user || user.username !== "oracle") {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+
+    storage.deleteWhitelistRequest(id);
+    return res.json({ success: true });
+  });
+
   return httpServer;
 }

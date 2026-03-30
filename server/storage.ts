@@ -8,6 +8,7 @@ import {
   cachedResponses,
   type IdentityMode, type InsertIdentityMode, identityModes,
   type IdentityEcho, type InsertIdentityEcho, identityEchoes,
+  type SpotifyWhitelist, type InsertSpotifyWhitelist, spotifyWhitelistQueue,
 } from "@shared/schema";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import Database from "better-sqlite3";
@@ -73,6 +74,12 @@ export interface IStorage {
 
   // Account deletion
   deleteUserAndData(userId: number): void;
+
+  // Spotify whitelist queue
+  addWhitelistRequest(data: InsertSpotifyWhitelist): SpotifyWhitelist;
+  getWhitelistQueue(): SpotifyWhitelist[];
+  deleteWhitelistRequest(id: number): void;
+  getWhitelistRequestByEmail(email: string): SpotifyWhitelist | undefined;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -166,6 +173,12 @@ export class DatabaseStorage implements IStorage {
         last_seen TEXT NOT NULL,
         occurrence_count INTEGER NOT NULL,
         checkin_ids TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS spotify_whitelist_queue (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        email TEXT NOT NULL,
+        username TEXT NOT NULL,
+        requested_at TEXT NOT NULL
       );
       CREATE TABLE IF NOT EXISTS identity_echoes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -518,6 +531,23 @@ export class DatabaseStorage implements IStorage {
     const totalWritings = (sqlite.prepare("SELECT COUNT(*) as c FROM writings").get() as any)?.c || 0;
     const totalListens = (sqlite.prepare("SELECT COUNT(*) as c FROM spotify_listens").get() as any)?.c || 0;
     return { totalUsers, totalCheckins, totalWritings, totalListens };
+  }
+
+  // ---- Spotify Whitelist Queue ----
+  addWhitelistRequest(data: InsertSpotifyWhitelist): SpotifyWhitelist {
+    return db.insert(spotifyWhitelistQueue).values(data).returning().get();
+  }
+
+  getWhitelistQueue(): SpotifyWhitelist[] {
+    return db.select().from(spotifyWhitelistQueue).orderBy(desc(spotifyWhitelistQueue.requested_at)).all();
+  }
+
+  deleteWhitelistRequest(id: number): void {
+    db.delete(spotifyWhitelistQueue).where(eq(spotifyWhitelistQueue.id, id)).run();
+  }
+
+  getWhitelistRequestByEmail(email: string): SpotifyWhitelist | undefined {
+    return db.select().from(spotifyWhitelistQueue).where(eq(spotifyWhitelistQueue.email, email)).get();
   }
 
   // ---- Account Deletion ----

@@ -392,19 +392,22 @@ function ActiveEchoCard({ echo }: { echo: { modeName: string; dominantArchetype:
 
 
 export default function HolisticPage() {
-  const { data, isLoading } = useQuery<HolisticData>({
+  const { data, isLoading, isError } = useQuery<HolisticData>({
     queryKey: ["/api/holistic"],
     staleTime: 2 * 60 * 1000,
+    retry: 1,
   });
 
   const { data: profileData } = useQuery<ProfileData>({
     queryKey: ["/api/profile"],
     staleTime: 5 * 60 * 1000,
+    retry: 1,
   });
 
   const { data: echoData } = useQuery<{ active: { modeName: string; dominantArchetype: string; similarityScore: number; detectedAt: string } | null }>({
     queryKey: ["/api/echo"],
     staleTime: 2 * 60 * 1000,
+    retry: false,
   });
 
   const selfVec = data?.selfVec || {};
@@ -441,17 +444,20 @@ export default function HolisticPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background noise-overlay pb-20">
-        <div className="max-w-2xl mx-auto px-4 py-6">
-          <div className="text-center pt-2 pb-4">
-            <h1 className="text-xl font-display font-semibold tracking-tight text-foreground">Identity Parallax</h1>
-          </div>
-          <div className="flex items-center justify-center h-64">
-            <div className="animate-pulse text-muted-foreground/30 font-display text-lg">
-              Assembling your signal...
-            </div>
-          </div>
-        </div>
+      <div className="min-h-screen bg-background noise-overlay flex flex-col items-center justify-center">
+        <h1 className="text-4xl font-display font-semibold tracking-tight text-foreground/80 mb-4">Parallax</h1>
+        <div className="w-16 h-px bg-primary/30 mb-4 animate-pulse" />
+        <p className="text-xs text-muted-foreground/30 font-mono animate-pulse">assembling your signal</p>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="min-h-screen bg-background noise-overlay flex flex-col items-center justify-center">
+        <h1 className="text-4xl font-display font-semibold tracking-tight text-foreground/80 mb-4">Parallax</h1>
+        <div className="w-16 h-px bg-primary/20 mb-4" />
+        <p className="text-xs text-muted-foreground/40 font-mono">could not load data — try refreshing</p>
       </div>
     );
   }
@@ -584,50 +590,7 @@ export default function HolisticPage() {
               />
             </section>
 
-            {/* ── Layer 4: Signal & Conditions ── */}
-            {forecast && (
-              <section
-                className="space-y-3"
-              >
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground/40 font-medium text-center">
-                  Current Signal
-                </p>
-                <div className="flex items-center justify-center gap-3 flex-wrap">
-                  {ARCHETYPES.map((arch) => {
-                    const level =
-                      forecast.archetype_signals[arch.key] || "stable";
-                    return (
-                      <div key={arch.key} className="flex items-center gap-1">
-                        <span
-                          className="text-sm font-display"
-                          style={{ color: arch.color }}
-                        >
-                          {arch.emoji}
-                        </span>
-                        <span className="text-[10px] font-mono text-muted-foreground/50 capitalize">
-                          {level}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-                <p className="text-xs text-muted-foreground/40 text-center italic leading-relaxed max-w-sm mx-auto">
-                  {forecast.forecast_narrative}
-                </p>
-                {forecast.good_conditions.length > 0 && (
-                  <div className="flex items-center justify-center gap-1.5 flex-wrap">
-                    {forecast.good_conditions.map((c, i) => (
-                      <span
-                        key={i}
-                        className="text-[10px] px-2 py-0.5 rounded-full border border-border/40 text-muted-foreground/50"
-                      >
-                        {c}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </section>
-            )}
+
 
             {/* ── Layer 5: Data Sources Panel ── */}
             <section>
@@ -730,25 +693,7 @@ export default function HolisticPage() {
                   </div>
                 )}
 
-              {/* Operating rules */}
-              {forecast?.operating_rules &&
-                forecast.operating_rules.length > 0 && (
-                  <div>
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground/40 font-medium text-center mb-2">
-                      Operating Patterns
-                    </p>
-                    <div className="space-y-1.5 max-w-sm mx-auto">
-                      {forecast.operating_rules.map((rule, i) => (
-                        <p
-                          key={i}
-                          className="text-[11px] text-muted-foreground/50 text-center leading-relaxed"
-                        >
-                          {rule}
-                        </p>
-                      ))}
-                    </div>
-                  </div>
-                )}
+
             </section>
 
             {/* ── About Parallax Collapsible ── */}
