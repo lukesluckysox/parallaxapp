@@ -686,11 +686,11 @@ export default function SpotifyPage() {
                           <p className="text-[10px] text-muted-foreground truncate">{track.artist_name}</p>
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-[9px] font-mono text-muted-foreground/30 w-14 text-right">
+                            {new Date(track.timestamp).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}
+                          </span>
                           <MoodDot value={track.energy} type="energy" />
                           <MoodDot value={track.valence} type="valence" />
-                          <span className="text-[10px] tabular-nums text-muted-foreground w-10 text-right">
-                            {formatDuration(track.duration_ms)}
-                          </span>
                         </div>
                       </div>
                     ))}

@@ -279,12 +279,12 @@ export class DatabaseStorage implements IStorage {
     if (userId) {
       return db.select().from(spotifyListens)
         .where(eq(spotifyListens.user_id, userId))
-        .orderBy(desc(spotifyListens.id))
+        .orderBy(desc(spotifyListens.timestamp))
         .limit(limit)
         .all();
     }
     return db.select().from(spotifyListens)
-      .orderBy(desc(spotifyListens.id))
+      .orderBy(desc(spotifyListens.timestamp))
       .limit(limit)
       .all();
   }
