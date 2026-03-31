@@ -2793,6 +2793,27 @@ Return ONLY valid JSON:
     return res.json({ queue });
   });
 
+  // Oracle-only: delete a user and all their data
+  app.delete("/api/admin/users/:id", async (req, res) => {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Not authenticated" });
+
+    const user = storage.getUserById(userId);
+    if (!user || user.username !== "oracle") {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+
+    const targetId = parseInt(req.params.id);
+    if (isNaN(targetId)) return res.status(400).json({ error: "Invalid id" });
+
+    if (targetId === userId) {
+      return res.status(400).json({ error: "Cannot delete your own account from admin" });
+    }
+
+    storage.deleteUserAndData(targetId);
+    return res.json({ success: true });
+  });
+
   // Oracle-only: delete from queue (after manually whitelisting)
   app.delete("/api/admin/whitelist-queue/:id", async (req, res) => {
     const userId = getUserId(req);

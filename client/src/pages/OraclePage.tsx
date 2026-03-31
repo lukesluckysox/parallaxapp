@@ -223,10 +223,28 @@ export default function OraclePage() {
     );
   }
 
+  const queryClient = useQueryClient();
+
   const { data, isLoading } = useQuery<AdminStats>({
     queryKey: ["/api/admin/stats"],
     staleTime: 60 * 1000,
   });
+
+  const deleteUserMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await apiRequest("DELETE", `/api/admin/users/${id}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+    },
+  });
+
+  const handleDeleteUser = (id: number, username: string) => {
+    if (window.confirm(`Delete @${username} and all their data? This cannot be undone.`)) {
+      deleteUserMutation.mutate(id);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -297,6 +315,7 @@ export default function OraclePage() {
                   <th className="px-2 py-2 text-center font-mono font-medium">WR</th>
                   <th className="px-2 py-2 text-center font-mono font-medium">SP</th>
                   <th className="px-3 py-2 text-left font-mono font-medium">Last Active</th>
+                  <th className="px-2 py-2 text-center font-mono font-medium"></th>
                 </tr>
               </thead>
               <tbody>
@@ -321,6 +340,18 @@ export default function OraclePage() {
                         <span className={`inline-block w-2 h-2 rounded-full ${u.spotifyConnected ? "bg-green-500" : "bg-muted-foreground/20"}`} />
                       </td>
                       <td className="px-3 py-2 font-mono text-muted-foreground/50">{lastDate}</td>
+                      <td className="px-2 py-2 text-center">
+                        {u.username !== "oracle" && (
+                          <button
+                            onClick={() => handleDeleteUser(u.id, u.username)}
+                            className="p-1 rounded text-muted-foreground/20 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                            title={`Delete @${u.username}`}
+                            data-testid={`button-delete-user-${u.id}`}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
