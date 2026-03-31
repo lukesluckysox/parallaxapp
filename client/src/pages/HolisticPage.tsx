@@ -395,6 +395,114 @@ function IdentityPulse({ staleDays, color }: { staleDays: number; color: string 
 
 // ── Mirror Drop (Shareable Identity Card) ──────────────────
 
+function drawSignature(
+  ctx: CanvasRenderingContext2D,
+  cx: number, cy: number, scale: number,
+  dims: { dim: string; value: number }[],
+  primaryColor: string,
+) {
+  const DIMS_ORDER = ['focus','calm','discipline','health','social','creativity','exploration','ambition'];
+  const dimMap: Record<string, number> = {};
+  dims.forEach(d => { dimMap[d.dim] = d.value; });
+  const angleStep = (2 * Math.PI) / DIMS_ORDER.length;
+
+  // Orbital rings
+  DIMS_ORDER.forEach((dim, i) => {
+    const val = (dimMap[dim] || 50) / 100;
+    const baseR = (20 + i * 14) * scale;
+    const r = baseR * (0.5 + val * 0.5);
+    const ry = r * (0.6 + val * 0.4);
+    const rotation = ((i * 22.5) + ((dimMap[dim] || 50) * 1.3)) * Math.PI / 180;
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(rotation);
+    ctx.beginPath();
+    ctx.ellipse(0, 0, r, ry, 0, 0, Math.PI * 2);
+    ctx.strokeStyle = primaryColor;
+    ctx.lineWidth = (0.5 + val * 1) * scale;
+    ctx.globalAlpha = 0.05 + val * 0.12;
+    ctx.stroke();
+    ctx.restore();
+  });
+
+  // Data polygon + nodes
+  const points: { x: number; y: number; val: number }[] = [];
+  const maxR = 100 * scale;
+  DIMS_ORDER.forEach((dim, i) => {
+    const val = (dimMap[dim] || 50) / 100;
+    const angle = -Math.PI / 2 + i * angleStep;
+    const r = maxR * val;
+    points.push({ x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle), val });
+
+    // Spoke
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + maxR * 0.9 * Math.cos(angle), cy + maxR * 0.9 * Math.sin(angle));
+    ctx.strokeStyle = primaryColor;
+    ctx.lineWidth = 0.3 * scale;
+    ctx.globalAlpha = 0.1;
+    ctx.stroke();
+
+    // Node
+    ctx.beginPath();
+    ctx.arc(cx + r * Math.cos(angle), cy + r * Math.sin(angle), (1.5 + val * 2) * scale, 0, Math.PI * 2);
+    ctx.fillStyle = primaryColor;
+    ctx.globalAlpha = 0.3 + val * 0.5;
+    ctx.fill();
+  });
+
+  // Polygon fill
+  ctx.beginPath();
+  points.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+  ctx.closePath();
+  ctx.fillStyle = primaryColor;
+  ctx.globalAlpha = 0.04;
+  ctx.fill();
+  ctx.strokeStyle = primaryColor;
+  ctx.lineWidth = 1 * scale;
+  ctx.globalAlpha = 0.3;
+  ctx.lineJoin = "round";
+  ctx.stroke();
+
+  // Harmonic curves
+  for (let ring = 0; ring < 3; ring++) {
+    const baseR = (25 + ring * 22) * scale;
+    ctx.beginPath();
+    const segments = 120;
+    for (let s = 0; s <= segments; s++) {
+      const angle = (s / segments) * 2 * Math.PI;
+      let r = baseR;
+      DIMS_ORDER.forEach((dim, i) => {
+        const dimAngle = -Math.PI / 2 + i * angleStep;
+        const dist = Math.abs(angle - ((dimAngle + Math.PI * 2.5) % (Math.PI * 2)));
+        const influence = Math.exp(-dist * 1.5);
+        r += ((dimMap[dim] || 50) / 100 - 0.5) * 18 * scale * influence;
+      });
+      const px = cx + r * Math.cos(angle);
+      const py = cy + r * Math.sin(angle);
+      s === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.strokeStyle = primaryColor;
+    ctx.lineWidth = (ring === 1 ? 0.8 : 0.5) * scale;
+    ctx.globalAlpha = 0.15 + ring * 0.05;
+    ctx.stroke();
+  }
+
+  // Center glow
+  ctx.globalAlpha = 0.1;
+  ctx.beginPath();
+  ctx.arc(cx, cy, 8 * scale, 0, Math.PI * 2);
+  ctx.fillStyle = primaryColor;
+  ctx.fill();
+  ctx.globalAlpha = 0.6;
+  ctx.beginPath();
+  ctx.arc(cx, cy, 4 * scale, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+}
+
 function MirrorDrop({
   variantName,
   archetype,
@@ -415,91 +523,101 @@ function MirrorDrop({
       canvas.width = 1080;
       canvas.height = 1920;
       const ctx = canvas.getContext("2d")!;
+      const color = archetype?.color || "#5eaaa8";
 
       // Background
       ctx.fillStyle = "#0a0c10";
       ctx.fillRect(0, 0, 1080, 1920);
 
-      // Subtle gradient
-      const grad = ctx.createRadialGradient(540, 600, 0, 540, 600, 700);
-      grad.addColorStop(0, (archetype?.color || "#5eaaa8") + "15");
+      // Subtle ambient glow
+      const grad = ctx.createRadialGradient(540, 680, 0, 540, 680, 600);
+      grad.addColorStop(0, color + "12");
       grad.addColorStop(1, "transparent");
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, 1080, 1920);
 
-      // Border line
-      ctx.strokeStyle = (archetype?.color || "#5eaaa8") + "30";
+      // Border
+      ctx.strokeStyle = color + "20";
       ctx.lineWidth = 1;
       ctx.strokeRect(60, 60, 960, 1800);
 
       // "PARALLAX" header
       ctx.font = "300 14px 'Courier New', monospace";
-      ctx.fillStyle = "#ffffff30";
+      ctx.fillStyle = "#ffffff25";
       ctx.textAlign = "center";
-      ctx.letterSpacing = "8px";
-      ctx.fillText("P A R A L L A X", 540, 160);
+      ctx.fillText("P A R A L L A X", 540, 140);
 
-      // Archetype glyph
-      if (archetype) {
-        ctx.font = "80px serif";
-        ctx.fillStyle = archetype.color;
-        ctx.fillText(archetype.emoji, 540, 500);
-      }
+      // ── Signal Signature (centered, upper portion) ──
+      drawSignature(ctx, 540, 500, 2.8, topDimensions, color);
 
       // Variant name
-      ctx.font = "bold 48px Georgia, serif";
-      ctx.fillStyle = archetype?.color || "#ffffff";
-      ctx.fillText(variantName, 540, 620);
+      ctx.globalAlpha = 1;
+      ctx.font = "bold 52px Georgia, serif";
+      ctx.fillStyle = color;
+      ctx.textAlign = "center";
+      // Ensure it doesn't overflow
+      let fontSize = 52;
+      while (ctx.measureText(variantName).width > 860 && fontSize > 28) {
+        fontSize -= 2;
+        ctx.font = `bold ${fontSize}px Georgia, serif`;
+      }
+      ctx.fillText(variantName, 540, 920);
 
-      // Archetype name
+      // Archetype label
       if (archetype) {
-        ctx.font = "16px 'Courier New', monospace";
-        ctx.fillStyle = "#ffffff50";
-        ctx.fillText(archetype.name.toUpperCase() + " VARIANT", 540, 670);
+        ctx.font = "14px 'Courier New', monospace";
+        ctx.fillStyle = "#ffffff40";
+        ctx.fillText(archetype.name.toUpperCase() + " VARIANT", 540, 960);
       }
 
       // Divider
-      ctx.strokeStyle = (archetype?.color || "#5eaaa8") + "40";
+      ctx.strokeStyle = color + "30";
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(400, 730);
-      ctx.lineTo(680, 730);
+      ctx.moveTo(420, 1010);
+      ctx.lineTo(660, 1010);
       ctx.stroke();
 
-      // Top dimensions
-      ctx.font = "14px 'Courier New', monospace";
-      ctx.fillStyle = "#ffffff40";
+      // Top 3 dimensions
+      ctx.font = "15px 'Courier New', monospace";
+      ctx.fillStyle = "#ffffff35";
       topDimensions.slice(0, 3).forEach((d, i) => {
-        ctx.fillText(`${d.dim.toUpperCase()}  ${d.value}`, 540, 790 + i * 36);
+        const label = d.dim.toUpperCase();
+        const val = String(d.value);
+        ctx.fillText(`${label}  ${val}`, 540, 1060 + i * 38);
       });
 
       // Mirror line
       if (mirrorLine) {
-        ctx.font = "italic 20px Georgia, serif";
-        ctx.fillStyle = "#ffffff60";
-        // Word wrap
+        ctx.font = "italic 22px Georgia, serif";
+        ctx.fillStyle = "#ffffff50";
+        const maxW = 800;
         const words = mirrorLine.split(" ");
-        let line = "";
-        let y = 960;
+        const lines: string[] = [];
+        let current = "";
         for (const word of words) {
-          const test = line + word + " ";
-          if (ctx.measureText(test).width > 800) {
-            ctx.fillText('"' + line.trim(), 540, y);
-            line = word + " ";
-            y += 32;
+          const test = current + word + " ";
+          if (ctx.measureText(test).width > maxW && current) {
+            lines.push(current.trim());
+            current = word + " ";
           } else {
-            line = test;
+            current = test;
           }
         }
-        if (line.trim()) {
-          ctx.fillText((y === 960 ? '"' : "") + line.trim() + '"', 540, y);
-        }
+        if (current.trim()) lines.push(current.trim());
+
+        const startY = 1240;
+        lines.forEach((l, i) => {
+          const prefix = i === 0 ? '"' : '';
+          const suffix = i === lines.length - 1 ? '"' : '';
+          ctx.fillText(prefix + l + suffix, 540, startY + i * 34);
+        });
       }
 
       // Footer
-      ctx.font = "12px 'Courier New', monospace";
-      ctx.fillStyle = "#ffffff15";
-      ctx.fillText("parallaxapp.up.railway.app", 540, 1800);
+      ctx.font = "11px 'Courier New', monospace";
+      ctx.fillStyle = "#ffffff12";
+      ctx.fillText("parallaxapp.up.railway.app", 540, 1810);
 
       // Download
       const link = document.createElement("a");
