@@ -1,6 +1,6 @@
 import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { storage, db } from "./storage";
 import { execSync } from "child_process";
 import Anthropic from "@anthropic-ai/sdk";
 import { DIMENSIONS } from "@shared/archetypes";
@@ -8,6 +8,8 @@ import bcrypt from "bcryptjs";
 import { getAuthUrl, exchangeCode, refreshAccessToken, spotifyApi } from "./spotify-auth";
 import jwt from "jsonwebtoken";
 import type { InsertIdentityMode } from "@shared/schema";
+import { decisions as decisionsTable, checkins as checkinsTable } from "@shared/schema";
+import { eq, and } from "drizzle-orm";
 
 const JWT_SECRET = process.env.JWT_SECRET || "parallax-dev-secret-change-in-production";
 
@@ -1192,6 +1194,76 @@ Return ONLY valid JSON:
       const userId = getUserId(req);
       const decision = storage.createDecision({ ...req.body, user_id: userId });
       return res.json(decision);
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  // POST /api/decision-suggestions — LLM generates decision prompts based on current state
+  app.post("/api/decision-suggestions", async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
+      if (!anthropic) return res.json({ suggestions: [] });
+
+      const tz = getUserTimezone(req);
+      const ctx = gatherUserContext(userId, tz);
+      if (!ctx.hasData) return res.json({ suggestions: ["Should I start a new creative project?", "Should I prioritize rest or push through today?", "Should I reach out to someone I\'ve been thinking about?"] });
+
+      const message = await anthropic.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 500,
+        messages: [{
+          role: "user",
+          content: `Based on this user's identity data, generate 4 thought-provoking decisions they might be facing right now. Make them personal, specific to their patterns, and genuinely useful — not generic self-help.
+
+User context:
+Archetype: ${ctx.dominantArchetype || "unknown"}
+Recent check-ins: ${ctx.checkinSummary || "none"}
+Music: ${ctx.musicSummary || "none"}
+Writing themes: ${ctx.writingSummary || "none"}
+
+Return ONLY a JSON array of 4 strings, each starting with "Should I...". Example:
+["Should I take a break from structured work and explore something random?", "Should I write about the tension I\'ve been avoiding?", "Should I change my evening routine?", "Should I say no to that commitment?"]`
+        }],
+      });
+
+      const text = message.content[0].type === "text" ? message.content[0].text : "";
+      const match = text.match(/\[[\s\S]*\]/);
+      if (match) {
+        const parsed = JSON.parse(match[0]);
+        return res.json({ suggestions: parsed });
+      }
+      return res.json({ suggestions: [] });
+    } catch (err: any) {
+      console.error("Decision suggestions error:", err);
+      return res.json({ suggestions: [] });
+    }
+  });
+
+  // DELETE /api/decisions/:id — delete a decision
+  app.delete("/api/decisions/:id", async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+      db.delete(decisionsTable).where(and(eq(decisionsTable.id, id), eq(decisionsTable.user_id, userId))).run();
+      return res.json({ success: true });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  // DELETE /api/checkins/:id — delete a check-in
+  app.delete("/api/checkins/:id", async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+      db.delete(checkinsTable).where(and(eq(checkinsTable.id, id), eq(checkinsTable.user_id, userId))).run();
+      return res.json({ success: true });
     } catch (err: any) {
       return res.status(500).json({ error: err.message });
     }

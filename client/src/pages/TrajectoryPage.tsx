@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { ArrowLeft, ArrowUp, ArrowDown, Minus, Compass } from "lucide-react";
 import FutureSelf from "@/components/FutureSelf";
+import InfoTooltip from "@/components/InfoTooltip";
 import ArchetypeBrowser from "@/components/ArchetypeBrowser";
 import { ARCHETYPE_MAP, DIMENSIONS, type DimensionVec } from "@shared/archetypes";
 import { defaultVec } from "@shared/archetype-math";
@@ -291,7 +292,10 @@ export default function TrajectoryPage() {
             <ArrowLeft className="w-3.5 h-3.5" />
             Home
           </Link>
-          <h1 className="text-base font-bold" data-testid="text-page-title">Motion</h1>
+          <div className="flex items-center gap-1.5">
+            <h1 className="text-base font-bold" data-testid="text-page-title">Motion</h1>
+            <InfoTooltip text="Your identity trajectory over time. Shows how your archetype dimensions have shifted, what's driving changes, and where you might be heading next." />
+          </div>
           <div />
         </header>
 

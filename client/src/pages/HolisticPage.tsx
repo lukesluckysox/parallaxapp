@@ -1,10 +1,11 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ARCHETYPES, ARCHETYPE_MAP, DIMENSIONS } from "@shared/archetypes";
 import { computeMixture } from "@shared/archetype-math";
 import type { DimensionVec } from "@shared/archetypes";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Download, Share2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import InfoTooltip from "@/components/InfoTooltip";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -366,6 +367,164 @@ function AboutParallaxSection() {
   );
 }
 
+// ── Identity Pulse ──────────────────────────────────────────
+
+function IdentityPulse({ staleDays, color }: { staleDays: number; color: string }) {
+  // Faster pulse when fresh, slower when stale
+  const duration = Math.min(3, 0.8 + staleDays * 0.3);
+  const opacity = Math.max(0.2, 1 - staleDays * 0.12);
+
+  return (
+    <span
+      className="inline-block w-2.5 h-2.5 rounded-full"
+      style={{
+        backgroundColor: color,
+        opacity,
+        animation: `pulse ${duration}s ease-in-out infinite`,
+      }}
+    >
+      <style>{`
+        @keyframes pulse {
+          0%, 100% { transform: scale(1); opacity: ${opacity}; }
+          50% { transform: scale(1.5); opacity: ${opacity * 0.4}; }
+        }
+      `}</style>
+    </span>
+  );
+}
+
+// ── Mirror Drop (Shareable Identity Card) ──────────────────
+
+function MirrorDrop({
+  variantName,
+  archetype,
+  mirrorLine,
+  topDimensions,
+}: {
+  variantName: string;
+  archetype: { name: string; emoji: string; color: string } | null;
+  mirrorLine: string | null;
+  topDimensions: { dim: string; value: number }[];
+}) {
+  const [generating, setGenerating] = useState(false);
+
+  const generateCard = async () => {
+    setGenerating(true);
+    try {
+      const canvas = document.createElement("canvas");
+      canvas.width = 1080;
+      canvas.height = 1920;
+      const ctx = canvas.getContext("2d")!;
+
+      // Background
+      ctx.fillStyle = "#0a0c10";
+      ctx.fillRect(0, 0, 1080, 1920);
+
+      // Subtle gradient
+      const grad = ctx.createRadialGradient(540, 600, 0, 540, 600, 700);
+      grad.addColorStop(0, (archetype?.color || "#5eaaa8") + "15");
+      grad.addColorStop(1, "transparent");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 1080, 1920);
+
+      // Border line
+      ctx.strokeStyle = (archetype?.color || "#5eaaa8") + "30";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(60, 60, 960, 1800);
+
+      // "PARALLAX" header
+      ctx.font = "300 14px 'Courier New', monospace";
+      ctx.fillStyle = "#ffffff30";
+      ctx.textAlign = "center";
+      ctx.letterSpacing = "8px";
+      ctx.fillText("P A R A L L A X", 540, 160);
+
+      // Archetype glyph
+      if (archetype) {
+        ctx.font = "80px serif";
+        ctx.fillStyle = archetype.color;
+        ctx.fillText(archetype.emoji, 540, 500);
+      }
+
+      // Variant name
+      ctx.font = "bold 48px Georgia, serif";
+      ctx.fillStyle = archetype?.color || "#ffffff";
+      ctx.fillText(variantName, 540, 620);
+
+      // Archetype name
+      if (archetype) {
+        ctx.font = "16px 'Courier New', monospace";
+        ctx.fillStyle = "#ffffff50";
+        ctx.fillText(archetype.name.toUpperCase() + " VARIANT", 540, 670);
+      }
+
+      // Divider
+      ctx.strokeStyle = (archetype?.color || "#5eaaa8") + "40";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(400, 730);
+      ctx.lineTo(680, 730);
+      ctx.stroke();
+
+      // Top dimensions
+      ctx.font = "14px 'Courier New', monospace";
+      ctx.fillStyle = "#ffffff40";
+      topDimensions.slice(0, 3).forEach((d, i) => {
+        ctx.fillText(`${d.dim.toUpperCase()}  ${d.value}`, 540, 790 + i * 36);
+      });
+
+      // Mirror line
+      if (mirrorLine) {
+        ctx.font = "italic 20px Georgia, serif";
+        ctx.fillStyle = "#ffffff60";
+        // Word wrap
+        const words = mirrorLine.split(" ");
+        let line = "";
+        let y = 960;
+        for (const word of words) {
+          const test = line + word + " ";
+          if (ctx.measureText(test).width > 800) {
+            ctx.fillText('"' + line.trim(), 540, y);
+            line = word + " ";
+            y += 32;
+          } else {
+            line = test;
+          }
+        }
+        if (line.trim()) {
+          ctx.fillText((y === 960 ? '"' : "") + line.trim() + '"', 540, y);
+        }
+      }
+
+      // Footer
+      ctx.font = "12px 'Courier New', monospace";
+      ctx.fillStyle = "#ffffff15";
+      ctx.fillText("parallaxapp.up.railway.app", 540, 1800);
+
+      // Download
+      const link = document.createElement("a");
+      link.download = `parallax-${variantName.toLowerCase().replace(/\s+/g, "-")}.png`;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+    } catch (e) {
+      console.error("Mirror drop failed:", e);
+    }
+    setGenerating(false);
+  };
+
+  return (
+    <button
+      onClick={generateCard}
+      disabled={generating}
+      className="inline-flex items-center gap-1.5 text-[10px] font-mono text-muted-foreground/30 hover:text-muted-foreground/60 transition-colors disabled:opacity-40"
+      data-testid="button-mirror-drop"
+    >
+      <Download className="w-3 h-3" />
+      {generating ? "generating..." : "mirror drop"}
+    </button>
+  );
+}
+
 // ── Forecast Types ───────────────────────────────────────────
 
 interface ForecastData {
@@ -427,6 +586,12 @@ export default function HolisticPage() {
     retry: false,
   });
   const forecast = forecastData?.forecast || null;
+
+  const { data: mirrorLineData } = useQuery<{ line: string | null }>({
+    queryKey: ["/api/mirror-line"],
+    staleTime: 15 * 60 * 1000,
+    retry: false,
+  });
 
   const selfVec = data?.selfVec || {};
   const dataVec = data?.dataVec || null;
@@ -494,12 +659,15 @@ export default function HolisticPage() {
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-8">
         {/* Header */}
         <div className="text-center pt-2 pb-4">
-          <h1
-            className="text-xl font-display font-semibold tracking-tight text-foreground"
-            data-testid="text-page-title"
-          >
-            Identity Parallax
-          </h1>
+          <div className="flex items-center justify-center gap-2">
+            <h1
+              className="text-xl font-display font-semibold tracking-tight text-foreground"
+              data-testid="text-page-title"
+            >
+              Identity Parallax
+            </h1>
+            <InfoTooltip text="Your unified identity dashboard. Synthesizes signals from check-ins, writing, and music into archetype distributions, dimension scores, and signal forecasts. All data shapes one view." />
+          </div>
         </div>
 
         {!hasData ? (
@@ -515,14 +683,17 @@ export default function HolisticPage() {
             <section className="text-center">
               {variant ? (
                 <>
-                  <h2
-                    className="text-3xl font-display font-semibold tracking-tight text-foreground mb-1"
-                    style={{
-                      color: latestArch?.color || undefined,
-                    }}
-                  >
-                    {variant.variant_name}
-                  </h2>
+                  <div className="flex items-center justify-center gap-2.5 mb-1">
+                    <IdentityPulse staleDays={staleDays} color={latestArch?.color || "#5eaaa8"} />
+                    <h2
+                      className="text-3xl font-display font-semibold tracking-tight text-foreground"
+                      style={{
+                        color: latestArch?.color || undefined,
+                      }}
+                    >
+                      {variant.variant_name}
+                    </h2>
+                  </div>
                   <p className="text-xs text-muted-foreground/50 font-mono mb-3">
                     {variant.primary_archetype}
                     {variant.secondary_archetype
@@ -536,12 +707,15 @@ export default function HolisticPage() {
                 </>
               ) : (
                 <>
-                  <h2 className="text-3xl font-display font-semibold tracking-tight text-foreground mb-1">
-                    {latestArch?.emoji}{" "}
-                    <span style={{ color: latestArch?.color }}>
-                      {latestArch?.name || "Observing"}
-                    </span>
-                  </h2>
+                  <div className="flex items-center justify-center gap-2.5 mb-1">
+                    <IdentityPulse staleDays={staleDays} color={latestArch?.color || "#5eaaa8"} />
+                    <h2 className="text-3xl font-display font-semibold tracking-tight text-foreground">
+                      {latestArch?.emoji}{" "}
+                      <span style={{ color: latestArch?.color }}>
+                        {latestArch?.name || "Observing"}
+                      </span>
+                    </h2>
+                  </div>
                   <p className="text-xs text-muted-foreground/50">
                     {latestArch?.coreDrive}
                   </p>
@@ -770,6 +944,17 @@ export default function HolisticPage() {
 
             {/* ── Data Controls ── */}
             <div className="flex items-center justify-center gap-3">
+              <MirrorDrop
+                variantName={variant?.variant_name || latestArch?.name || "Parallax"}
+                archetype={latestArch}
+                mirrorLine={mirrorLineData?.line || null}
+                topDimensions={
+                  Object.entries(selfVec)
+                    .map(([dim, value]) => ({ dim, value: value as number }))
+                    .sort((a, b) => b.value - a.value)
+                }
+              />
+              <span className="text-muted-foreground/20 text-[10px]">·</span>
               <a
                 href="./api/export"
                 download

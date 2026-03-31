@@ -1,12 +1,13 @@
 import { useState, useCallback, useEffect } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { ARCHETYPES, ARCHETYPE_MAP, DIMENSIONS, type DimensionVec } from "@shared/archetypes";
 import { topArchetype, computeMixture, applyNudges, defaultVec } from "@shared/archetype-math";
 import FeelingInput from "@/components/FeelingInput";
 import GaugeSection from "@/components/GaugeSection";
-import { ArrowLeft, Scale, ChevronRight, Clock } from "lucide-react";
+import { ArrowLeft, Scale, ChevronRight, Clock, Trash2 } from "lucide-react";
+import InfoTooltip from "@/components/InfoTooltip";
 import { Link } from "wouter";
 import type { Writing, Checkin } from "@shared/schema";
 
@@ -194,9 +195,26 @@ function InsightFeed() {
 
 function ReflectionHistory() {
   const [open, setOpen] = useState(false);
+  const qc = useQueryClient();
   const { data: checkins = [] } = useQuery<Checkin[]>({
     queryKey: ["/api/checkins"],
   });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await apiRequest("DELETE", `/api/checkins/${id}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/checkins"] });
+    },
+  });
+
+  const handleDelete = (id: number) => {
+    if (window.confirm("Delete this reflection?")) {
+      deleteMutation.mutate(id);
+    }
+  };
 
   if (checkins.length === 0) return null;
 
@@ -247,9 +265,19 @@ function ReflectionHistory() {
                       {arch?.name || "Reflection"}
                     </span>
                   </div>
-                  <span className="text-[9px] font-mono text-muted-foreground/30">
-                    {dateStr} {timeStr}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[9px] font-mono text-muted-foreground/30">
+                      {dateStr} {timeStr}
+                    </span>
+                    <button
+                      onClick={() => handleDelete(c.id)}
+                      className="p-0.5 rounded text-muted-foreground/20 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                      title="Delete"
+                      data-testid={`button-delete-reflection-${c.id}`}
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
                 </div>
                 {c.feeling_text && (
                   <p className="text-[11px] text-muted-foreground/60 leading-relaxed mb-1.5 italic">
@@ -486,10 +514,10 @@ export default function CharacterApp() {
             setHasDataSources(true);
           }
           
-          // Latest summaries for display
+          // Latest summaries for display — but don't restore stale narrative
           const latest = checkins[checkins.length - 1];
           if (latest.spotify_summary) setSpotifySummary(latest.spotify_summary);
-          if (latest.llm_narrative) setLlmNarrative(latest.llm_narrative);
+          // Don't restore old llm_narrative — it's from a past session and confusing
         }
       } catch {}
       setInitialLoaded(true);
@@ -558,6 +586,7 @@ export default function CharacterApp() {
           <div className="text-center">
             <div className="flex items-center justify-center gap-2">
               <h1 className="text-xl font-display font-semibold tracking-tight text-foreground">Instant Reflection</h1>
+              <InfoTooltip text="Check in with how you're feeling. The LLM interprets your words into 8 identity dimensions, building your archetype profile over time. Save check-ins to track your patterns." />
             </div>
             <p className="text-[10px] text-muted-foreground/40 font-mono mt-0.5">how are you feeling right now?</p>
           </div>

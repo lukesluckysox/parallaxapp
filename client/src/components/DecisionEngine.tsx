@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -9,6 +9,7 @@ import { Zap, Check, X, Minus, ArrowRight } from "lucide-react";
 interface DecisionEngineProps {
   selfVec: DimensionVec;
   dataVec: DimensionVec | null;
+  prefill?: string;
 }
 
 const DIMENSION_LABELS: Record<string, string> = {
@@ -16,9 +17,14 @@ const DIMENSION_LABELS: Record<string, string> = {
   social: "Social", creativity: "Creativity", exploration: "Exploration", ambition: "Ambition",
 };
 
-export default function DecisionEngine({ selfVec, dataVec }: DecisionEngineProps) {
+export default function DecisionEngine({ selfVec, dataVec, prefill }: DecisionEngineProps) {
   const { toast } = useToast();
   const [decisionText, setDecisionText] = useState("");
+
+  // Accept prefill from suggestions
+  useEffect(() => {
+    if (prefill) setDecisionText(prefill);
+  }, [prefill]);
   const [impacts, setImpacts] = useState<Record<string, number>>({});
   const [reasoning, setReasoning] = useState("");
   const [quickTake, setQuickTake] = useState("");

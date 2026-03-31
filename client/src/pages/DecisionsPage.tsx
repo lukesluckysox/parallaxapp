@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Link } from "wouter";
-import { ArrowLeft, ChevronDown, Clock, Check, X, Minus } from "lucide-react";
+import { ArrowLeft, ChevronDown, Clock, Check, X, Minus, Trash2, Sparkles } from "lucide-react";
 import DecisionEngine from "@/components/DecisionEngine";
+import InfoTooltip from "@/components/InfoTooltip";
 import { ARCHETYPE_MAP, DIMENSIONS, type DimensionVec } from "@shared/archetypes";
 import { defaultVec, applyNudges } from "@shared/archetype-math";
 import type { Checkin, Decision } from "@shared/schema";
@@ -13,6 +15,22 @@ function DecisionHistory() {
   });
 
   const [expandedId, setExpandedId] = useState<number | null>(null);
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await apiRequest("DELETE", `/api/decisions/${id}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/decisions"] });
+    },
+  });
+
+  const handleDelete = (id: number) => {
+    if (window.confirm("Delete this decision?")) {
+      deleteMutation.mutate(id);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -87,7 +105,17 @@ function DecisionHistory() {
                     <span className="text-[10px] text-muted-foreground">{dateStr} {timeStr}</span>
                   </div>
                 </div>
-                <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform flex-shrink-0 ${isExpanded ? "rotate-180" : ""}`} />
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDelete(d.id); }}
+                    className="p-1 rounded text-muted-foreground/20 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                    title="Delete"
+                    data-testid={`button-delete-decision-${d.id}`}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                  <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                </div>
               </button>
               {isExpanded && (
                 <div className="px-3 pb-3 border-t border-border/50 space-y-2 pt-2">
@@ -127,9 +155,64 @@ function DecisionHistory() {
   );
 }
 
+// ── Decision Suggestions ──────────────────────────────────────
+
+function DecisionSuggestions({ onSelect }: { onSelect: (text: string) => void }) {
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [generated, setGenerated] = useState(false);
+
+  const generate = async () => {
+    if (loading) return;
+    setLoading(true);
+    try {
+      const res = await apiRequest("POST", "/api/decision-suggestions", {});
+      const data = await res.json();
+      if (data.suggestions?.length) setSuggestions(data.suggestions);
+      setGenerated(true);
+    } catch {}
+    setLoading(false);
+  };
+
+  if (!generated) {
+    return (
+      <button
+        onClick={generate}
+        disabled={loading}
+        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-[10px] border border-dashed border-border/40 text-xs text-muted-foreground/50 hover:text-muted-foreground/70 hover:border-border/60 transition-colors disabled:opacity-40"
+        data-testid="button-generate-suggestions"
+      >
+        <Sparkles className="w-3.5 h-3.5" />
+        {loading ? "Generating suggestions..." : "You should consider..."}
+      </button>
+    );
+  }
+
+  if (suggestions.length === 0) return null;
+
+  return (
+    <div className="space-y-1.5" data-testid="section-suggestions">
+      <p className="text-[10px] font-medium text-muted-foreground/40 uppercase tracking-widest">
+        You should consider...
+      </p>
+      {suggestions.map((s, i) => (
+        <button
+          key={i}
+          onClick={() => onSelect(s)}
+          className="w-full text-left px-3 py-2 rounded-lg border border-border/30 bg-card/20 text-xs text-muted-foreground/60 hover:bg-card/50 hover:text-foreground/70 transition-colors"
+          data-testid={`button-suggestion-${i}`}
+        >
+          {s}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function DecisionsPage() {
   const [selfVec, setSelfVec] = useState<DimensionVec>(defaultVec());
   const [dataVec, setDataVec] = useState<DimensionVec | null>(null);
+  const [prefillDecision, setPrefillDecision] = useState("");
 
   // Fetch latest check-in to derive selfVec and dataVec
   const { data: checkins = [] } = useQuery<Checkin[]>({
@@ -165,12 +248,18 @@ export default function DecisionsPage() {
             <ArrowLeft className="w-3.5 h-3.5" />
             Snapshot
           </Link>
-          <h1 className="text-base font-bold" data-testid="text-page-title">Decision Lab</h1>
+          <div className="flex items-center gap-1.5">
+            <h1 className="text-base font-bold" data-testid="text-page-title">Decision Lab</h1>
+            <InfoTooltip text="Evaluate decisions against your archetype profile. The LLM analyzes how a choice might shift your identity dimensions, and each archetype weighs in with its own verdict." />
+          </div>
           <div />
         </header>
 
+        {/* Decision Suggestions */}
+        <DecisionSuggestions onSelect={(text) => setPrefillDecision(text)} />
+
         {/* Decision Engine */}
-        <DecisionEngine selfVec={selfVec} dataVec={dataVec} />
+        <DecisionEngine selfVec={selfVec} dataVec={dataVec} prefill={prefillDecision} />
 
         {/* Decision History */}
         <DecisionHistory />

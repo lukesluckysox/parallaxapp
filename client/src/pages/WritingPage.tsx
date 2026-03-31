@@ -4,6 +4,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { ArrowLeft, Sparkles, ChevronDown, ChevronRight, Trash2 } from "lucide-react";
+import InfoTooltip from "@/components/InfoTooltip";
 import PoliticalCompass from "@/components/PoliticalCompass";
 import MbtiRadar from "@/components/MbtiRadar";
 import MoralFoundations from "@/components/MoralFoundations";
@@ -606,9 +607,12 @@ export default function WritingPage() {
             <ArrowLeft className="w-4 h-4" />
             Mirrors
           </Link>
-          <h1 className="text-base font-bold tracking-tight" data-testid="text-writing-title">
-            Inner Mirror
-          </h1>
+          <div className="flex items-center gap-1.5">
+            <h1 className="text-base font-bold tracking-tight" data-testid="text-writing-title">
+              Inner Mirror
+            </h1>
+            <InfoTooltip text="Submit writing for multi-layered identity analysis. Primary tier extracts emotions, mirror moments, and narrative. Secondary and Deep tiers unlock dimensions, MBTI, and philosophical patterns." />
+          </div>
           <div />
         </header>
 

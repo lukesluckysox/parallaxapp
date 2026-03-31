@@ -7,6 +7,7 @@ import { Link } from "wouter";
 import {
   ArrowLeft, RefreshCw, Music, Clock, Users, Zap, LinkIcon, Unlink, ChevronRight, Mail, CheckCircle,
 } from "lucide-react";
+import InfoTooltip from "@/components/InfoTooltip";
 
 // ── Interfaces ────────────────────────────────────────────────
 
@@ -496,9 +497,12 @@ export default function SpotifyPage() {
               <ArrowLeft className="w-3.5 h-3.5" />
               Mirrors
             </Link>
-            <h1 className="text-lg font-bold tracking-tight" data-testid="text-sonic-mirror-title">
-              Sonic Mirror
-            </h1>
+            <div className="flex items-center gap-1.5">
+              <h1 className="text-lg font-bold tracking-tight" data-testid="text-sonic-mirror-title">
+                Sonic Mirror
+              </h1>
+              <InfoTooltip text="Tracks your Spotify listening to reveal how music shapes your identity. Mood clustering, energy patterns, and a sonic reading of your psychological state." />
+            </div>
             <div />
           </div>
           <p className="text-[11px] text-muted-foreground text-center mt-0.5">
