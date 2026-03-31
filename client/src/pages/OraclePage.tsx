@@ -213,21 +213,12 @@ function WhitelistQueuePanel() {
 
 export default function OraclePage() {
   const { user } = useAuth();
-
-  // Guard: only oracle can see this
-  if (!user || user.username !== "oracle") {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <p className="text-sm text-muted-foreground/40">Nothing here.</p>
-      </div>
-    );
-  }
-
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery<AdminStats>({
     queryKey: ["/api/admin/stats"],
     staleTime: 60 * 1000,
+    enabled: !!user && user.username === "oracle",
   });
 
   const deleteUserMutation = useMutation({
@@ -245,6 +236,15 @@ export default function OraclePage() {
       deleteUserMutation.mutate(id);
     }
   };
+
+  // Guard: only oracle can see this
+  if (!user || user.username !== "oracle") {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-sm text-muted-foreground/40">Nothing here.</p>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
