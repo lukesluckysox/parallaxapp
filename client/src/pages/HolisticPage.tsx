@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ARCHETYPES, ARCHETYPE_MAP, DIMENSIONS } from "@shared/archetypes";
 import { computeMixture } from "@shared/archetype-math";
 import type { DimensionVec } from "@shared/archetypes";
-import { ChevronRight, Download, Share2 } from "lucide-react";
+import { ChevronRight, ChevronDown, Download, Share2, Lock } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import InfoTooltip from "@/components/InfoTooltip";
 
@@ -367,6 +367,32 @@ function AboutParallaxSection() {
   );
 }
 
+// ── Locked Section Placeholder ───────────────────────────────
+
+function LockedSection({ label, requirement }: { label: string; requirement: string }) {
+  return (
+    <div className="py-4 text-center" data-testid={`locked-${label.toLowerCase().replace(/\s/g, "-")}`}>
+      <div className="flex items-center justify-center gap-2 mb-1">
+        <Lock className="w-3 h-3 text-muted-foreground/20" />
+        <span className="text-[10px] font-mono text-muted-foreground/25 uppercase tracking-widest">{label}</span>
+      </div>
+      <p className="text-[10px] text-muted-foreground/20">{requirement}</p>
+    </div>
+  );
+}
+
+// ── Unlock Badge ────────────────────────────────────────
+
+function UnlockBadge({ label }: { label: string }) {
+  return (
+    <div className="flex items-center justify-center gap-1.5 py-1 mb-2">
+      <span className="text-[9px] font-mono text-primary/50 uppercase tracking-widest">
+        {label} unlocked
+      </span>
+    </div>
+  );
+}
+
 // ── Identity Pulse ──────────────────────────────────────────
 
 function IdentityPulse({ staleDays, color }: { staleDays: number; color: string }) {
@@ -643,6 +669,109 @@ function MirrorDrop({
   );
 }
 
+// ── Collapsible Signal Details ───────────────────────────────
+
+function SignalDetails({
+  data,
+  variant,
+  forecast,
+}: {
+  data: HolisticData | undefined;
+  variant: ProfileData["variant"] | null;
+  forecast: ForecastData | null;
+}) {
+  const [open, setOpen] = useState(false);
+
+  const hasContent = (data?.sources && (data.sources.checkins > 0 || data.sources.writings > 0 || data.sources.tracks > 0)) ||
+    (data?.topThemes && data.topThemes.length > 0) ||
+    (variant?.emergent_traits && variant.emergent_traits.length > 0) ||
+    (data?.spotifyStats?.topArtists && data.spotifyStats.topArtists.length > 0);
+
+  if (!hasContent) return null;
+
+  return (
+    <div className="rounded-[10px] border border-border/30 overflow-hidden">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between px-4 py-3 bg-card/20 hover:bg-card/40 transition-colors"
+        data-testid="button-toggle-details"
+      >
+        <span className="text-[10px] font-medium text-muted-foreground/50 uppercase tracking-widest">Signal Details</span>
+        <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground/40 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {open && (
+        <div className="px-4 pb-5 pt-3 space-y-5 bg-card/10">
+          {/* Signal Sources */}
+          <div>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground/40 font-medium mb-2">Signal Sources</p>
+            <StatRow label="Check-ins" value={data?.sources.checkins || 0} sub="entries" />
+            <StatRow label="Writings" value={data?.sources.writings || 0} sub="analyzed" />
+            <StatRow label="Tracks" value={data?.sources.tracks || 0} sub="logged" />
+            {data?.spotifyStats && (
+              <>
+                <StatRow label="Avg Energy" value={`${data.spotifyStats.avgEnergy}%`} />
+                <StatRow label="Avg Valence" value={`${data.spotifyStats.avgValence}%`} />
+              </>
+            )}
+          </div>
+
+          {/* Themes */}
+          {data?.topThemes && data.topThemes.length > 0 && (
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground/40 font-medium text-center mb-2">Recurring Themes</p>
+              <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                {data.topThemes.map((theme, i) => (
+                  <span key={i} className="text-[11px] px-2.5 py-1 rounded-full bg-card/50 border border-border/30 text-muted-foreground/60 font-mono">{theme}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Emergent traits */}
+          {variant?.emergent_traits && variant.emergent_traits.length > 0 && (
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground/40 font-medium text-center mb-2">Emergent Traits</p>
+              <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                {variant.emergent_traits.map((trait, i) => (
+                  <span key={i} className="text-[11px] px-2.5 py-1 rounded-full bg-primary/5 border border-primary/15 text-foreground/60">{trait}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Top artists */}
+          {data?.spotifyStats?.topArtists && data.spotifyStats.topArtists.length > 0 && (
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground/40 font-medium text-center mb-2">Top Artists</p>
+              <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                {data.spotifyStats.topArtists.map((a, i) => (
+                  <span key={i} className="text-[11px] px-2.5 py-1 rounded-full bg-card/50 border border-border/30 text-muted-foreground/60">
+                    {a.name}
+                    <span className="text-muted-foreground/30 ml-1 font-mono text-[9px]">{a.count}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Operating patterns */}
+          {forecast?.operating_rules && forecast.operating_rules.length > 0 && (
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground/40 font-medium text-center mb-2">Operating Patterns</p>
+              <div className="space-y-1.5 max-w-sm mx-auto">
+                {forecast.operating_rules.map((rule, i) => (
+                  <p key={i} className="text-[11px] text-muted-foreground/50 text-center leading-relaxed">{rule}</p>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Forecast Types ───────────────────────────────────────────
 
 interface ForecastData {
@@ -905,177 +1034,70 @@ export default function HolisticPage() {
               )}
             </div>
 
-            {/* ── Layer 3: Archetype Distribution ── */}
-            <section
-              style={{
-                opacity: freshness,
-              }}
-            >
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground/40 font-medium text-center mb-2">
-                Archetype Distribution
-              </p>
-              <ArchetypeRing
-                distribution={data?.archetypeDistribution || {}}
-                latest={data?.latestArchetype || null}
-              />
-            </section>
-
-            {/* ── Layer 4: Signal Forecast ── */}
-            {forecast && (
-              <section className="space-y-3">
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground/40 font-medium text-center">
-                  Current Signal
+            {/* ── Layer 3: Archetype Distribution (unlocks at 3 check-ins) ── */}
+            {(data?.sources.checkins || 0) >= 3 ? (
+              <section style={{ opacity: freshness }}>
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground/40 font-medium text-center mb-2">
+                  Archetype Distribution
                 </p>
-                <div className="flex items-center justify-center gap-3 flex-wrap">
-                  {ARCHETYPES.map((arch) => {
-                    const level = forecast.archetype_signals[arch.key] || "stable";
-                    return (
-                      <div key={arch.key} className="flex items-center gap-1">
-                        <span className="text-sm font-display" style={{ color: arch.color }}>
-                          {arch.emoji}
-                        </span>
-                        <span className="text-[10px] font-mono text-muted-foreground/50 capitalize">
-                          {level}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-                <p className="text-xs text-muted-foreground/40 text-center italic leading-relaxed max-w-sm mx-auto">
-                  {forecast.forecast_narrative}
-                </p>
-                {forecast.good_conditions.length > 0 && (
-                  <div className="flex items-center justify-center gap-1.5 flex-wrap">
-                    {forecast.good_conditions.map((c, i) => (
-                      <span
-                        key={i}
-                        className="text-[10px] px-2 py-0.5 rounded-full border border-border/40 text-muted-foreground/50"
-                      >
-                        {c}
-                      </span>
-                    ))}
-                  </div>
-                )}
+                <ArchetypeRing
+                  distribution={data?.archetypeDistribution || {}}
+                  latest={data?.latestArchetype || null}
+                />
               </section>
+            ) : (
+              <LockedSection label="Archetype Distribution" requirement={`${3 - (data?.sources.checkins || 0)} more check-ins to unlock`} />
             )}
 
-            {/* ── Layer 5: Data Sources Panel ── */}
-            <section>
-              <div className="p-4 rounded-[10px] bg-card/30 border border-border/30">
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground/40 font-medium mb-3">
-                  Signal Sources
-                </p>
-                <StatRow
-                  label="Check-ins"
-                  value={data?.sources.checkins || 0}
-                  sub="entries"
-                />
-                <StatRow
-                  label="Writings"
-                  value={data?.sources.writings || 0}
-                  sub="analyzed"
-                />
-                <StatRow
-                  label="Tracks"
-                  value={data?.sources.tracks || 0}
-                  sub="logged"
-                />
-                {data?.spotifyStats && (
-                  <>
-                    <StatRow
-                      label="Avg Energy"
-                      value={`${data.spotifyStats.avgEnergy}%`}
-                    />
-                    <StatRow
-                      label="Avg Valence"
-                      value={`${data.spotifyStats.avgValence}%`}
-                    />
-                  </>
-                )}
-              </div>
-            </section>
-
-            {/* ── Layer 6: Themes & Traits ── */}
-            <section
-              className="space-y-4"
-            >
-              {/* Top themes */}
-              {data?.topThemes && data.topThemes.length > 0 && (
-                <div>
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground/40 font-medium text-center mb-2">
-                    Recurring Themes
+            {/* ── Layer 4: Signal Forecast (unlocks at 3 check-ins) ── */}
+            {(data?.sources.checkins || 0) >= 3 ? (
+              forecast && (
+                <section className="space-y-3">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground/40 font-medium text-center">
+                    Current Signal
                   </p>
-                  <div className="flex items-center justify-center gap-1.5 flex-wrap">
-                    {data.topThemes.map((theme, i) => (
-                      <span
-                        key={i}
-                        className="text-[11px] px-2.5 py-1 rounded-full bg-card/50 border border-border/30 text-muted-foreground/60 font-mono"
-                      >
-                        {theme}
-                      </span>
-                    ))}
+                  <div className="flex items-center justify-center gap-3 flex-wrap">
+                    {ARCHETYPES.map((arch) => {
+                      const level = forecast.archetype_signals[arch.key] || "stable";
+                      return (
+                        <div key={arch.key} className="flex items-center gap-1">
+                          <span className="text-sm font-display" style={{ color: arch.color }}>
+                            {arch.emoji}
+                          </span>
+                          <span className="text-[10px] font-mono text-muted-foreground/50 capitalize">
+                            {level}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
-                </div>
-              )}
-
-              {/* Emergent traits */}
-              {variant?.emergent_traits && variant.emergent_traits.length > 0 && (
-                <div>
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground/40 font-medium text-center mb-2">
-                    Emergent Traits
+                  <p className="text-xs text-muted-foreground/40 text-center italic leading-relaxed max-w-sm mx-auto">
+                    {forecast.forecast_narrative}
                   </p>
-                  <div className="flex items-center justify-center gap-1.5 flex-wrap">
-                    {variant.emergent_traits.map((trait, i) => (
-                      <span
-                        key={i}
-                        className="text-[11px] px-2.5 py-1 rounded-full bg-primary/5 border border-primary/15 text-foreground/60"
-                      >
-                        {trait}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Top artists */}
-              {data?.spotifyStats?.topArtists &&
-                data.spotifyStats.topArtists.length > 0 && (
-                  <div>
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground/40 font-medium text-center mb-2">
-                      Top Artists
-                    </p>
+                  {forecast.good_conditions.length > 0 && (
                     <div className="flex items-center justify-center gap-1.5 flex-wrap">
-                      {data.spotifyStats.topArtists.map((a, i) => (
+                      {forecast.good_conditions.map((c, i) => (
                         <span
                           key={i}
-                          className="text-[11px] px-2.5 py-1 rounded-full bg-card/50 border border-border/30 text-muted-foreground/60"
+                          className="text-[10px] px-2 py-0.5 rounded-full border border-border/40 text-muted-foreground/50"
                         >
-                          {a.name}
-                          <span className="text-muted-foreground/30 ml-1 font-mono text-[9px]">
-                            {a.count}
-                          </span>
+                          {c}
                         </span>
                       ))}
                     </div>
-                  </div>
-                )}
+                  )}
+                </section>
+              )
+            ) : (
+              <LockedSection label="Signal Forecast" requirement={`${3 - (data?.sources.checkins || 0)} more check-ins to unlock`} />
+            )}
 
-              {/* Operating rules */}
-              {forecast?.operating_rules && forecast.operating_rules.length > 0 && (
-                <div>
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground/40 font-medium text-center mb-2">
-                    Operating Patterns
-                  </p>
-                  <div className="space-y-1.5 max-w-sm mx-auto">
-                    {forecast.operating_rules.map((rule, i) => (
-                      <p key={i} className="text-[11px] text-muted-foreground/50 text-center leading-relaxed">
-                        {rule}
-                      </p>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </section>
+            {/* ── Collapsible Signal Details ── */}
+            <SignalDetails
+              data={data}
+              variant={variant}
+              forecast={forecast}
+            />
 
             {/* ── About Parallax Collapsible ── */}
             <AboutParallaxSection />

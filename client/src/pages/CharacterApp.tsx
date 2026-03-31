@@ -567,6 +567,17 @@ export default function CharacterApp() {
       toast({ title: "Saved", description: "Check-in saved successfully" });
       queryClient.invalidateQueries({ queryKey: ["/api/checkins"] });
       queryClient.invalidateQueries({ queryKey: ["/api/daily-reading"] });
+      // Micro-animation: pulse the button
+      const btn = document.querySelector('[data-testid="button-save-checkin"]') as HTMLElement;
+      if (btn) {
+        btn.style.transition = 'transform 0.15s ease, box-shadow 0.15s ease';
+        btn.style.transform = 'scale(1.03)';
+        btn.style.boxShadow = '0 0 20px hsl(var(--primary) / 0.3)';
+        setTimeout(() => {
+          btn.style.transform = 'scale(1)';
+          btn.style.boxShadow = 'none';
+        }, 300);
+      }
     },
     onError: () => {
       toast({ title: "Error", description: "Could not save check-in", variant: "destructive" });
@@ -629,7 +640,7 @@ export default function CharacterApp() {
             disabled={saveCheckinMutation.isPending}
             className="w-full py-3 rounded-[10px] bg-primary text-primary-foreground font-medium text-sm transition-all hover:opacity-90 disabled:opacity-50"
           >
-            {saveCheckinMutation.isPending ? "Saving..." : "Save check-in"}
+            {saveCheckinMutation.isPending ? "Saving..." : saveCheckinMutation.isSuccess ? "✓ Saved" : "Save check-in"}
           </button>
         </div>
 

@@ -8,7 +8,7 @@ import bcrypt from "bcryptjs";
 import { getAuthUrl, exchangeCode, refreshAccessToken, spotifyApi } from "./spotify-auth";
 import jwt from "jsonwebtoken";
 import type { InsertIdentityMode } from "@shared/schema";
-import { decisions as decisionsTable, checkins as checkinsTable } from "@shared/schema";
+import { decisions as decisionsTable, checkins as checkinsTable, users as usersTable } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
 
 const JWT_SECRET = process.env.JWT_SECRET || "parallax-dev-secret-change-in-production";
@@ -241,7 +241,83 @@ export async function registerRoutes(
       id: user.id,
       username: user.username,
       displayName: user.display_name,
+      calibrated: !!(user as any).calibrated,
       token,
+    });
+  });
+
+  // POST /api/auth/calibrate — save first-time calibration and seed initial check-in
+  app.post("/api/auth/calibrate", async (req, res) => {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Not authenticated" });
+
+    const { choices, motivation } = req.body;
+    // choices is array of 5 strings like ["freedom", "mystery", "connection", "expression", "meaning"]
+    // Map word choices to archetype leanings and dimension seeds
+    const dimScores: Record<string, number> = {
+      focus: 50, calm: 50, discipline: 50, health: 50,
+      social: 50, creativity: 50, exploration: 50, ambition: 50,
+    };
+
+    const archetypeLean: Record<string, number> = {
+      observer: 0, builder: 0, explorer: 0, dissenter: 0, seeker: 0,
+    };
+
+    // Word-pair → archetype/dimension mappings
+    const wordMap: Record<string, { arch: string; dims: Record<string, number> }> = {
+      structure: { arch: "builder", dims: { discipline: 12, focus: 8 } },
+      freedom: { arch: "explorer", dims: { exploration: 12, creativity: 8 } },
+      clarity: { arch: "observer", dims: { focus: 12, calm: 8 } },
+      mystery: { arch: "seeker", dims: { creativity: 10, exploration: 8 } },
+      solitude: { arch: "observer", dims: { calm: 10, focus: 6 } },
+      connection: { arch: "builder", dims: { social: 12, health: 6 } },
+      expression: { arch: "dissenter", dims: { creativity: 12, ambition: 8 } },
+      restraint: { arch: "observer", dims: { discipline: 10, calm: 8 } },
+      action: { arch: "builder", dims: { ambition: 12, discipline: 8 } },
+      reflection: { arch: "seeker", dims: { calm: 10, creativity: 6 } },
+    };
+
+    if (Array.isArray(choices)) {
+      for (const word of choices) {
+        const mapping = wordMap[word.toLowerCase()];
+        if (mapping) {
+          archetypeLean[mapping.arch] = (archetypeLean[mapping.arch] || 0) + 1;
+          for (const [dim, val] of Object.entries(mapping.dims)) {
+            dimScores[dim] = (dimScores[dim] || 50) + val;
+          }
+        }
+      }
+    }
+
+    // Clamp dimensions to 0-100
+    for (const dim of Object.keys(dimScores)) {
+      dimScores[dim] = Math.max(0, Math.min(100, dimScores[dim]));
+    }
+
+    // Determine seed archetype
+    const topArch = Object.entries(archetypeLean).sort((a, b) => b[1] - a[1])[0][0];
+
+    // Save a seed check-in
+    storage.createCheckin({
+      user_id: userId,
+      timestamp: new Date().toISOString(),
+      self_vec: JSON.stringify(dimScores),
+      data_vec: null,
+      self_archetype: topArch,
+      data_archetype: null,
+      feeling_text: "Identity calibration",
+      spotify_summary: null,
+      fitness_summary: null,
+      llm_narrative: null,
+    });
+
+    // Mark user as calibrated
+    db.update(usersTable).set({ calibrated: 1 } as any).where(eq(usersTable.id, userId)).run();
+
+    return res.json({
+      success: true,
+      seedArchetype: topArch,
+      seedDimensions: dimScores,
     });
   });
 

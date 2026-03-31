@@ -94,6 +94,20 @@ export default function DecisionEngine({ selfVec, dataVec, prefill }: DecisionEn
     setVerdict(v);
     setEvaluated(true);
 
+    // Micro-animation: pulse the verdict area
+    setTimeout(() => {
+      const el = document.querySelector('[data-testid="card-verdict"]') as HTMLElement;
+      if (el) {
+        el.style.transition = 'transform 0.2s ease, box-shadow 0.2s ease';
+        el.style.transform = 'scale(1.02)';
+        el.style.boxShadow = v === 'do' ? '0 0 20px rgba(34,197,94,0.2)' : v === 'skip' ? '0 0 20px rgba(239,68,68,0.2)' : '0 0 15px rgba(150,150,150,0.1)';
+        setTimeout(() => {
+          el.style.transform = 'scale(1)';
+          el.style.boxShadow = 'none';
+        }, 400);
+      }
+    }, 50);
+
     // Compute alignment scores
     const beforeSim = Math.round(similarity(selfVec, selfVec) * 100);
     const afterSim = Math.round(similarity(afterVec, selfVec) * 100);

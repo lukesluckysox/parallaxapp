@@ -18,13 +18,14 @@ import MirrorsPage from "./pages/MirrorsPage";
 import AboutPage from "./pages/AboutPage";
 import OraclePage from "./pages/OraclePage";
 import AuthPage from "./pages/AuthPage";
+import CalibrationPage from "./pages/CalibrationPage";
 import NotFound from "./pages/not-found";
 import BottomNav from "./components/BottomNav";
 import Onboarding from "./components/Onboarding";
 import TopBar from "./components/TopBar";
 
 function AppContent() {
-  const { isAuthenticated, isLoading, justRegistered, clearOnboarding } = useAuth();
+  const { isAuthenticated, isLoading, justRegistered, clearOnboarding, user } = useAuth();
 
   if (isLoading) {
     return (
@@ -43,6 +44,11 @@ function AppContent() {
         </Switch>
       </Router>
     );
+  }
+
+  // New users: calibration first, then onboarding tips
+  if (user && !user.calibrated) {
+    return <CalibrationPage />;
   }
 
   if (justRegistered) {

@@ -5,6 +5,7 @@ interface User {
   id: number;
   username: string;
   displayName?: string;
+  calibrated?: boolean;
 }
 
 interface AuthContextType {
@@ -16,6 +17,7 @@ interface AuthContextType {
   isLoading: boolean;
   justRegistered: boolean;
   clearOnboarding: () => void;
+  markCalibrated: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -33,7 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (res.ok) {
           const data = await res.json();
           if (data && data.id) {
-            setUser({ id: data.id, username: data.username, displayName: data.displayName });
+            setUser({ id: data.id, username: data.username, displayName: data.displayName, calibrated: data.calibrated });
             setAuthToken(data.token || null);
           }
         }
@@ -55,13 +57,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { ok: false, error: data.error || "Login failed" };
       }
       const data = await res.json();
-      setUser({ id: data.id, username: data.username, displayName: data.displayName });
+      setUser({ id: data.id, username: data.username, displayName: data.displayName, calibrated: data.calibrated });
       setAuthToken(data.token);
       queryClient.clear();
       return { ok: true };
     } catch {
       return { ok: false, error: "Network error" };
     }
+  }, []);
+
+  const markCalibrated = useCallback(() => {
+    setUser(prev => prev ? { ...prev, calibrated: true } : null);
   }, []);
 
   const register = useCallback(async (username: string, password: string, displayName?: string, demographics?: { age: string; gender: string; location: string }) => {
@@ -77,7 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { ok: false, error: data.error || "Registration failed" };
       }
       const data = await res.json();
-      setUser({ id: data.id, username: data.username, displayName: data.displayName });
+      setUser({ id: data.id, username: data.username, displayName: data.displayName, calibrated: false });
       setAuthToken(data.token);
       queryClient.clear();
       setJustRegistered(true);
@@ -99,7 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, isAuthenticated: !!user, isLoading, justRegistered, clearOnboarding }}>
+    <AuthContext.Provider value={{ user, login, register, logout, isAuthenticated: !!user, isLoading, justRegistered, clearOnboarding, markCalibrated }}>
       {children}
     </AuthContext.Provider>
   );
