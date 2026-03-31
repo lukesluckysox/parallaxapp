@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth-context";
 import { ARCHETYPE_MAP } from "@shared/archetypes";
@@ -22,6 +22,11 @@ type Phase = "intro" | "words" | "motivation" | "reveal";
 
 export default function CalibrationPage() {
   const { markCalibrated } = useAuth();
+
+  // Force dark mode on calibration screens
+  useEffect(() => {
+    document.documentElement.classList.add("dark");
+  }, []);
   const [phase, setPhase] = useState<Phase>("intro");
   const [currentPair, setCurrentPair] = useState(0);
   const [choices, setChoices] = useState<string[]>([]);

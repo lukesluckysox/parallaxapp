@@ -22,6 +22,11 @@ export default function AuthPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // Force dark mode on auth screens
+  useEffect(() => {
+    document.documentElement.classList.add("dark");
+  }, []);
+
   // Rotating mirror lines
   const [mirrorIndex, setMirrorIndex] = useState(0);
   const [mirrorVisible, setMirrorVisible] = useState(true);
