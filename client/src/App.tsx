@@ -46,8 +46,8 @@ function AppContent() {
     );
   }
 
-  // New users: calibration first, then onboarding tips
-  if (user && !user.calibrated) {
+  // New registrations only: calibration first, then onboarding tips
+  if (justRegistered && user && !user.calibrated) {
     return <CalibrationPage />;
   }
 
