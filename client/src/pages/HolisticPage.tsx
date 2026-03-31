@@ -789,11 +789,31 @@ export default function HolisticPage() {
         </div>
 
         {!hasData ? (
-          <div className="text-center py-20">
-            <p className="text-sm text-muted-foreground">
-              Start logging check-ins, writing, and music to see your identity
-              parallax.
+          <div className="space-y-6 py-8">
+            <p className="text-sm text-muted-foreground/60 text-center">
+              Your identity parallax builds from your signals.
             </p>
+            <div className="space-y-2.5 max-w-sm mx-auto">
+              {[
+                { step: "1", label: "Check in", desc: "Tell the app how you're feeling", href: "/snapshot" },
+                { step: "2", label: "Write something", desc: "Submit a piece of writing for analysis", href: "/mirrors/inner" },
+                { step: "3", label: "Connect Spotify", desc: "Link your music to reveal sonic patterns", href: "/mirrors/sonic" },
+              ].map((item) => (
+                <a
+                  key={item.step}
+                  href={`/#${item.href}`}
+                  className="flex items-center gap-3 p-3 rounded-[10px] border border-border/30 bg-card/20 hover:bg-card/40 transition-colors"
+                >
+                  <span className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-mono flex items-center justify-center shrink-0">
+                    {item.step}
+                  </span>
+                  <div>
+                    <p className="text-xs font-medium text-foreground/70">{item.label}</p>
+                    <p className="text-[10px] text-muted-foreground/40">{item.desc}</p>
+                  </div>
+                </a>
+              ))}
+            </div>
           </div>
         ) : (
           <>

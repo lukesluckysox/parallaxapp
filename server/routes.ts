@@ -2103,16 +2103,17 @@ Return ONLY the single line, no quotes, no explanation.`
 
     const tz = getUserTimezone(req);
 
-    // Mood clustering (rule-based from audio features)
+    // Mood clustering (improved: recency-weighted, percentage-of-total normalization)
     const clusters: Record<string, number> = {
       ambient: 0,
       energetic: 0,
       melancholic: 0,
       rhythmic: 0,
-      acoustic: 0,
-      experimental: 0,
+      introspective: 0,
+      uplifting: 0,
     };
-    let clusterTotal = 0;
+    let weightTotal = 0;
+    const now = Date.now();
 
     for (const t of listens) {
       const energy = (t.energy || 50) / 100;
@@ -2120,24 +2121,42 @@ Return ONLY the single line, no quotes, no explanation.`
       const dance = (t.danceability || 50) / 100;
       const acoustic = (t.acousticness || 50) / 100;
       const instrumental = (t.instrumentalness || 0) / 100;
-      const tempo = (t.tempo || 120) / 200; // normalize tempo to 0-1 range
+      const tempo = Math.min((t.tempo || 120) / 180, 1); // cap at 180bpm
 
-      // Score each cluster
-      clusters.ambient += acoustic * (1 - energy) * (1 - dance) * 1.5;
-      clusters.energetic += energy * tempo * (1 - acoustic) * 1.5;
-      clusters.melancholic += (1 - valence) * (1 - dance) * 0.7 * 1.5;
-      clusters.rhythmic += dance * energy * valence * 1.5;
-      clusters.acoustic += acoustic * (0.3 + valence * 0.7) * (1 - tempo * 0.5) * 1.5;
-      clusters.experimental += instrumental * (1 - valence) * 1.5;
-      clusterTotal++;
+      // Recency weight: tracks from today count 3x, 7+ days ago count 1x
+      const ageMs = now - new Date(t.timestamp).getTime();
+      const ageDays = ageMs / (24 * 60 * 60 * 1000);
+      const recency = Math.max(1, 3 - ageDays * 0.3);
+
+      // Each track distributes points across clusters — a track can be partially multiple things
+      // Ambient: quiet, acoustic, slow, not danceable
+      const ambientScore = acoustic * (1 - energy) * (1 - dance) * (1 - tempo * 0.5);
+      // Energetic: high energy, fast, not acoustic
+      const energeticScore = energy * tempo * (1 - acoustic * 0.7);
+      // Melancholic: low valence, low dance, moderate energy ok
+      const melancholicScore = (1 - valence) * (1 - dance * 0.6) * (0.4 + energy * 0.3);
+      // Rhythmic: high danceability, moderate-high energy
+      const rhythmicScore = dance * (0.5 + energy * 0.5) * tempo;
+      // Introspective: low energy, acoustic or instrumental, slower
+      const introspectiveScore = (1 - energy * 0.7) * (acoustic * 0.6 + instrumental * 0.4) * (1 - dance);
+      // Uplifting: high valence, high energy, danceable
+      const upliftingScore = valence * energy * (0.4 + dance * 0.6);
+
+      clusters.ambient += ambientScore * recency;
+      clusters.energetic += energeticScore * recency;
+      clusters.melancholic += melancholicScore * recency;
+      clusters.rhythmic += rhythmicScore * recency;
+      clusters.introspective += introspectiveScore * recency;
+      clusters.uplifting += upliftingScore * recency;
+      weightTotal += recency;
     }
 
-    // Normalize to percentages
+    // Normalize to percentages of total (not relative to max)
     const moodClusters: Record<string, number> = {};
-    if (clusterTotal > 0) {
-      const maxVal = Math.max(...Object.values(clusters));
+    if (weightTotal > 0) {
+      const totalScore = Object.values(clusters).reduce((s, v) => s + v, 0);
       for (const [key, val] of Object.entries(clusters)) {
-        moodClusters[key] = maxVal > 0 ? Math.round((val / maxVal) * 100) : 0;
+        moodClusters[key] = totalScore > 0 ? Math.round((val / totalScore) * 100) : 0;
       }
     }
 

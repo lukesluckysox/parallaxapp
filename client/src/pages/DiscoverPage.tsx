@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Radio, ArrowRight, Sparkles, Repeat, Eye } from "lucide-react";
 import { ARCHETYPE_MAP } from "@shared/archetypes";
+import InfoTooltip from "@/components/InfoTooltip";
 
 interface DiscoverResponse {
   insights: { type: string; title: string; body: string }[];
@@ -48,7 +49,10 @@ export default function DiscoverPage() {
           <Link href="/" className="text-xs text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1">
             <Radio className="w-3.5 h-3.5" /> Home
           </Link>
-          <h1 className="text-base font-display font-semibold">Signals</h1>
+          <div className="flex items-center gap-1.5">
+            <h1 className="text-base font-display font-semibold">Signals</h1>
+            <InfoTooltip text="Pattern recognition engine. Signals surface hidden insights, identity constellations, and behavioral anomalies by cross-referencing all your data sources." />
+          </div>
           <div />
         </header>
 

@@ -1,5 +1,6 @@
 import { Link } from "wouter";
-import { Music, PenLine, Heart, ArrowRight } from "lucide-react";
+import { Music, PenLine, Heart, ArrowRight, ArrowLeft } from "lucide-react";
+import InfoTooltip from "@/components/InfoTooltip";
 
 const MIRRORS = [
   {
@@ -34,8 +35,13 @@ export default function MirrorsPage() {
     <div className="min-h-screen bg-background noise-overlay pb-20">
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
         <header className="flex items-center justify-between">
-          <div />
-          <h1 className="text-base font-display font-semibold">Mirrors</h1>
+          <Link href="/" className="text-xs text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1">
+            <ArrowLeft className="w-3.5 h-3.5" /> Home
+          </Link>
+          <div className="flex items-center gap-1.5">
+            <h1 className="text-base font-display font-semibold">Mirrors</h1>
+            <InfoTooltip text="Data collection surfaces. Each mirror passively gathers signals from a different source — music, writing, and physical data — to build a multi-dimensional view of your identity." />
+          </div>
           <div />
         </header>
         <p className="text-xs text-muted-foreground/50 text-center -mt-2 font-mono">

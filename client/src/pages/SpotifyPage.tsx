@@ -179,14 +179,14 @@ function MoodRadar({ clusters }: { clusters: Record<string, number> }) {
   const cx = size / 2;
   const cy = size / 2;
   const maxR = size * 0.36;
-  const labels = ["ambient", "energetic", "melancholic", "rhythmic", "acoustic", "experimental"];
+  const labels = ["ambient", "energetic", "melancholic", "rhythmic", "introspective", "uplifting"];
   const displayLabels: Record<string, string> = {
     ambient: "Ambient",
     energetic: "Energetic",
     melancholic: "Melancholic",
     rhythmic: "Rhythmic",
-    acoustic: "Acoustic",
-    experimental: "Experimental",
+    introspective: "Introspective",
+    uplifting: "Uplifting",
   };
   const angleStep = (2 * Math.PI) / labels.length;
 
