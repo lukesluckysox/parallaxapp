@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ARCHETYPES, ARCHETYPE_MAP, DIMENSIONS } from "@shared/archetypes";
 import { computeMixture } from "@shared/archetype-math";
 import type { DimensionVec } from "@shared/archetypes";
-import { ChevronRight, ChevronDown, Download, Share2, Lock } from "lucide-react";
+import { ChevronRight, ChevronDown, Download, Share2, Lock, Sparkles } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import InfoTooltip from "@/components/InfoTooltip";
 
@@ -1101,6 +1101,18 @@ export default function HolisticPage() {
 
             {/* ── About Parallax Collapsible ── */}
             <AboutParallaxSection />
+
+            {/* ── Wrapped Link ── */}
+            {(data?.sources.checkins || 0) >= 3 && (
+              <a
+                href="/#/wrapped"
+                className="flex items-center justify-center gap-2 py-3 rounded-[10px] border border-border/30 bg-card/20 hover:bg-card/40 transition-colors"
+                data-testid="link-wrapped"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-primary/50" />
+                <span className="text-xs font-medium text-muted-foreground/50 hover:text-muted-foreground/70">View your Wrapped</span>
+              </a>
+            )}
 
             {/* ── Data Controls ── */}
             <div className="flex items-center justify-center gap-3">

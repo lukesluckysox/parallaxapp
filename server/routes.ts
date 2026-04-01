@@ -2733,6 +2733,127 @@ Return ONLY valid JSON:
     });
   });
 
+  // ===================== IDENTITY WRAPPED =====================
+
+  app.get("/api/wrapped", async (req, res) => {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Not authenticated" });
+
+    const allCheckins = storage.getCheckins(userId);
+    const writings = storage.getWritings(100, userId);
+    const listens = storage.getSpotifyListens(userId, 500);
+
+    if (allCheckins.length < 3) {
+      return res.json({ ready: false, reason: "Need at least 3 check-ins" });
+    }
+
+    // 1. Dominant archetype
+    const archCounts: Record<string, number> = {};
+    for (const c of allCheckins) {
+      const a = c.self_archetype || "observer";
+      archCounts[a] = (archCounts[a] || 0) + 1;
+    }
+    const totalCheckins = allCheckins.length;
+    const sortedArchs = Object.entries(archCounts).sort((a, b) => b[1] - a[1]);
+    const dominantArch = sortedArchs[0];
+    const rarestArch = sortedArchs[sortedArchs.length - 1];
+
+    // 2. Most volatile dimension
+    const dimValues: Record<string, number[]> = {};
+    for (const c of allCheckins) {
+      try {
+        const vec = JSON.parse(c.self_vec);
+        for (const [dim, val] of Object.entries(vec)) {
+          if (!dimValues[dim]) dimValues[dim] = [];
+          dimValues[dim].push(val as number);
+        }
+      } catch {}
+    }
+    let mostVolatile = { dim: "creativity", range: 0, min: 50, max: 50 };
+    for (const [dim, vals] of Object.entries(dimValues)) {
+      if (vals.length < 2) continue;
+      const min = Math.min(...vals);
+      const max = Math.max(...vals);
+      const range = max - min;
+      if (range > mostVolatile.range) {
+        mostVolatile = { dim, range, min, max };
+      }
+    }
+
+    // 3. Sonic identity — top artist during high-creativity check-ins
+    let topSonicArtist = "";
+    let sonicMoodProfile: Record<string, number> = {};
+    if (listens.length > 0) {
+      // Find artist most played overall
+      const artistCounts: Record<string, number> = {};
+      for (const l of listens) {
+        artistCounts[l.artist_name] = (artistCounts[l.artist_name] || 0) + 1;
+      }
+      topSonicArtist = Object.entries(artistCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "";
+
+      // Mood profile of listening
+      let totalE = 0, totalV = 0, totalD = 0, totalA = 0, count = 0;
+      for (const l of listens) {
+        totalE += (l.energy || 50);
+        totalV += (l.valence || 50);
+        totalD += (l.danceability || 50);
+        totalA += (l.acousticness || 50);
+        count++;
+      }
+      if (count > 0) {
+        sonicMoodProfile = {
+          energetic: Math.round(totalE / count),
+          melancholic: Math.round(100 - totalV / count),
+          rhythmic: Math.round(totalD / count),
+          introspective: Math.round(totalA / count),
+        };
+      }
+    }
+
+    // 4. Mirror line — from most recent analyzed writing
+    let mirrorLine = null;
+    for (const w of writings) {
+      if (!w.analysis) continue;
+      try {
+        const analysis = JSON.parse(w.analysis);
+        if (analysis.mirror_moment?.line) {
+          mirrorLine = analysis.mirror_moment.line;
+          break;
+        }
+      } catch {}
+    }
+
+    // 5. Total stats
+    const totalWritings = writings.length;
+    const totalTracks = listens.length;
+
+    return res.json({
+      ready: true,
+      dominant: {
+        archetype: dominantArch[0],
+        percentage: Math.round((dominantArch[1] / totalCheckins) * 100),
+        count: dominantArch[1],
+      },
+      rarest: {
+        archetype: rarestArch[0],
+        percentage: Math.round((rarestArch[1] / totalCheckins) * 100),
+        count: rarestArch[1],
+      },
+      volatile: mostVolatile,
+      sonic: {
+        topArtist: topSonicArtist,
+        moodProfile: sonicMoodProfile,
+        totalTracks,
+      },
+      mirrorLine,
+      stats: {
+        checkins: totalCheckins,
+        writings: totalWritings,
+        tracks: totalTracks,
+      },
+    });
+  });
+
   // ===================== SPOTIFY WHITELIST QUEUE =====================
 
   // Any authenticated user can request whitelisting

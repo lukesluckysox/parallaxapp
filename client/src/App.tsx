@@ -19,6 +19,7 @@ import AboutPage from "./pages/AboutPage";
 import OraclePage from "./pages/OraclePage";
 import AuthPage from "./pages/AuthPage";
 import CalibrationPage from "./pages/CalibrationPage";
+import WrappedPage from "./pages/WrappedPage";
 import NotFound from "./pages/not-found";
 import BottomNav from "./components/BottomNav";
 import Onboarding from "./components/Onboarding";
@@ -72,6 +73,7 @@ function AppContent() {
         <Route path="/decisions" component={DecisionsPage} />
         <Route path="/about" component={AboutPage} />
         <Route path="/oracle" component={OraclePage} />
+        <Route path="/wrapped" component={WrappedPage} />
         <Route component={NotFound} />
       </Switch>
       <BottomNav />
