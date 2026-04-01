@@ -57,9 +57,7 @@ function getUserId(req: Request): number | null {
       return decoded.userId;
     } catch { /* invalid token */ }
   }
-  // Fallback to X-User-Id for backward compat
-  const id = req.headers["x-user-id"];
-  if (id) return parseInt(id as string, 10) || null;
+  // No fallback — JWT only
   return null;
 }
 
