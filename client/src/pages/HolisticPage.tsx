@@ -6,6 +6,7 @@ import type { DimensionVec } from "@shared/archetypes";
 import { ChevronRight, ChevronDown, Download, Share2, Lock, Sparkles } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import InfoTooltip from "@/components/InfoTooltip";
+import ProGate from "@/components/ProGate";
 
 // ── Types ────────────────────────────────────────────────────
 
