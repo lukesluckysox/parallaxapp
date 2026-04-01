@@ -26,6 +26,7 @@ import NotFound from "./pages/not-found";
 import BottomNav from "./components/BottomNav";
 import Onboarding from "./components/Onboarding";
 import TopBar from "./components/TopBar";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 function AppContent() {
   const { isAuthenticated, isLoading, justRegistered, clearOnboarding, user } = useAuth();
@@ -96,12 +97,14 @@ function AppContent() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
-      <Toaster />
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+        <Toaster />
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 
