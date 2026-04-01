@@ -200,9 +200,9 @@ export class DatabaseStorage implements IStorage {
     try { sqlite.exec("ALTER TABLE users ADD COLUMN location TEXT"); } catch { /* already exists */ }
     try {
       sqlite.exec("ALTER TABLE users ADD COLUMN calibrated INTEGER DEFAULT 0");
-      // Mark all existing users as calibrated (they predate this feature)
       sqlite.exec("UPDATE users SET calibrated = 1 WHERE calibrated = 0 AND id IN (SELECT DISTINCT user_id FROM checkins)");
     } catch { /* already exists */ }
+    try { sqlite.exec("ALTER TABLE users ADD COLUMN pro INTEGER DEFAULT 0"); } catch { /* already exists */ }
   }
 
   // ---- User methods ----
@@ -517,7 +517,7 @@ export class DatabaseStorage implements IStorage {
   getAllUsersWithStats(): any[] {
     const rows = sqlite.prepare(`
       SELECT 
-        u.id, u.username, u.display_name, u.created_at, u.age, u.gender, u.location,
+        u.id, u.username, u.display_name, u.created_at, u.age, u.gender, u.location, u.pro,
         (SELECT COUNT(*) FROM checkins WHERE user_id = u.id) as checkin_count,
         (SELECT COUNT(*) FROM writings WHERE user_id = u.id) as writing_count,
         (SELECT COUNT(*) FROM spotify_listens WHERE user_id = u.id) as listen_count,

@@ -17,6 +17,7 @@ interface UserStat {
   writings: number;
   listens: number;
   spotifyConnected: boolean;
+  pro: boolean;
   lastActive: string;
 }
 
@@ -237,6 +238,16 @@ export default function OraclePage() {
     }
   };
 
+  const toggleProMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await apiRequest("POST", `/api/admin/users/${id}/pro`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+    },
+  });
+
   // Guard: only oracle can see this
   if (!user || user.username !== "oracle") {
     return (
@@ -314,6 +325,7 @@ export default function OraclePage() {
                   <th className="px-2 py-2 text-center font-mono font-medium">CI</th>
                   <th className="px-2 py-2 text-center font-mono font-medium">WR</th>
                   <th className="px-2 py-2 text-center font-mono font-medium">SP</th>
+                  <th className="px-2 py-2 text-center font-mono font-medium">Pro</th>
                   <th className="px-3 py-2 text-left font-mono font-medium">Last Active</th>
                   <th className="px-2 py-2 text-center font-mono font-medium"></th>
                 </tr>
@@ -338,6 +350,19 @@ export default function OraclePage() {
                       <td className="px-2 py-2 text-center font-mono text-muted-foreground/60">{u.writings}</td>
                       <td className="px-2 py-2 text-center">
                         <span className={`inline-block w-2 h-2 rounded-full ${u.spotifyConnected ? "bg-green-500" : "bg-muted-foreground/20"}`} />
+                      </td>
+                      <td className="px-2 py-2 text-center">
+                        <button
+                          onClick={() => toggleProMutation.mutate(u.id)}
+                          className={`text-[9px] font-mono px-2 py-0.5 rounded-full transition-colors ${
+                            u.pro
+                              ? "bg-primary/20 text-primary hover:bg-primary/30"
+                              : "bg-muted/20 text-muted-foreground/30 hover:bg-muted/40"
+                          }`}
+                          data-testid={`button-toggle-pro-${u.id}`}
+                        >
+                          {u.pro ? "PRO" : "free"}
+                        </button>
                       </td>
                       <td className="px-3 py-2 font-mono text-muted-foreground/50">{lastDate}</td>
                       <td className="px-2 py-2 text-center">

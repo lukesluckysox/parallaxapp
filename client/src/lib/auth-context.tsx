@@ -6,6 +6,7 @@ interface User {
   username: string;
   displayName?: string;
   calibrated?: boolean;
+  pro?: boolean;
 }
 
 interface AuthContextType {
@@ -35,7 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (res.ok) {
           const data = await res.json();
           if (data && data.id) {
-            setUser({ id: data.id, username: data.username, displayName: data.displayName, calibrated: data.calibrated });
+            setUser({ id: data.id, username: data.username, displayName: data.displayName, calibrated: data.calibrated, pro: data.pro });
             setAuthToken(data.token || null);
           }
         }
@@ -57,7 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { ok: false, error: data.error || "Login failed" };
       }
       const data = await res.json();
-      setUser({ id: data.id, username: data.username, displayName: data.displayName, calibrated: data.calibrated });
+      setUser({ id: data.id, username: data.username, displayName: data.displayName, calibrated: data.calibrated, pro: data.pro });
       setAuthToken(data.token);
       queryClient.clear();
       return { ok: true };
@@ -83,7 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { ok: false, error: data.error || "Registration failed" };
       }
       const data = await res.json();
-      setUser({ id: data.id, username: data.username, displayName: data.displayName, calibrated: false });
+      setUser({ id: data.id, username: data.username, displayName: data.displayName, calibrated: false, pro: false });
       setAuthToken(data.token);
       queryClient.clear();
       setJustRegistered(true);

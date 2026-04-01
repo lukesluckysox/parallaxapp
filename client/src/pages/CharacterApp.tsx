@@ -8,6 +8,7 @@ import FeelingInput from "@/components/FeelingInput";
 import GaugeSection from "@/components/GaugeSection";
 import { ArrowLeft, Scale, ChevronRight, Clock, Trash2 } from "lucide-react";
 import InfoTooltip from "@/components/InfoTooltip";
+import ProGate, { useIsPro } from "@/components/ProGate";
 import { Link } from "wouter";
 import type { Writing, Checkin } from "@shared/schema";
 
@@ -609,8 +610,10 @@ export default function CharacterApp() {
         {/* Parallax Mirror — one-liner identity synopsis */}
         <ParallaxMirror />
 
-        {/* Daily Reading — merged forecast + mythology */}
-        <DailyReading />
+        {/* Daily Reading — merged forecast + mythology (Pro) */}
+        <ProGate feature="Daily Reading">
+          <DailyReading />
+        </ProGate>
 
         {/* Feeling Input */}
         <FeelingInput

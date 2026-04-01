@@ -3,8 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
-import { ArrowLeft, Sparkles, ChevronDown, ChevronRight, Trash2 } from "lucide-react";
+import { ArrowLeft, Sparkles, ChevronDown, ChevronRight, Trash2, Lock } from "lucide-react";
 import InfoTooltip from "@/components/InfoTooltip";
+import { useIsPro } from "@/components/ProGate";
 import PoliticalCompass from "@/components/PoliticalCompass";
 import MbtiRadar from "@/components/MbtiRadar";
 import MoralFoundations from "@/components/MoralFoundations";
@@ -474,6 +475,7 @@ function CumulativeAnalysis({ writings }: { writings: Writing[] }) {
 
 export default function WritingPage() {
   const { toast } = useToast();
+  const isPro = useIsPro();
   const [content, setContent] = useState("");
   const [title, setTitle] = useState("");
   const [dateWritten, setDateWritten] = useState("");
@@ -682,24 +684,24 @@ export default function WritingPage() {
             </label>
           </div>
 
-          <button
-            data-testid="button-analyze-writing-page"
-            onClick={handleAnalyze}
-            disabled={analyzing || !content.trim()}
-            className="w-full py-3 rounded-[10px] bg-primary text-primary-foreground text-sm font-medium transition-all hover:opacity-90 disabled:opacity-40 inline-flex items-center justify-center gap-2"
-          >
-            {analyzing ? (
-              <>
-                <Sparkles className="w-3.5 h-3.5 animate-pulse" />
-                Analyzing...
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-3.5 h-3.5" />
-                Analyze
-              </>
-            )}
-          </button>
+          {isPro ? (
+            <button
+              data-testid="button-analyze-writing-page"
+              onClick={handleAnalyze}
+              disabled={analyzing || !content.trim()}
+              className="w-full py-3 rounded-[10px] bg-primary text-primary-foreground text-sm font-medium transition-all hover:opacity-90 disabled:opacity-40 inline-flex items-center justify-center gap-2"
+            >
+              {analyzing ? (
+                <><Sparkles className="w-3.5 h-3.5 animate-pulse" /> Analyzing...</>
+              ) : (
+                <><Sparkles className="w-3.5 h-3.5" /> Analyze</>
+              )}
+            </button>
+          ) : (
+            <div className="w-full py-3 rounded-[10px] border border-border/30 bg-card/50 text-sm text-muted-foreground/30 inline-flex items-center justify-center gap-2">
+              <Lock className="w-3.5 h-3.5" /> Writing Analysis (Pro)
+            </div>
+          )}
         </div>
 
         {/* Current Analysis Result */}

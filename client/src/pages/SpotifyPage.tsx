@@ -8,6 +8,7 @@ import {
   ArrowLeft, RefreshCw, Music, Clock, Users, Zap, LinkIcon, Unlink, ChevronRight, Mail, CheckCircle,
 } from "lucide-react";
 import InfoTooltip from "@/components/InfoTooltip";
+import ProGate from "@/components/ProGate";
 
 // ── Interfaces ────────────────────────────────────────────────
 
@@ -619,9 +620,11 @@ export default function SpotifyPage() {
               )}
             </div>
 
-            {/* Sonic Reading */}
+            {/* Sonic Reading (Pro) */}
             {stats && stats.totalTracks > 0 && (
-              <MusicSynopsis stats={stats} recentTracks={history?.listens?.slice(0, 10) || []} />
+              <ProGate feature="Sonic Reading">
+                <MusicSynopsis stats={stats} recentTracks={history?.listens?.slice(0, 10) || []} />
+              </ProGate>
             )}
 
             {/* Stats Cards */}

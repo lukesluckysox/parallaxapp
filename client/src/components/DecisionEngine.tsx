@@ -4,7 +4,8 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { ARCHETYPES, DIMENSIONS, ARCHETYPE_MAP, type DimensionVec } from "@shared/archetypes";
 import { topArchetype, applyImpact, similarity } from "@shared/archetype-math";
-import { Zap, Check, X, Minus, ArrowRight } from "lucide-react";
+import { Zap, Check, X, Minus, ArrowRight, Lock } from "lucide-react";
+import { useIsPro } from "@/components/ProGate";
 
 interface DecisionEngineProps {
   selfVec: DimensionVec;
@@ -19,6 +20,7 @@ const DIMENSION_LABELS: Record<string, string> = {
 
 export default function DecisionEngine({ selfVec, dataVec, prefill }: DecisionEngineProps) {
   const { toast } = useToast();
+  const isPro = useIsPro();
   const [decisionText, setDecisionText] = useState("");
 
   // Accept prefill from suggestions
@@ -164,15 +166,21 @@ export default function DecisionEngine({ selfVec, dataVec, prefill }: DecisionEn
       </div>
 
       <div className="flex gap-2">
-        <button
-          data-testid="button-analyze"
-          onClick={() => analyzeMutation.mutate(decisionText)}
-          disabled={analyzeMutation.isPending || !decisionText.trim()}
-          className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-[10px] border border-border bg-card text-xs font-medium hover:bg-accent/50 transition-colors disabled:opacity-40"
-        >
-          <Zap className="w-3 h-3" />
-          {analyzeMutation.isPending ? "Analyzing..." : "Analyze"}
-        </button>
+        {isPro ? (
+          <button
+            data-testid="button-analyze"
+            onClick={() => analyzeMutation.mutate(decisionText)}
+            disabled={analyzeMutation.isPending || !decisionText.trim()}
+            className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-[10px] border border-border bg-card text-xs font-medium hover:bg-accent/50 transition-colors disabled:opacity-40"
+          >
+            <Zap className="w-3 h-3" />
+            {analyzeMutation.isPending ? "Analyzing..." : "Analyze"}
+          </button>
+        ) : (
+          <div className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-[10px] border border-border/30 bg-card/50 text-xs text-muted-foreground/30">
+            <Lock className="w-3 h-3" /> Analyze (Pro)
+          </div>
+        )}
         <button
           data-testid="button-evaluate"
           onClick={handleEvaluate}

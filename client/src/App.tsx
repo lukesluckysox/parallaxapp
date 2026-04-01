@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
@@ -20,6 +21,7 @@ import OraclePage from "./pages/OraclePage";
 import AuthPage from "./pages/AuthPage";
 import CalibrationPage from "./pages/CalibrationPage";
 import WrappedPage from "./pages/WrappedPage";
+import LandingPage from "./pages/LandingPage";
 import NotFound from "./pages/not-found";
 import BottomNav from "./components/BottomNav";
 import Onboarding from "./components/Onboarding";
@@ -27,6 +29,7 @@ import TopBar from "./components/TopBar";
 
 function AppContent() {
   const { isAuthenticated, isLoading, justRegistered, clearOnboarding, user } = useAuth();
+  const [showAuth, setShowAuth] = useState(false);
 
   if (isLoading) {
     return (
@@ -37,6 +40,16 @@ function AppContent() {
   }
 
   if (!isAuthenticated) {
+    if (!showAuth) {
+      return (
+        <Router hook={useHashLocation}>
+          <Switch>
+            <Route path="/about" component={AboutPage} />
+            <Route>{() => <LandingPage onShowAuth={() => setShowAuth(true)} />}</Route>
+          </Switch>
+        </Router>
+      );
+    }
     return (
       <Router hook={useHashLocation}>
         <Switch>

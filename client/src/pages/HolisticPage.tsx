@@ -1051,43 +1051,45 @@ export default function HolisticPage() {
 
             {/* ── Layer 4: Signal Forecast (unlocks at 3 check-ins) ── */}
             {(data?.sources.checkins || 0) >= 3 ? (
-              forecast && (
-                <section className="space-y-3">
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground/40 font-medium text-center">
-                    Current Signal
-                  </p>
-                  <div className="flex items-center justify-center gap-3 flex-wrap">
-                    {ARCHETYPES.map((arch) => {
-                      const level = forecast.archetype_signals[arch.key] || "stable";
-                      return (
-                        <div key={arch.key} className="flex items-center gap-1">
-                          <span className="text-sm font-display" style={{ color: arch.color }}>
-                            {arch.emoji}
-                          </span>
-                          <span className="text-[10px] font-mono text-muted-foreground/50 capitalize">
-                            {level}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <p className="text-xs text-muted-foreground/40 text-center italic leading-relaxed max-w-sm mx-auto">
-                    {forecast.forecast_narrative}
-                  </p>
-                  {forecast.good_conditions.length > 0 && (
-                    <div className="flex items-center justify-center gap-1.5 flex-wrap">
-                      {forecast.good_conditions.map((c, i) => (
-                        <span
-                          key={i}
-                          className="text-[10px] px-2 py-0.5 rounded-full border border-border/40 text-muted-foreground/50"
-                        >
-                          {c}
-                        </span>
-                      ))}
+              <ProGate feature="Signal Forecast">
+                {forecast ? (
+                  <section className="space-y-3">
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground/40 font-medium text-center">
+                      Current Signal
+                    </p>
+                    <div className="flex items-center justify-center gap-3 flex-wrap">
+                      {ARCHETYPES.map((arch) => {
+                        const level = forecast.archetype_signals[arch.key] || "stable";
+                        return (
+                          <div key={arch.key} className="flex items-center gap-1">
+                            <span className="text-sm font-display" style={{ color: arch.color }}>
+                              {arch.emoji}
+                            </span>
+                            <span className="text-[10px] font-mono text-muted-foreground/50 capitalize">
+                              {level}
+                            </span>
+                          </div>
+                        );
+                      })}
                     </div>
-                  )}
-                </section>
-              )
+                    <p className="text-xs text-muted-foreground/40 text-center italic leading-relaxed max-w-sm mx-auto">
+                      {forecast.forecast_narrative}
+                    </p>
+                    {forecast.good_conditions.length > 0 && (
+                      <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                        {forecast.good_conditions.map((c, i) => (
+                          <span
+                            key={i}
+                            className="text-[10px] px-2 py-0.5 rounded-full border border-border/40 text-muted-foreground/50"
+                          >
+                            {c}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </section>
+                ) : null}
+              </ProGate>
             ) : (
               <LockedSection label="Signal Forecast" requirement={`${3 - (data?.sources.checkins || 0)} more check-ins to unlock`} />
             )}
@@ -1102,16 +1104,18 @@ export default function HolisticPage() {
             {/* ── About Parallax Collapsible ── */}
             <AboutParallaxSection />
 
-            {/* ── Wrapped Link ── */}
+            {/* ── Wrapped Link (Pro) ── */}
             {(data?.sources.checkins || 0) >= 3 && (
-              <a
-                href="/#/wrapped"
-                className="flex items-center justify-center gap-2 py-3 rounded-[10px] border border-border/30 bg-card/20 hover:bg-card/40 transition-colors"
-                data-testid="link-wrapped"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-primary/50" />
-                <span className="text-xs font-medium text-muted-foreground/50 hover:text-muted-foreground/70">View your Wrapped</span>
-              </a>
+              <ProGate feature="Identity Wrapped">
+                <a
+                  href="/#/wrapped"
+                  className="flex items-center justify-center gap-2 py-3 rounded-[10px] border border-border/30 bg-card/20 hover:bg-card/40 transition-colors"
+                  data-testid="link-wrapped"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-primary/50" />
+                  <span className="text-xs font-medium text-muted-foreground/50 hover:text-muted-foreground/70">View your Wrapped</span>
+                </a>
+              </ProGate>
             )}
 
             {/* ── Data Controls ── */}

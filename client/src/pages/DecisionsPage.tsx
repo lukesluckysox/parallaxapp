@@ -5,6 +5,7 @@ import { Link } from "wouter";
 import { ArrowLeft, ChevronDown, Clock, Check, X, Minus, Trash2, Sparkles } from "lucide-react";
 import DecisionEngine from "@/components/DecisionEngine";
 import InfoTooltip from "@/components/InfoTooltip";
+import ProGate from "@/components/ProGate";
 import { ARCHETYPE_MAP, DIMENSIONS, type DimensionVec } from "@shared/archetypes";
 import { defaultVec, applyNudges } from "@shared/archetype-math";
 import type { Checkin, Decision } from "@shared/schema";
@@ -255,8 +256,10 @@ export default function DecisionsPage() {
           <div />
         </header>
 
-        {/* Decision Suggestions */}
-        <DecisionSuggestions onSelect={(text) => setPrefillDecision(text)} />
+        {/* Decision Suggestions (Pro) */}
+        <ProGate feature="Decision Suggestions">
+          <DecisionSuggestions onSelect={(text) => setPrefillDecision(text)} />
+        </ProGate>
 
         {/* Decision Engine */}
         <DecisionEngine selfVec={selfVec} dataVec={dataVec} prefill={prefillDecision} />

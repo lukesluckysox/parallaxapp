@@ -181,6 +181,7 @@ export async function registerRoutes(
         id: user.id,
         username: user.username,
         displayName: user.display_name,
+        pro: false,
         token,
       });
     } catch (err: any) {
@@ -220,6 +221,7 @@ export async function registerRoutes(
         id: user.id,
         username: user.username,
         displayName: user.display_name,
+        pro: !!(user as any).pro,
         token,
       });
     } catch (err: any) {
@@ -240,6 +242,7 @@ export async function registerRoutes(
       username: user.username,
       displayName: user.display_name,
       calibrated: !!(user as any).calibrated,
+      pro: !!(user as any).pro,
       token,
     });
   });
@@ -2726,6 +2729,7 @@ Return ONLY valid JSON:
         writings: u.writing_count,
         listens: u.listen_count,
         spotifyConnected: u.spotify_connected > 0,
+        pro: !!u.pro,
         lastActive: u.last_checkin || u.last_writing || u.created_at,
       })),
       aggregate,
@@ -2910,6 +2914,27 @@ Return ONLY valid JSON:
 
     const queue = storage.getWhitelistQueue();
     return res.json({ queue });
+  });
+
+  // Oracle-only: toggle pro status for a user
+  app.post("/api/admin/users/:id/pro", async (req, res) => {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Not authenticated" });
+
+    const user = storage.getUserById(userId);
+    if (!user || user.username !== "oracle") {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+
+    const targetId = parseInt(req.params.id);
+    if (isNaN(targetId)) return res.status(400).json({ error: "Invalid id" });
+
+    const target = storage.getUserById(targetId);
+    if (!target) return res.status(404).json({ error: "User not found" });
+
+    const newPro = (target as any).pro ? 0 : 1;
+    db.update(usersTable).set({ pro: newPro } as any).where(eq(usersTable.id, targetId)).run();
+    return res.json({ success: true, pro: !!newPro });
   });
 
   // Oracle-only: delete a user and all their data
