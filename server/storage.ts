@@ -206,12 +206,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   // ---- User methods ----
+  // Use raw SQLite for user lookups because `pro` and `calibrated` columns
+  // were added via ALTER TABLE and Drizzle's schema doesn't know about them.
   getUserByUsername(username: string): User | undefined {
-    return db.select().from(users).where(eq(users.username, username)).get();
+    const row = sqlite.prepare("SELECT * FROM users WHERE username = ?").get(username) as any;
+    if (!row) return undefined;
+    return { ...row, pro: !!row.pro, calibrated: !!row.calibrated } as User;
   }
 
   getUserById(id: number): User | undefined {
-    return db.select().from(users).where(eq(users.id, id)).get();
+    const row = sqlite.prepare("SELECT * FROM users WHERE id = ?").get(id) as any;
+    if (!row) return undefined;
+    return { ...row, pro: !!row.pro, calibrated: !!row.calibrated } as User;
   }
 
   createUser(data: InsertUser): User {
