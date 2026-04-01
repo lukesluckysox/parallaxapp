@@ -1,6 +1,6 @@
 import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
-import { storage, db } from "./storage";
+import { storage, db, sqlite } from "./storage";
 import { execSync } from "child_process";
 import Anthropic from "@anthropic-ai/sdk";
 import { DIMENSIONS } from "@shared/archetypes";
@@ -313,7 +313,7 @@ export async function registerRoutes(
     });
 
     // Mark user as calibrated
-    db.update(usersTable).set({ calibrated: 1 } as any).where(eq(usersTable.id, userId)).run();
+    sqlite.prepare("UPDATE users SET calibrated = 1 WHERE id = ?").run(userId);
 
     return res.json({
       success: true,
@@ -2933,7 +2933,7 @@ Return ONLY valid JSON:
     if (!target) return res.status(404).json({ error: "User not found" });
 
     const newPro = (target as any).pro ? 0 : 1;
-    db.update(usersTable).set({ pro: newPro } as any).where(eq(usersTable.id, targetId)).run();
+    sqlite.prepare("UPDATE users SET pro = ? WHERE id = ?").run(newPro, targetId);
     return res.json({ success: true, pro: !!newPro });
   });
 
