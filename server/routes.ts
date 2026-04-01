@@ -1580,7 +1580,19 @@ Return ONLY a JSON array of 4 strings, each starting with "Should I...". Example
     // Check cache first
     const cachedProfile = storage.getCachedResponse(userId, "profile", 120);
     if (cachedProfile) {
-      try { return res.json(JSON.parse(cachedProfile)); } catch {}
+      try {
+        const cached = JSON.parse(cachedProfile);
+        // Seed variant history from cached profile if not yet logged
+        if (cached.variant && cached.variant.variant_name) {
+          try {
+            const lastV = storage.getLastVariant(userId);
+            if (!lastV || lastV.variant_name !== cached.variant.variant_name) {
+              storage.logVariant(userId, cached.variant);
+            }
+          } catch { /* non-critical */ }
+        }
+        return res.json(cached);
+      } catch {}
     }
 
     const tz = getUserTimezone(req);
@@ -1649,10 +1661,48 @@ Return ONLY valid JSON:
       const parsed = JSON.parse(match[0]);
       const profileResponseData = { variant: parsed, hasData: true };
       storage.setCachedResponse(userId, "profile", JSON.stringify(profileResponseData));
+
+      // Log variant change to history if the variant name differs from the last logged one
+      try {
+        const lastVariant = storage.getLastVariant(userId);
+        if (!lastVariant || lastVariant.variant_name !== parsed.variant_name) {
+          storage.logVariant(userId, {
+            variant_name: parsed.variant_name,
+            primary_archetype: parsed.primary_archetype,
+            secondary_archetype: parsed.secondary_archetype,
+            description: parsed.description,
+            emergent_traits: parsed.emergent_traits,
+            exploration_channels: parsed.exploration_channels,
+          });
+        }
+      } catch (histErr) {
+        console.error("Variant history logging error:", histErr);
+      }
+
       return res.json(profileResponseData);
     } catch (err: any) {
       console.error("Profile variant error:", err);
       return res.json({ variant: null, hasData: true, error: err.message });
+    }
+  });
+
+  // ===================== VARIANT HISTORY =====================
+
+  app.get("/api/variant-history", (req, res) => {
+    const userId = getUserId(req);
+    if (!userId) return res.json({ history: [] });
+    try {
+      const history = storage.getVariantHistory(userId);
+      // Parse JSON fields for the client
+      const parsed = history.map((h: any) => ({
+        ...h,
+        emergent_traits: h.emergent_traits ? JSON.parse(h.emergent_traits) : [],
+        exploration_channels: h.exploration_channels ? JSON.parse(h.exploration_channels) : [],
+      }));
+      return res.json({ history: parsed });
+    } catch (err: any) {
+      console.error("Variant history error:", err);
+      return res.json({ history: [] });
     }
   });
 

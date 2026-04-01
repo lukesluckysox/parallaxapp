@@ -188,6 +188,18 @@ export class DatabaseStorage implements IStorage {
         similarity_score INTEGER NOT NULL,
         current_vec TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS variant_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        variant_name TEXT NOT NULL,
+        primary_archetype TEXT NOT NULL,
+        secondary_archetype TEXT,
+        description TEXT,
+        emergent_traits TEXT,
+        exploration_channels TEXT,
+        started_at TEXT NOT NULL,
+        ended_at TEXT
+      );
     `);
 
     // Add user_id column to existing tables if they don't have it
@@ -561,6 +573,48 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(spotifyWhitelistQueue).where(eq(spotifyWhitelistQueue.email, email)).get();
   }
 
+  // ---- Variant History Methods ----
+  getVariantHistory(userId: number): any[] {
+    return sqlite.prepare(
+      "SELECT * FROM variant_history WHERE user_id = ? ORDER BY started_at DESC"
+    ).all(userId) as any[];
+  }
+
+  logVariant(userId: number, variant: {
+    variant_name: string;
+    primary_archetype: string;
+    secondary_archetype?: string | null;
+    description?: string;
+    emergent_traits?: string[];
+    exploration_channels?: string[];
+  }): void {
+    // End the previous active variant (where ended_at IS NULL)
+    const now = new Date().toISOString();
+    sqlite.prepare(
+      "UPDATE variant_history SET ended_at = ? WHERE user_id = ? AND ended_at IS NULL"
+    ).run(now, userId);
+    // Insert the new variant
+    sqlite.prepare(
+      `INSERT INTO variant_history (user_id, variant_name, primary_archetype, secondary_archetype, description, emergent_traits, exploration_channels, started_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(
+      userId,
+      variant.variant_name,
+      variant.primary_archetype,
+      variant.secondary_archetype || null,
+      variant.description || null,
+      variant.emergent_traits ? JSON.stringify(variant.emergent_traits) : null,
+      variant.exploration_channels ? JSON.stringify(variant.exploration_channels) : null,
+      now
+    );
+  }
+
+  getLastVariant(userId: number): any | null {
+    return sqlite.prepare(
+      "SELECT * FROM variant_history WHERE user_id = ? ORDER BY started_at DESC LIMIT 1"
+    ).get(userId) as any | null;
+  }
+
   // ---- Account Deletion ----
   deleteUserAndData(userId: number): void {
     sqlite.exec(`DELETE FROM checkins WHERE user_id = ${userId}`);
@@ -571,6 +625,7 @@ export class DatabaseStorage implements IStorage {
     sqlite.exec(`DELETE FROM cached_responses WHERE user_id = ${userId}`);
     sqlite.exec(`DELETE FROM identity_modes WHERE user_id = ${userId}`);
     sqlite.exec(`DELETE FROM identity_echoes WHERE user_id = ${userId}`);
+    sqlite.exec(`DELETE FROM variant_history WHERE user_id = ${userId}`);
     sqlite.exec(`DELETE FROM users WHERE id = ${userId}`);
   }
 }
