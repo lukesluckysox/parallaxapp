@@ -5,6 +5,7 @@ import { ArrowLeft, ArrowUp, ArrowDown, Minus, Compass } from "lucide-react";
 import FutureSelf from "@/components/FutureSelf";
 import InfoTooltip from "@/components/InfoTooltip";
 import ArchetypeBrowser from "@/components/ArchetypeBrowser";
+import TimeCapsule from "@/components/TimeCapsule";
 import { ARCHETYPE_MAP, DIMENSIONS, type DimensionVec } from "@shared/archetypes";
 import { defaultVec } from "@shared/archetype-math";
 import type { Checkin } from "@shared/schema";
@@ -313,6 +314,9 @@ export default function TrajectoryPage() {
 
         {/* Narrative Projection */}
         <NarrativeProjection />
+
+        {/* Time Capsule */}
+        <TimeCapsule />
       </div>
     </div>
   );

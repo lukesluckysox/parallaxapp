@@ -1706,6 +1706,79 @@ Return ONLY valid JSON:
     }
   });
 
+  // ===================== TIME CAPSULE (HISTORICAL ECHOES) =====================
+
+  app.get("/api/time-capsule", async (req, res) => {
+    const userId = getUserId(req);
+    if (!userId) return res.json({ echoes: [] });
+
+    try {
+      // Check cache first (120 min)
+      const cached = storage.getCachedResponse(userId, "time_capsule", 120);
+      if (cached) {
+        try { return res.json(JSON.parse(cached)); } catch {}
+      }
+
+      const tz = getUserTimezone(req);
+      const ctx = gatherUserContext(userId, tz);
+      if (!ctx.hasData) return res.json({ echoes: [] });
+
+      // Fetch variant history for richer context
+      const variantHistory = storage.getVariantHistory(userId);
+      const variantSummary = variantHistory.slice(0, 10).map((v: any) =>
+        `${v.started_at.slice(0,10)}: "${v.variant_name}" (${v.primary_archetype}/${v.secondary_archetype || "none"})`
+      ).join("\n") || "No variant history yet.";
+
+      const message = await anthropic.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1024,
+        messages: [{
+          role: "user",
+          content: `You are the Parallax identity system's historian module. Based on the user's identity signals, generate 3 "historical echoes" — short, symbolic parallels between the user's current identity patterns and historical/mythological/cultural figures or archetypes.
+
+IMPORTANT FRAMING RULES:
+- Cycle between these opener styles across the 3 echoes: "You would've been…", "This echoes…", "Your pattern rhymes with…" (use one of each, in any order)
+- Keep it symbolic and poetic, never literal or political
+- Ground each echo in the user's actual data (archetypes, traits, music, writing)
+- Use soft language: "echoes", "parallels", "rhymes with", never "you are" or definitive claims
+- Each echo should feel like discovering a surprising but resonant connection
+
+User's recent check-in archetypes & feelings:
+${ctx.checkinSummary}
+
+Writing themes:
+${ctx.writingSummary || "No writings yet."}
+
+Music profile:
+${ctx.musicSummary}
+
+Variant history (identity shifts over time):
+${variantSummary}
+
+The 5 meta-archetypes: observer (understanding patterns), builder (creating structure), explorer (novelty/expression), dissenter (autonomy/resistance), seeker (meaning/transformation).
+
+Generate exactly 3 echoes. Each must have:
+- "title": The echo headline (8-15 words, using one of the three opener styles)
+- "body": 1-2 sentences grounding the parallel in the user's actual signals
+
+Return ONLY valid JSON:
+{"echoes":[{"title":"...","body":"..."},{"title":"...","body":"..."},{"title":"...","body":"..."}]}`
+        }],
+      });
+
+      const responseText = message.content[0].type === "text" ? message.content[0].text : "";
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) return res.json({ echoes: [] });
+
+      const parsed = JSON.parse(jsonMatch[0]);
+      storage.setCachedResponse(userId, "time_capsule", JSON.stringify(parsed));
+      return res.json(parsed);
+    } catch (err: any) {
+      console.error("Time capsule error:", err);
+      return res.json({ echoes: [] });
+    }
+  });
+
   // ===================== DISCOVER (INSIGHT ENGINE) =====================
 
   app.get("/api/discover", async (req, res) => {
