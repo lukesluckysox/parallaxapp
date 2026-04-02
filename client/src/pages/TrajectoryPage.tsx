@@ -6,9 +6,84 @@ import FutureSelf from "@/components/FutureSelf";
 import InfoTooltip from "@/components/InfoTooltip";
 import ArchetypeBrowser from "@/components/ArchetypeBrowser";
 import TimeCapsule from "@/components/TimeCapsule";
+import { GatedSection } from "@/components/SignalStrength";
 import { ARCHETYPE_MAP, DIMENSIONS, type DimensionVec } from "@shared/archetypes";
 import { defaultVec } from "@shared/archetype-math";
 import type { Checkin } from "@shared/schema";
+
+// ── Signal Stats Hook ────────────────────────────────────────
+// Computes signal strength (0-5) from running cumulative data.
+// Factors: total check-ins, unique active days, spread of archetypes.
+
+interface SignalStats {
+  checkinCount: number;
+  uniqueDays: number;
+  trajectoryStrength: number;   // gate: 2 = needs 5 checkins, 3 days
+  driversStrength: number;      // gate: 2 = needs 7 checkins, 2+ days
+  narrativeStrength: number;    // gate: 2 = needs 5 checkins
+  capsuleStrength: number;      // gate: 2 = needs 5 checkins, 3 days
+}
+
+function useSignalStats(checkins: Checkin[]): SignalStats {
+  return useMemo(() => {
+    const count = checkins.length;
+
+    // Unique calendar days
+    const daySet = new Set<string>();
+    for (const c of checkins) {
+      try {
+        daySet.add(new Date(c.created_at).toISOString().slice(0, 10));
+      } catch { /* skip */ }
+    }
+    const uniqueDays = daySet.size;
+
+    // ── Strength formulas (0-5 each) ────
+    // Each section weights factors differently.
+
+    // Trajectory Path: needs breadth of data over time
+    // 0 = <2 checkins, 1 = 2-3, 2 = 4 (unlock), 3 = 5-7+2days, 4 = 10+3days, 5 = 15+5days
+    const trajectoryStrength = count < 2 ? 0
+      : count < 4 ? 1
+      : (count < 5 || uniqueDays < 2) ? 2
+      : (count < 10 || uniqueDays < 3) ? 3
+      : (count < 15 || uniqueDays < 5) ? 4
+      : 5;
+
+    // Behavioral Drivers: needs more volume to detect real trends
+    // Unlock at strength 2 (7 checkins, 2 days)
+    const driversStrength = count < 3 ? 0
+      : count < 5 ? 1
+      : (count < 7 || uniqueDays < 2) ? 2
+      : (count < 12 || uniqueDays < 4) ? 3
+      : (count < 20 || uniqueDays < 7) ? 4
+      : 5;
+
+    // Narrative Projection: moderate data need
+    const narrativeStrength = count < 2 ? 0
+      : count < 4 ? 1
+      : count < 5 ? 2
+      : (count < 8 || uniqueDays < 3) ? 3
+      : (count < 15 || uniqueDays < 5) ? 4
+      : 5;
+
+    // Time Capsule: needs rich data to generate meaningful echoes
+    const capsuleStrength = count < 2 ? 0
+      : count < 4 ? 1
+      : (count < 5 || uniqueDays < 2) ? 2
+      : (count < 10 || uniqueDays < 3) ? 3
+      : (count < 15 || uniqueDays < 5) ? 4
+      : 5;
+
+    return {
+      checkinCount: count,
+      uniqueDays,
+      trajectoryStrength,
+      driversStrength,
+      narrativeStrength,
+      capsuleStrength,
+    };
+  }, [checkins]);
+}
 
 // ── Mythology Data ────────────────────────────────────────────
 interface MythologyData {
@@ -26,8 +101,8 @@ const DIMENSION_LABELS: Record<string, string> = {
   social: "Social", creativity: "Creativity", exploration: "Exploration", ambition: "Ambition",
 };
 
-// ── Trajectory Path ───────────────────────────────────────────
-function TrajectoryPath() {
+// ── Trajectory Path (inner content) ──────────────────────────
+function TrajectoryPathContent() {
   const { data, isLoading } = useQuery<MythologyData>({
     queryKey: ["/api/mythology"],
   });
@@ -45,19 +120,7 @@ function TrajectoryPath() {
     );
   }
 
-  if (!data || data.empty) {
-    return (
-      <div className="space-y-2">
-        <h2 className="text-sm font-bold">Trajectory Path</h2>
-        <div className="p-4 rounded-[10px] border border-dashed border-border bg-card/50 text-center">
-          <Compass className="w-5 h-5 mx-auto mb-2 text-muted-foreground/40" />
-          <p className="text-xs text-muted-foreground">
-            Save a few check-ins to unlock your trajectory path.
-          </p>
-        </div>
-      </div>
-    );
-  }
+  if (!data || data.empty) return null;
 
   const baseline = data.baseline_archetype ? ARCHETYPE_MAP[data.baseline_archetype] : null;
   const current = data.current_archetype ? ARCHETYPE_MAP[data.current_archetype] : null;
@@ -76,7 +139,6 @@ function TrajectoryPath() {
         <div className="space-y-0">
           {nodes.map((node, i) => (
             <div key={node.label} className="flex items-start gap-3">
-              {/* Vertical timeline line + node */}
               <div className="flex flex-col items-center flex-shrink-0" style={{ width: "20px" }}>
                 <div
                   className="w-5 h-5 rounded-full border-2 flex items-center justify-center text-[10px] font-bold"
@@ -92,7 +154,6 @@ function TrajectoryPath() {
                   <div className="w-0.5 h-8 bg-border" />
                 )}
               </div>
-              {/* Content */}
               <div className="pb-4">
                 <div className="flex items-center gap-1.5">
                   <span className="text-sm font-display" style={{ color: node.arch!.color }}>{node.arch!.emoji}</span>
@@ -111,12 +172,8 @@ function TrajectoryPath() {
   );
 }
 
-// ── Behavioral Drivers ────────────────────────────────────────
-function BehavioralDrivers() {
-  const { data: checkins = [] } = useQuery<Checkin[]>({
-    queryKey: ["/api/checkins"],
-  });
-
+// ── Behavioral Drivers (inner content) ────────────────────────
+function BehavioralDriversContent({ checkins }: { checkins: Checkin[] }) {
   const trends = useMemo(() => {
     if (checkins.length < 2) return null;
 
@@ -125,7 +182,6 @@ function BehavioralDrivers() {
 
     if (older.length === 0) return null;
 
-    // Compute average self_vec for recent and older
     const avgVec = (items: Checkin[]): DimensionVec => {
       const sum = defaultVec();
       let count = 0;
@@ -156,18 +212,7 @@ function BehavioralDrivers() {
     }).sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff));
   }, [checkins]);
 
-  if (!trends) {
-    return (
-      <div className="space-y-2">
-        <h2 className="text-sm font-bold">Behavioral Drivers</h2>
-        <div className="p-4 rounded-[10px] border border-dashed border-border bg-card/50 text-center">
-          <p className="text-xs text-muted-foreground">
-            Need at least 2 check-ins to detect behavioral trends.
-          </p>
-        </div>
-      </div>
-    );
-  }
+  if (!trends) return null;
 
   const movers = trends.filter(t => t.direction !== "stable");
   const stable = trends.filter(t => t.direction === "stable");
@@ -217,13 +262,10 @@ function BehavioralDrivers() {
   );
 }
 
-// ── Narrative Projection ──────────────────────────────────────
-function NarrativeProjection() {
+// ── Narrative Projection (inner content) ──────────────────────
+function NarrativeProjectionContent({ checkinCount }: { checkinCount: number }) {
   const { data: mythology } = useQuery<MythologyData>({
     queryKey: ["/api/mythology"],
-  });
-  const { data: checkins = [] } = useQuery<Checkin[]>({
-    queryKey: ["/api/checkins"],
   });
 
   if (!mythology || mythology.empty) return null;
@@ -242,17 +284,12 @@ function NarrativeProjection() {
             {mythology.narrative}
           </p>
         )}
-        {checkins.length >= 5 && emerging && (
+        {checkinCount >= 5 && emerging && (
           <p className="text-xs text-muted-foreground pt-1 border-t border-border/50">
             If current patterns continue, your dominant archetype in 2-4 weeks is likely to shift toward{" "}
             <span className="font-medium" style={{ color: emerging.color }}>
               <span className="font-display">{emerging.emoji}</span> {emerging.name}
             </span>.
-          </p>
-        )}
-        {checkins.length < 5 && (
-          <p className="text-xs text-muted-foreground/60 pt-1 border-t border-border/50">
-            Save more check-ins to unlock trajectory projections. The system needs at least 3-5 data points to detect trends.
           </p>
         )}
       </div>
@@ -276,9 +313,33 @@ function useLatestSelfVec(): DimensionVec {
   }, [checkins]);
 }
 
+// ── Unlock threshold constants ────────────────────────────────
+const TRAJECTORY_THRESHOLD = 2;   // strength >= 2 to unlock (4+ checkins)
+const DRIVERS_THRESHOLD = 2;      // strength >= 2 to unlock (5+ checkins, 2+ days)
+const NARRATIVE_THRESHOLD = 2;    // strength >= 2 to unlock (4+ checkins)
+const CAPSULE_THRESHOLD = 2;      // strength >= 2 to unlock (5+ checkins, 2+ days)
+
 // ── Main Trajectory Page ──────────────────────────────────────
 export default function TrajectoryPage() {
   const selfVec = useLatestSelfVec();
+  const { data: checkins = [] } = useQuery<Checkin[]>({
+    queryKey: ["/api/checkins"],
+  });
+  const stats = useSignalStats(checkins);
+
+  // Hint helpers
+  const trajectoryHint = stats.checkinCount < 4
+    ? `${4 - stats.checkinCount} more check-in${4 - stats.checkinCount === 1 ? "" : "s"} to unlock`
+    : `check in across ${2 - stats.uniqueDays} more day${2 - stats.uniqueDays === 1 ? "" : "s"} to unlock`;
+  const driversHint = stats.checkinCount < 5
+    ? `${5 - stats.checkinCount} more check-in${5 - stats.checkinCount === 1 ? "" : "s"} to unlock`
+    : `check in across ${2 - stats.uniqueDays} more day${2 - stats.uniqueDays === 1 ? "" : "s"} to unlock`;
+  const narrativeHint = stats.checkinCount < 4
+    ? `${4 - stats.checkinCount} more check-in${4 - stats.checkinCount === 1 ? "" : "s"} to unlock`
+    : "building narrative...";
+  const capsuleHint = stats.checkinCount < 5
+    ? `${5 - stats.checkinCount} more check-in${5 - stats.checkinCount === 1 ? "" : "s"} to unlock`
+    : `check in across ${2 - stats.uniqueDays} more day${2 - stats.uniqueDays === 1 ? "" : "s"} to unlock`;
 
   return (
     <div className="min-h-screen bg-background pb-20 noise-overlay">
@@ -300,23 +361,51 @@ export default function TrajectoryPage() {
           <div />
         </header>
 
-        {/* Trajectory Path */}
-        <TrajectoryPath />
+        {/* Trajectory Path — gated */}
+        <GatedSection
+          title="Trajectory Path"
+          strength={stats.trajectoryStrength}
+          threshold={TRAJECTORY_THRESHOLD}
+          hint={trajectoryHint}
+        >
+          <TrajectoryPathContent />
+        </GatedSection>
 
-        {/* Behavioral Drivers */}
-        <BehavioralDrivers />
+        {/* Behavioral Drivers — gated */}
+        <GatedSection
+          title="Behavioral Drivers"
+          strength={stats.driversStrength}
+          threshold={DRIVERS_THRESHOLD}
+          hint={driversHint}
+        >
+          <BehavioralDriversContent checkins={checkins} />
+        </GatedSection>
 
-        {/* Future Self Selector */}
+        {/* Future Self Selector — always visible (aspirational, not data-dependent) */}
         <FutureSelf selfVec={selfVec} />
 
-        {/* Archetype Browser */}
+        {/* Archetype Browser — always visible (educational) */}
         <ArchetypeBrowser selfVec={selfVec} />
 
-        {/* Narrative Projection */}
-        <NarrativeProjection />
+        {/* Narrative Projection — gated */}
+        <GatedSection
+          title="Narrative Projection"
+          strength={stats.narrativeStrength}
+          threshold={NARRATIVE_THRESHOLD}
+          hint={narrativeHint}
+        >
+          <NarrativeProjectionContent checkinCount={stats.checkinCount} />
+        </GatedSection>
 
-        {/* Time Capsule */}
-        <TimeCapsule />
+        {/* Time Capsule — gated */}
+        <GatedSection
+          title="Time Capsule"
+          strength={stats.capsuleStrength}
+          threshold={CAPSULE_THRESHOLD}
+          hint={capsuleHint}
+        >
+          <TimeCapsule />
+        </GatedSection>
       </div>
     </div>
   );
