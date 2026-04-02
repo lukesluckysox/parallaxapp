@@ -9,6 +9,7 @@ import { useIsPro } from "@/components/ProGate";
 import PoliticalCompass from "@/components/PoliticalCompass";
 import MbtiRadar from "@/components/MbtiRadar";
 import MoralFoundations from "@/components/MoralFoundations";
+import SignalStrength from "@/components/SignalStrength";
 import { ARCHETYPE_MAP, DIMENSIONS } from "@shared/archetypes";
 import type { Writing } from "@shared/schema";
 
@@ -246,6 +247,20 @@ function CollapsibleSection({
   );
 }
 
+/* ─── Inner Mirror signal strength ─── */
+// Strength is computed from total deep-analyzed entries (those with MBTI/compass/moral data).
+// 0 = 0 entries, 1 = 1 entry, 2 = 2 (unlock), 3 = 3-4, 4 = 5-7, 5 = 8+
+function mirrorStrength(deepCount: number): number {
+  if (deepCount === 0) return 0;
+  if (deepCount === 1) return 1;
+  if (deepCount === 2) return 2;
+  if (deepCount <= 4) return 3;
+  if (deepCount <= 7) return 4;
+  return 5;
+}
+
+const MIRROR_THRESHOLD = 2; // strength >= 2 to unlock (2+ deep-analyzed entries)
+
 /* ─── Cumulative Portrait ─── */
 function CumulativeAnalysis({ writings }: { writings: Writing[] }) {
   const cumulative = useMemo(() => {
@@ -259,7 +274,14 @@ function CumulativeAnalysis({ writings }: { writings: Writing[] }) {
       })
       .filter((a): a is Partial<WritingAnalysis> => a !== null);
 
-    if (parsed.length < 2) return null;
+    // Count entries with deep analysis data
+    const deepCount = parsed.filter(
+      (a) => (a.mbti && a.mbti.type) || (a.political_compass && typeof a.political_compass.economic === "number") || (a.moral_foundations && typeof a.moral_foundations.care === "number")
+    ).length;
+
+    const strength = mirrorStrength(deepCount);
+
+    if (parsed.length < 2) return { strength, deepCount, data: null };
 
     // Political compass averages
     const compassEntries = parsed.filter(
@@ -356,12 +378,41 @@ function CumulativeAnalysis({ writings }: { writings: Writing[] }) {
       .slice(0, 8)
       .map(([theme, count]) => ({ theme, count }));
 
-    return { avgCompass, avgMbti, avgMoral, topEmotions, topThemes, entryCount: parsed.length };
+    return { strength, deepCount, data: { avgCompass, avgMbti, avgMoral, topEmotions, topThemes, entryCount: parsed.length } };
   }, [writings]);
 
   if (!cumulative) return null;
 
-  const { avgCompass, avgMbti, avgMoral, topEmotions, topThemes, entryCount } = cumulative;
+  const { strength, deepCount } = cumulative;
+
+  // Show locked state if below threshold
+  if (strength < MIRROR_THRESHOLD) {
+    const hint = deepCount === 0
+      ? "submit 2 writings with deep analysis to unlock"
+      : `${2 - deepCount} more deep-analyzed writing${2 - deepCount === 1 ? "" : "s"} to unlock`;
+    return (
+      <div
+        className="space-y-3 p-4 rounded-[12px] bg-accent/10 border border-dashed border-border/40"
+        data-testid="section-cumulative-analysis-locked"
+      >
+        <div className="text-center space-y-2">
+          <h2 className="text-sm font-bold tracking-tight text-muted-foreground/40">Cumulative Portrait</h2>
+          <div className="flex justify-center">
+            <SignalStrength strength={strength} label="inner mirror" />
+          </div>
+          <p className="text-[10px] font-mono text-muted-foreground/30">{hint}</p>
+          <p className="text-[9px] text-muted-foreground/20">
+            Enable "Deep Layer" when analyzing to build your portrait
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Unlocked but no aggregable data yet (e.g. 2 deep entries but < 2 total parsed)
+  if (!cumulative.data) return null;
+
+  const { avgCompass, avgMbti, avgMoral, topEmotions, topThemes, entryCount } = cumulative.data;
 
   return (
     <div
@@ -369,7 +420,10 @@ function CumulativeAnalysis({ writings }: { writings: Writing[] }) {
       data-testid="section-cumulative-analysis"
     >
       <div className="text-center space-y-1">
-        <h2 className="text-sm font-bold tracking-tight">Cumulative Portrait</h2>
+        <div className="flex items-center justify-center gap-3">
+          <h2 className="text-sm font-bold tracking-tight">Cumulative Portrait</h2>
+          <SignalStrength strength={strength} compact />
+        </div>
         <p className="text-[10px] text-muted-foreground">
           Aggregated from {entryCount} writing entries
         </p>
