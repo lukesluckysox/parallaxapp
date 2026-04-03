@@ -1580,19 +1580,7 @@ Return ONLY a JSON array of 4 strings, each starting with "Should I...". Example
     // Check cache first
     const cachedProfile = storage.getCachedResponse(userId, "profile", 120);
     if (cachedProfile) {
-      try {
-        const cached = JSON.parse(cachedProfile);
-        // Seed variant history from cached profile if not yet logged
-        if (cached.variant && cached.variant.variant_name) {
-          try {
-            const lastV = storage.getLastVariant(userId);
-            if (!lastV || lastV.variant_name !== cached.variant.variant_name) {
-              storage.logVariant(userId, cached.variant);
-            }
-          } catch { /* non-critical */ }
-        }
-        return res.json(cached);
-      } catch {}
+      try { return res.json(JSON.parse(cachedProfile)); } catch {}
     }
 
     const tz = getUserTimezone(req);
