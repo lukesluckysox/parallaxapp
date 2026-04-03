@@ -84,8 +84,8 @@ function AppContent() {
         <Route path="/signals" component={DiscoverPage} />
         <Route path="/signals/insights" component={SignalsInsightsPage} />
         <Route path="/signals/patterns" component={SignalsPatternsPage} />
-        <Route path="/motion/helix" component={HelixPage} />
         <Route path="/motion" component={TrajectoryPage} />
+        <Route path="/motion/helix" component={HelixPage} />
         <Route path="/decisions" component={DecisionsPage} />
         <Route path="/about" component={AboutPage} />
         <Route path="/oracle" component={OraclePage} />
