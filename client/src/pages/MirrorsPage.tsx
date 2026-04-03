@@ -1,6 +1,7 @@
 import { Link } from "wouter";
 import { Music, PenLine, Heart, ArrowRight, ArrowLeft } from "lucide-react";
 import InfoTooltip from "@/components/InfoTooltip";
+import Refractions from "@/components/Refractions";
 
 const MIRRORS = [
   {
@@ -82,6 +83,9 @@ export default function MirrorsPage() {
             );
           })}
         </div>
+
+        {/* Refractions — deep layer */}
+        <Refractions />
       </div>
     </div>
   );
