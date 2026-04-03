@@ -1862,14 +1862,14 @@ Return ONLY valid JSON:
 
       // Get all checkins for volatility analysis
       const checkins = sqlite.prepare(
-        "SELECT self_vec, timestamp FROM checkins WHERE user_id = ? ORDER BY timestamp ASC"
+        "SELECT self_vec, created_at FROM checkins WHERE user_id = ? ORDER BY created_at ASC"
       ).all(userId) as any[];
 
       if (checkins.length < 8) return res.json({ recovery: null });
 
       // Parse dimension vectors
       const vecs = checkins.map((c: any) => {
-        try { return { vec: JSON.parse(c.self_vec), date: c.timestamp }; }
+        try { return { vec: JSON.parse(c.self_vec), date: c.created_at }; }
         catch { return null; }
       }).filter(Boolean) as { vec: Record<string, number>; date: string }[];
 
