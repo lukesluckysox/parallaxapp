@@ -1,142 +1,213 @@
 import { useEffect } from "react";
-import { Link } from "wouter";
 
 export default function LandingPage({ onShowAuth }: { onShowAuth: () => void }) {
-  // Force dark mode
   useEffect(() => {
     document.documentElement.classList.add("dark");
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#0a0c10] text-white overflow-y-auto">
-      {/* Hero */}
+    <div className="min-h-screen bg-[#0a0c10] text-white overflow-y-auto scroll-smooth">
+
+      {/* ── Hero ──────────────────────────────────────────────── */}
       <section className="min-h-screen flex flex-col items-center justify-center px-6 text-center relative">
-        {/* Ambient glow */}
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_40%,#5eaaa808_0%,transparent_70%)]" />
 
         <p className="text-[9px] tracking-[6px] uppercase text-white/15 mb-6 relative z-10">
           Parallax
         </p>
         <h1 className="text-4xl sm:text-5xl font-display font-semibold tracking-tight text-white/85 mb-4 relative z-10 leading-tight">
-          See yourself from<br />every angle
+          See how you change.
         </h1>
-        <p className="text-sm text-white/35 max-w-sm leading-relaxed mb-10 relative z-10">
-          An identity system that tracks how you feel, what you write, and what you listen to — then reveals the patterns you can't see.
+        <p className="text-sm text-white/30 max-w-sm leading-relaxed mb-10 relative z-10">
+          Turn your writing, listening, check-ins, and choices into a living map of your patterns — what's stable, what's shifting, and what conditions bring out different versions of you.
         </p>
 
-        <div className="flex items-center gap-3 relative z-10">
-          <button
-            onClick={onShowAuth}
-            className="px-6 py-2.5 rounded-[10px] bg-white/10 text-white/80 text-sm font-medium hover:bg-white/15 transition-colors border border-white/10"
-          >
-            Begin
-          </button>
-        </div>
-
-        {/* Scroll indicator */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2">
-          <span className="text-[9px] text-white/15 tracking-widest uppercase">scroll</span>
-          <div className="w-px h-6 bg-white/10" />
-        </div>
+        <button
+          onClick={onShowAuth}
+          className="px-7 py-2.5 rounded-[10px] bg-white/10 text-white/80 text-sm font-medium hover:bg-white/15 transition-colors border border-white/10 relative z-10"
+        >
+          Start free
+        </button>
       </section>
 
-      {/* How it works */}
-      <section className="py-20 px-6">
-        <div className="max-w-md mx-auto space-y-12">
-          <p className="text-[9px] tracking-[5px] uppercase text-white/20 text-center">How it works</p>
-
-          {[
-            {
-              step: "01",
-              title: "Check in",
-              desc: "Tell the app how you're feeling. AI maps your words into 8 identity dimensions and assigns your archetype.",
-            },
-            {
-              step: "02",
-              title: "Write something honest",
-              desc: "Submit a journal entry, poem, or raw thought. The system extracts emotions, mirror moments, and psychological patterns.",
-            },
-            {
-              step: "03",
-              title: "Connect your music",
-              desc: "Link Spotify. Your listening patterns reveal mood profiles, energy trends, and sonic identity signals you won't see elsewhere.",
-            },
-          ].map((item) => (
-            <div key={item.step} className="flex gap-4">
-              <span className="text-[10px] font-mono text-white/15 pt-1 shrink-0">{item.step}</span>
-              <div>
-                <h3 className="text-sm font-semibold text-white/70 mb-1">{item.title}</h3>
-                <p className="text-xs text-white/30 leading-relaxed">{item.desc}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* The Five Archetypes */}
-      <section className="py-20 px-6">
+      {/* ── Archetypes ───────────────────────────────────────── */}
+      <section className="py-16 px-6">
         <div className="max-w-md mx-auto">
-          <p className="text-[9px] tracking-[5px] uppercase text-white/20 text-center mb-10">Five Archetypes</p>
+          <p className="text-[9px] tracking-[5px] uppercase text-white/15 text-center mb-8">
+            Five Archetypes
+          </p>
           <div className="grid grid-cols-5 gap-2 text-center">
             {[
               { glyph: "◉", name: "Observer", color: "#7c8ba0" },
-              { glyph: "◧", name: "Builder", color: "#6b9080" },
-              { glyph: "◇", name: "Explorer", color: "#c4956a" },
-              { glyph: "◈", name: "Dissenter", color: "#b07aa1" },
-              { glyph: "✧", name: "Seeker", color: "#c17b6e" },
+              { glyph: "◧", name: "Builder", color: "#5a7d9a" },
+              { glyph: "◇", name: "Explorer", color: "#6b9080" },
+              { glyph: "◈", name: "Dissenter", color: "#c17b6e" },
+              { glyph: "✧", name: "Seeker", color: "#b8976a" },
             ].map((a) => (
               <div key={a.name}>
-                <span className="text-2xl font-display" style={{ color: a.color }}>{a.glyph}</span>
-                <p className="text-[9px] text-white/30 mt-1">{a.name}</p>
+                <span className="text-2xl font-display" style={{ color: a.color }}>
+                  {a.glyph}
+                </span>
+                <p className="text-[9px] text-white/25 mt-1">{a.name}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Features */}
-      <section className="py-20 px-6">
-        <div className="max-w-md mx-auto space-y-6">
-          <p className="text-[9px] tracking-[5px] uppercase text-white/20 text-center mb-6">What you get</p>
+      {/* ── How it works ─────────────────────────────────────── */}
+      <section className="py-16 px-6">
+        <div className="max-w-md mx-auto space-y-10">
+          <p className="text-[9px] tracking-[5px] uppercase text-white/15 text-center">
+            How it works
+          </p>
 
-          {[
-            { label: "Free", features: ["Identity calibration", "Unlimited check-ins", "Radar chart + archetype tracking", "Decision lab", "Reflection history"] },
-            { label: "Pro", features: ["AI feeling interpretation", "Writing analysis (3 tiers)", "Signal forecast", "Daily reading", "Sonic reading", "Identity Wrapped", "Mirror Drop export", "Variant assignment"] },
-          ].map((tier) => (
-            <div key={tier.label} className="p-4 rounded-[10px] border border-white/5 bg-white/[0.02]">
-              <p className="text-[10px] font-mono text-white/40 uppercase tracking-widest mb-3">{tier.label}</p>
-              <ul className="space-y-1.5">
-                {tier.features.map((f) => (
-                  <li key={f} className="text-xs text-white/30 flex items-center gap-2">
-                    <span className="w-1 h-1 rounded-full bg-white/20 shrink-0" />
-                    {f}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+          <p className="text-sm text-white/35 leading-relaxed text-center max-w-sm mx-auto">
+            Most apps log your day. Parallax interprets it. Your data becomes a dynamic read on your identity — the archetypes you lean toward, the variants you move through, and the conditions that shape your trajectory.
+          </p>
+
+          <div className="space-y-8">
+            {[
+              {
+                step: "01",
+                title: "Check in",
+                desc: "Tell the app how you're feeling. AI maps your words into 8 identity dimensions and assigns your archetype.",
+              },
+              {
+                step: "02",
+                title: "Write something honest",
+                desc: "Submit a journal entry, poem, or raw thought. The system extracts emotions, mirror moments, and psychological patterns.",
+              },
+              {
+                step: "03",
+                title: "Connect your signals",
+                desc: "Link Spotify, feed in behavioral data. Your listening and routine patterns reveal identity signals you won't see elsewhere.",
+              },
+            ].map((item) => (
+              <div key={item.step} className="flex gap-4">
+                <span className="text-[10px] font-mono text-white/12 pt-1 shrink-0">
+                  {item.step}
+                </span>
+                <div>
+                  <h3 className="text-sm font-semibold text-white/65 mb-1">
+                    {item.title}
+                  </h3>
+                  <p className="text-xs text-white/25 leading-relaxed">{item.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* CTA */}
+      {/* ── Features grid ────────────────────────────────────── */}
+      <section className="py-16 px-6">
+        <div className="max-w-lg mx-auto">
+          <p className="text-[9px] tracking-[5px] uppercase text-white/15 text-center mb-8">
+            Understand yourself through
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {[
+              {
+                title: "Mirrors",
+                subhead: "See yourself through different lenses.",
+                body: "Writing, music, and behavioral inputs become reflections of tone, pattern, tension, and emerging identity signals.",
+                color: "#7c8ba0",
+              },
+              {
+                title: "Motion",
+                subhead: "Track what's shifting, not just what's happening.",
+                body: "Archetype drift, narrative projection, variant DNA, and deeper modules like Time Capsule — your identity over time.",
+                color: "#6b9080",
+              },
+              {
+                title: "Decision Lab",
+                subhead: "Make choices with more self-awareness.",
+                body: "Weigh actions against the kind of person you say you want to become — not just what feels easiest right now.",
+                color: "#b8976a",
+              },
+              {
+                title: "Refractions",
+                subhead: "How your pattern changes under conditions.",
+                body: "Run experiments, observe what strengthens or weakens certain patterns, and understand how recovery actually happens for you.",
+                color: "#c17b6e",
+              },
+            ].map((f) => (
+              <div
+                key={f.title}
+                className="p-4 rounded-[10px] border border-white/[0.04] bg-white/[0.015]"
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <div
+                    className="w-1.5 h-1.5 rounded-full"
+                    style={{ backgroundColor: f.color }}
+                  />
+                  <h3 className="text-xs font-semibold text-white/65">{f.title}</h3>
+                </div>
+                <p className="text-[11px] text-white/35 mb-1.5">{f.subhead}</p>
+                <p className="text-[10px] text-white/20 leading-relaxed">{f.body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Who it's for ─────────────────────────────────────── */}
+      <section className="py-16 px-6">
+        <div className="max-w-md mx-auto text-center">
+          <p className="text-[9px] tracking-[5px] uppercase text-white/15 mb-6">
+            Who it's for
+          </p>
+          <div className="space-y-3">
+            {[
+              "People who journal or reflect regularly.",
+              "People who care about self-observation and pattern recognition.",
+              "People who want more than mood logging.",
+              "People curious how music, writing, routine, and decisions shape who they become.",
+            ].map((line) => (
+              <p key={line} className="text-xs text-white/25 leading-relaxed">
+                {line}
+              </p>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Pricing teaser ───────────────────────────────────── */}
+      <section className="py-16 px-6">
+        <div className="max-w-md mx-auto text-center space-y-4">
+          <h2 className="text-base font-display font-semibold text-white/60">
+            Free to start. Deeper insight when you're ready.
+          </h2>
+          <div className="space-y-2">
+            <p className="text-xs text-white/25 leading-relaxed">
+              <span className="text-white/40 font-medium">Free</span> — calibration, basic snapshot, and early signal reading.
+            </p>
+            <p className="text-xs text-white/25 leading-relaxed">
+              <span className="text-white/40 font-medium">Parallax Pro</span> — deep mirrors, Motion layers, Decision Lab, Refractions, Helix, Time Capsule, and future exports like Wrapped and Mirror Drop.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Closing CTA ──────────────────────────────────────── */}
       <section className="py-20 px-6 text-center">
-        <h2 className="text-xl font-display font-semibold text-white/70 mb-3">
-          Your identity is not static
-        </h2>
-        <p className="text-xs text-white/25 mb-8 max-w-xs mx-auto">
-          It moves between recurring patterns. Parallax reveals the modes you cycle through.
+        <p className="text-sm text-white/30 max-w-xs mx-auto leading-relaxed mb-8">
+          You are not one static profile.<br />
+          You are a pattern in motion.
         </p>
         <button
           onClick={onShowAuth}
-          className="px-6 py-2.5 rounded-[10px] bg-white/10 text-white/80 text-sm font-medium hover:bg-white/15 transition-colors border border-white/10"
+          className="px-7 py-2.5 rounded-[10px] bg-white/10 text-white/80 text-sm font-medium hover:bg-white/15 transition-colors border border-white/10"
         >
-          Begin
+          Start free
         </button>
       </section>
 
-      {/* Footer */}
+      {/* ── Footer ───────────────────────────────────────────── */}
       <footer className="py-8 text-center">
-        <p className="text-[9px] text-white/10 font-mono">parallax — all signals, one view</p>
+        <p className="text-[9px] text-white/8 font-mono">parallax — all signals, one view</p>
       </footer>
     </div>
   );
