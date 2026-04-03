@@ -2,10 +2,10 @@
 nixPkgs = ["nodejs_20", "npm"]
 
 [phases.install]
-cmds = ["npm install --production"]
+cmds = ["npm install"]
 
 [phases.build]
-cmds = ["echo 'Using pre-built dist'"]
+cmds = ["npm run build"]
 
 [start]
 cmd = "node dist/index.cjs"
