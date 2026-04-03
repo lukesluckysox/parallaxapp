@@ -463,16 +463,19 @@ export default function CharacterApp() {
         const res = await apiRequest("GET", "/api/checkins");
         const checkins = await res.json();
         if (Array.isArray(checkins) && checkins.length > 0) {
-          // Compute weighted average of all self_vecs (recent entries count more)
+          // Use last 10 check-ins with exponential decay (most recent = strongest)
+          const recentCheckins = checkins.slice(-10);
           const avgSelf: Record<string, number> = {};
           const avgData: Record<string, number> = {};
           let selfCount = 0;
           let dataCount = 0;
+          const decay = 0.75; // each older entry is 75% of the next
           
-          for (let i = 0; i < checkins.length; i++) {
-            const c = checkins[i];
-            // Weight: older entries get weight 1, newest gets weight 3
-            const weight = 1 + (2 * i / Math.max(checkins.length - 1, 1));
+          for (let i = 0; i < recentCheckins.length; i++) {
+            const c = recentCheckins[i];
+            // Exponential: newest (last) gets weight 1.0, second-newest 0.75, etc.
+            const age = recentCheckins.length - 1 - i;
+            const weight = Math.pow(decay, age);
             
             if (c.self_vec) {
               try {

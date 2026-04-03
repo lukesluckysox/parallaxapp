@@ -1016,8 +1016,27 @@ export default function HolisticPage() {
               <RadarChart selfVec={selfVec} dataVec={dataVec} size={320} />
             </section>
 
+            {/* Drift score */}
+            {dataVec && (() => {
+              let sumSq = 0;
+              for (const dim of DIMENSIONS) {
+                const s = (selfVec as any)[dim] || 50;
+                const d = (dataVec as any)[dim] || 50;
+                sumSq += Math.pow(s - d, 2);
+              }
+              const drift = Math.round(Math.sqrt(sumSq / DIMENSIONS.length));
+              const driftColor = drift < 15 ? "text-green-500/40" : drift < 30 ? "text-yellow-500/40" : "text-red-500/40";
+              return (
+                <div className="text-center -mt-2 mb-1">
+                  <span className={`text-[10px] font-mono ${driftColor}`}>
+                    drift: {drift}
+                  </span>
+                </div>
+              );
+            })()}
+
             {/* Legend */}
-            <div className="flex items-center justify-center gap-5 -mt-4">
+            <div className="flex items-center justify-center gap-5 -mt-2">
               <div className="flex items-center gap-1.5">
                 <div className="w-4 h-0.5 rounded-full bg-primary opacity-70" />
                 <span className="text-[10px] text-muted-foreground/50">
