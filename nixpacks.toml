@@ -1,11 +1,5 @@
 [phases.setup]
-nixPkgs = ["nodejs_20", "npm"]
-
-[phases.install]
-cmds = ["npm install"]
-
-[phases.build]
-cmds = ["npm run build"]
+nixPkgs = ["nodejs_20"]
 
 [start]
-cmd = "node dist/index.cjs"
+cmd = "npm run start"
