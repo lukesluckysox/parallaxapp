@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage, db, sqlite } from "./storage";
 import { execSync } from "child_process";
 import Anthropic from "@anthropic-ai/sdk";
-import { DIMENSIONS } from "@shared/archetypes";
+import { DIMENSIONS, ARCHETYPE_MAP } from "@shared/archetypes";
 import bcrypt from "bcryptjs";
 import { getAuthUrl, exchangeCode, refreshAccessToken, spotifyApi } from "./spotify-auth";
 import jwt from "jsonwebtoken";

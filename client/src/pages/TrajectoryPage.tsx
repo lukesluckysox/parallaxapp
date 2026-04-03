@@ -59,7 +59,7 @@ function useSignalStats(checkins: Checkin[]): SignalStats {
     const daySet = new Set<string>();
     for (const c of checkins) {
       try {
-        daySet.add(new Date(c.created_at).toISOString().slice(0, 10));
+        daySet.add(new Date(c.timestamp).toISOString().slice(0, 10));
       } catch { /* skip */ }
     }
     const uniqueDays = daySet.size;
