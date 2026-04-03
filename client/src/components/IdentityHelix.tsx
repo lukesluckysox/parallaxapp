@@ -99,17 +99,17 @@ export default function IdentityHelix({ history, fullPage }: IdentityHelixProps)
 
   // ── Build strand paths with depth-aware segments ──
   // Split each strand into "front" and "back" segments based on which crosses in front
-  function buildDepthStrands(getX: (p: (typeof strandPoints)[0]) => number, isFront: boolean) {
+  function buildDepthStrands(isStrandA: boolean, isFront: boolean) {
     const segments: string[] = [];
     let current = "";
     let inSegment = false;
+    const getX = (p: (typeof strandPoints)[0]) => isStrandA ? p.xA : p.xB;
 
     for (let s = 0; s < strandPoints.length; s++) {
       const p = strandPoints[s];
       const sinVal = Math.sin(p.phase);
-      // Strand A is "front" when sin > 0, strand B when sin < 0
       const aIsFront = sinVal >= 0;
-      const thisFront = getX === ((pt: typeof p) => pt.xA) ? aIsFront : !aIsFront;
+      const thisFront = isStrandA ? aIsFront : !aIsFront;
       const shouldDraw = thisFront === isFront;
 
       if (shouldDraw) {
@@ -141,15 +141,12 @@ export default function IdentityHelix({ history, fullPage }: IdentityHelixProps)
     return d;
   }
 
-  const getXA = (p: (typeof strandPoints)[0]) => p.xA;
-  const getXB = (p: (typeof strandPoints)[0]) => p.xB;
-
-  const fullPathA = buildFullPath(getXA);
-  const fullPathB = buildFullPath(getXB);
+  const fullPathA = buildFullPath((p) => p.xA);
+  const fullPathB = buildFullPath((p) => p.xB);
 
   // Front segments (drawn on top, brighter)
-  const frontA = buildDepthStrands(getXA, true);
-  const frontB = buildDepthStrands(getXB, true);
+  const frontA = buildDepthStrands(true, true);
+  const frontB = buildDepthStrands(false, true);
 
   function isStrandAFront(i: number): boolean {
     const phase = (i * Math.PI) / 1.5;
