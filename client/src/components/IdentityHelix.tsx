@@ -34,18 +34,13 @@ export interface VariantNode {
 
 interface IdentityHelixProps {
   history: VariantNode[];
-  fullPage?: boolean; // wider layout for dedicated page
+  fullPage?: boolean;
 }
 
-// ── Helix geometry helpers ──────────────────────────────────
-const NODE_R = 8;
-
+// ── Helpers ─────────────────────────────────────────────────
 function formatDate(iso: string): string {
   const d = new Date(iso);
-  const mo = d.toLocaleString("en-US", { month: "short" });
-  const day = d.getDate();
-  const yr = d.getFullYear();
-  return `${mo} ${day}, ${yr}`;
+  return `${d.toLocaleString("en-US", { month: "short" })} ${d.getDate()}`;
 }
 
 function formatRange(start: string, end?: string | null): string {
@@ -58,16 +53,18 @@ function formatRange(start: string, end?: string | null): string {
 export default function IdentityHelix({ history, fullPage }: IdentityHelixProps) {
   const [selectedId, setSelectedId] = useState<number | null>(null);
 
-  // Sort oldest → newest (bottom-up helix: oldest at bottom)
+  // Oldest at bottom, newest at top
   const nodes = useMemo(() => [...history].reverse(), [history]);
   const nodeCount = nodes.length;
 
-  // Layout params scale with mode
-  const SVG_WIDTH = fullPage ? 340 : 280;
+  // ── Layout params ──
+  const SVG_WIDTH = fullPage ? 240 : 200;
   const CENTER_X = SVG_WIDTH / 2;
-  const AMPLITUDE = fullPage ? 70 : 60;
-  const NODE_SPACING = fullPage ? 120 : 100;
-  const BADGE_H = 48; // height reserved for expanded badge
+  const AMPLITUDE = fullPage ? 45 : 36;
+  const NODE_SPACING = fullPage ? 80 : 70;
+  const NODE_R = fullPage ? 6 : 5;
+  // How many intermediate points between nodes for smooth crossover
+  const INTERP_STEPS = 12;
 
   if (nodeCount === 0) {
     return (
@@ -79,43 +76,88 @@ export default function IdentityHelix({ history, fullPage }: IdentityHelixProps)
     );
   }
 
-  // Calculate extra space needed for expanded badges
-  const svgHeight = Math.max(200, (nodeCount - 1) * NODE_SPACING + 80 + (fullPage ? 40 : 0));
-  const topPad = fullPage ? 60 : 40;
+  const svgHeight = (nodeCount - 1) * NODE_SPACING + 120 + (fullPage ? 20 : 0);
+  const topPad = fullPage ? 50 : 36;
 
-  const points = nodes.map((_, i) => {
-    const y = topPad + i * NODE_SPACING;
-    const phase = (i * Math.PI) / 1.8;
+  // ── Build high-res strand points for smooth crossover ──
+  const totalSteps = (nodeCount - 1) * INTERP_STEPS + 1;
+  const strandPoints: { y: number; xA: number; xB: number; phase: number }[] = [];
+  for (let s = 0; s < totalSteps; s++) {
+    const t = s / INTERP_STEPS; // fractional node index
+    const y = topPad + t * NODE_SPACING;
+    const phase = (t * Math.PI) / 1.5;
     const xA = CENTER_X + Math.sin(phase) * AMPLITUDE;
     const xB = CENTER_X + Math.sin(phase + Math.PI) * AMPLITUDE;
-    return { y, xA, xB };
+    strandPoints.push({ y, xA, xB, phase });
+  }
+
+  // Node positions (subset of strandPoints at integer indices)
+  const nodePoints = nodes.map((_, i) => {
+    const idx = i * INTERP_STEPS;
+    return strandPoints[idx];
   });
 
-  function buildStrandPath(getX: (p: (typeof points)[0]) => number): string {
-    if (points.length < 2) {
-      const p = points[0];
-      return `M ${getX(p)} ${p.y}`;
+  // ── Build strand paths with depth-aware segments ──
+  // Split each strand into "front" and "back" segments based on which crosses in front
+  function buildDepthStrands(getX: (p: (typeof strandPoints)[0]) => number, isFront: boolean) {
+    const segments: string[] = [];
+    let current = "";
+    let inSegment = false;
+
+    for (let s = 0; s < strandPoints.length; s++) {
+      const p = strandPoints[s];
+      const sinVal = Math.sin(p.phase);
+      // Strand A is "front" when sin > 0, strand B when sin < 0
+      const aIsFront = sinVal >= 0;
+      const thisFront = getX === ((pt: typeof p) => pt.xA) ? aIsFront : !aIsFront;
+      const shouldDraw = thisFront === isFront;
+
+      if (shouldDraw) {
+        if (!inSegment) {
+          current = `M ${getX(p)} ${p.y}`;
+          inSegment = true;
+        } else {
+          current += ` L ${getX(p)} ${p.y}`;
+        }
+      } else {
+        if (inSegment) {
+          // extend slightly into the transition for smooth overlap
+          current += ` L ${getX(p)} ${p.y}`;
+          segments.push(current);
+          inSegment = false;
+        }
+      }
     }
-    let d = `M ${getX(points[0])} ${points[0].y}`;
-    for (let i = 1; i < points.length; i++) {
-      const prev = points[i - 1];
-      const curr = points[i];
-      const cpY = (prev.y + curr.y) / 2;
-      d += ` C ${getX(prev)} ${cpY}, ${getX(curr)} ${cpY}, ${getX(curr)} ${curr.y}`;
+    if (inSegment) segments.push(current);
+    return segments;
+  }
+
+  // Simple full paths for each strand (used as base layer)
+  function buildFullPath(getX: (p: (typeof strandPoints)[0]) => number): string {
+    let d = `M ${getX(strandPoints[0])} ${strandPoints[0].y}`;
+    for (let s = 1; s < strandPoints.length; s++) {
+      d += ` L ${getX(strandPoints[s])} ${strandPoints[s].y}`;
     }
     return d;
   }
 
-  const strandAPath = buildStrandPath((p) => p.xA);
-  const strandBPath = buildStrandPath((p) => p.xB);
+  const getXA = (p: (typeof strandPoints)[0]) => p.xA;
+  const getXB = (p: (typeof strandPoints)[0]) => p.xB;
+
+  const fullPathA = buildFullPath(getXA);
+  const fullPathB = buildFullPath(getXB);
+
+  // Front segments (drawn on top, brighter)
+  const frontA = buildDepthStrands(getXA, true);
+  const frontB = buildDepthStrands(getXB, true);
 
   function isStrandAFront(i: number): boolean {
-    const phase = (i * Math.PI) / 1.8;
+    const phase = (i * Math.PI) / 1.5;
     return Math.sin(phase) >= 0;
   }
 
   function handleNodeTap(nodeId: number) {
-    if (!fullPage) return; // badges only on full page
+    if (!fullPage) return;
     setSelectedId((prev) => (prev === nodeId ? null : nodeId));
   }
 
@@ -126,11 +168,11 @@ export default function IdentityHelix({ history, fullPage }: IdentityHelixProps)
         height={svgHeight}
         viewBox={`0 0 ${SVG_WIDTH} ${svgHeight}`}
         className="overflow-visible"
-        aria-label="Identity variant helix showing your variant evolution"
+        aria-label="Identity variant helix"
       >
         <defs>
           <filter id="helix-glow" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur stdDeviation="3" result="blur" />
+            <feGaussianBlur stdDeviation="2.5" result="blur" />
             <feMerge>
               <feMergeNode in="blur" />
               <feMergeNode in="SourceGraphic" />
@@ -138,190 +180,166 @@ export default function IdentityHelix({ history, fullPage }: IdentityHelixProps)
           </filter>
         </defs>
 
-        {/* ── Background strands ── */}
-        <path d={strandBPath} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={2} strokeLinecap="round" />
-        <path d={strandAPath} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth={2} strokeLinecap="round" />
+        {/* ── Back strands (dim, behind everything) ── */}
+        <path d={fullPathA} fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth={1.5} strokeLinecap="round" />
+        <path d={fullPathB} fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth={1.5} strokeLinecap="round" />
 
-        {/* ── Crossover rungs + nodes ── */}
+        {/* ── Rungs (solid, thin base-pair lines) ── */}
+        {nodePoints.map((p, i) => (
+          <line
+            key={`rung-${i}`}
+            x1={p.xA} y1={p.y} x2={p.xB} y2={p.y}
+            stroke="rgba(255,255,255,0.06)" strokeWidth={0.75}
+          />
+        ))}
+
+        {/* ── Front strand segments (brighter, on top) ── */}
+        {frontA.map((d, i) => (
+          <path key={`fA-${i}`} d={d} fill="none" stroke="rgba(255,255,255,0.18)" strokeWidth={2} strokeLinecap="round" />
+        ))}
+        {frontB.map((d, i) => (
+          <path key={`fB-${i}`} d={d} fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth={2} strokeLinecap="round" />
+        ))}
+
+        {/* ── Nodes + labels ── */}
         {nodes.map((node, i) => {
-          const p = points[i];
+          const p = nodePoints[i];
           const primaryColor = archetypeColor(node.primary_archetype);
           const secondaryColor = archetypeColor(node.secondary_archetype);
           const aFront = isStrandAFront(i);
           const isSelected = fullPage && selectedId === node.id;
-          const frontX = aFront ? p.xA : p.xB;
 
           return (
             <g key={node.id}>
-              {/* Rung */}
-              <line
-                x1={p.xA} y1={p.y} x2={p.xB} y2={p.y}
-                stroke="rgba(255,255,255,0.04)" strokeWidth={1} strokeDasharray="3,3"
-              />
-
               {/* Back node */}
               <circle
                 cx={aFront ? p.xB : p.xA} cy={p.y}
                 r={NODE_R - 1.5}
                 fill={aFront ? secondaryColor : primaryColor}
-                opacity={0.35}
+                opacity={0.25}
               />
 
-              {/* Front node (tappable on full page) */}
+              {/* Front node */}
               <circle
-                cx={frontX} cy={p.y}
-                r={isSelected ? NODE_R + 2 : NODE_R}
+                cx={aFront ? p.xA : p.xB} cy={p.y}
+                r={isSelected ? NODE_R + 1.5 : NODE_R}
                 fill={aFront ? primaryColor : secondaryColor}
-                opacity={isSelected ? 1 : 0.85}
+                opacity={isSelected ? 1 : 0.8}
                 filter="url(#helix-glow)"
                 style={fullPage ? { cursor: "pointer" } : undefined}
                 onClick={() => handleNodeTap(node.id)}
               />
 
-              {/* Variant name label — alternate sides */}
-              {i % 2 === 0 ? (
-                <text
-                  x={CENTER_X + AMPLITUDE + 22} y={p.y + 1}
-                  dominantBaseline="middle"
-                  className="fill-foreground/70"
-                  style={{ fontSize: fullPage ? "11px" : "10px", fontFamily: "var(--font-mono, monospace)", cursor: fullPage ? "pointer" : undefined }}
-                  onClick={() => handleNodeTap(node.id)}
-                >
-                  {node.variant_name}
-                </text>
-              ) : (
-                <text
-                  x={CENTER_X - AMPLITUDE - 22} y={p.y + 1}
-                  dominantBaseline="middle" textAnchor="end"
-                  className="fill-foreground/70"
-                  style={{ fontSize: fullPage ? "11px" : "10px", fontFamily: "var(--font-mono, monospace)", cursor: fullPage ? "pointer" : undefined }}
-                  onClick={() => handleNodeTap(node.id)}
-                >
-                  {node.variant_name}
-                </text>
-              )}
+              {/* Variant name — centered below node */}
+              <text
+                x={CENTER_X}
+                y={p.y + NODE_R + 12}
+                textAnchor="middle"
+                className="fill-foreground/60"
+                style={{
+                  fontSize: fullPage ? "9px" : "8px",
+                  fontFamily: "var(--font-mono, monospace)",
+                  cursor: fullPage ? "pointer" : undefined,
+                }}
+                onClick={() => handleNodeTap(node.id)}
+              >
+                {node.variant_name}
+              </text>
 
-              {/* Date label — opposite side of name */}
-              {i % 2 === 0 ? (
-                <text
-                  x={CENTER_X - AMPLITUDE - 22} y={p.y + 1}
-                  dominantBaseline="middle" textAnchor="end"
-                  className="fill-muted-foreground/30"
-                  style={{ fontSize: "8px", fontFamily: "var(--font-mono, monospace)" }}
-                >
-                  {formatDate(node.started_at)}
-                </text>
-              ) : (
-                <text
-                  x={CENTER_X + AMPLITUDE + 22} y={p.y + 1}
-                  dominantBaseline="middle"
-                  className="fill-muted-foreground/30"
-                  style={{ fontSize: "8px", fontFamily: "var(--font-mono, monospace)" }}
-                >
-                  {formatDate(node.started_at)}
-                </text>
-              )}
+              {/* Date — centered below name */}
+              <text
+                x={CENTER_X}
+                y={p.y + NODE_R + 22}
+                textAnchor="middle"
+                className="fill-muted-foreground/20"
+                style={{ fontSize: "7px", fontFamily: "var(--font-mono, monospace)" }}
+              >
+                {formatDate(node.started_at)}
+              </text>
 
-              {/* ── Archetype badge (full page, selected) ── */}
+              {/* ── Archetype badge (full page, tapped) ── */}
               {isSelected && (
                 <g>
-                  {/* Badge background */}
                   <rect
-                    x={CENTER_X - 80}
-                    y={p.y + 16}
-                    width={160}
-                    height={BADGE_H}
-                    rx={8}
-                    fill="rgba(10,12,16,0.9)"
+                    x={CENTER_X - 70}
+                    y={p.y + NODE_R + 28}
+                    width={140}
+                    height={node.secondary_archetype ? 38 : 26}
+                    rx={6}
+                    fill="rgba(10,12,16,0.92)"
                     stroke={primaryColor}
                     strokeWidth={0.5}
                     opacity={0.95}
                   />
-                  {/* Archetype color dot */}
-                  <circle
-                    cx={CENTER_X - 62}
-                    cy={p.y + 32}
-                    r={4}
-                    fill={primaryColor}
-                  />
-                  {/* Primary archetype label */}
+                  {/* Primary */}
+                  <circle cx={CENTER_X - 54} cy={p.y + NODE_R + 40} r={3.5} fill={primaryColor} />
                   <text
-                    x={CENTER_X - 54}
-                    y={p.y + 33}
+                    x={CENTER_X - 46} y={p.y + NODE_R + 41}
                     dominantBaseline="middle"
                     className="fill-foreground/80"
-                    style={{ fontSize: "10px", fontFamily: "var(--font-mono, monospace)", fontWeight: 600 }}
+                    style={{ fontSize: "9px", fontFamily: "var(--font-mono, monospace)", fontWeight: 600 }}
                   >
                     {archetypeLabel(node.primary_archetype)}
                   </text>
-                  {/* Secondary dot + label (if exists) */}
+                  {/* Date range */}
+                  <text
+                    x={CENTER_X + 64} y={p.y + NODE_R + 41}
+                    textAnchor="end" dominantBaseline="middle"
+                    className="fill-muted-foreground/25"
+                    style={{ fontSize: "7px", fontFamily: "var(--font-mono, monospace)" }}
+                  >
+                    {formatRange(node.started_at, node.ended_at)}
+                  </text>
+                  {/* Secondary */}
                   {node.secondary_archetype && (
                     <>
-                      <circle
-                        cx={CENTER_X - 62}
-                        cy={p.y + 48}
-                        r={3}
-                        fill={secondaryColor}
-                        opacity={0.6}
-                      />
+                      <circle cx={CENTER_X - 54} cy={p.y + NODE_R + 54} r={2.5} fill={secondaryColor} opacity={0.6} />
                       <text
-                        x={CENTER_X - 54}
-                        y={p.y + 49}
+                        x={CENTER_X - 46} y={p.y + NODE_R + 55}
                         dominantBaseline="middle"
-                        className="fill-muted-foreground/50"
-                        style={{ fontSize: "9px", fontFamily: "var(--font-mono, monospace)" }}
+                        className="fill-muted-foreground/40"
+                        style={{ fontSize: "8px", fontFamily: "var(--font-mono, monospace)" }}
                       >
                         {archetypeLabel(node.secondary_archetype)}
                       </text>
                     </>
                   )}
-                  {/* Date range */}
-                  <text
-                    x={CENTER_X + 76}
-                    y={p.y + 33}
-                    textAnchor="end"
-                    dominantBaseline="middle"
-                    className="fill-muted-foreground/30"
-                    style={{ fontSize: "8px", fontFamily: "var(--font-mono, monospace)" }}
-                  >
-                    {formatRange(node.started_at, node.ended_at)}
-                  </text>
                 </g>
               )}
             </g>
           );
         })}
 
-        {/* ── "Now" indicator ── */}
+        {/* ── "CURRENT" pulse ── */}
         {nodeCount > 0 && (
           <g>
             <circle
-              cx={points[nodeCount - 1].xA}
-              cy={points[nodeCount - 1].y - 20}
-              r={3}
+              cx={CENTER_X}
+              cy={nodePoints[nodeCount - 1].y - 18}
+              r={2.5}
               className="fill-primary"
               opacity={0.6}
             >
               <animate attributeName="opacity" values="0.3;0.8;0.3" dur="2s" repeatCount="indefinite" />
             </circle>
             <text
-              x={CENTER_X} y={points[nodeCount - 1].y - 30}
+              x={CENTER_X} y={nodePoints[nodeCount - 1].y - 28}
               textAnchor="middle"
-              className="fill-primary/50"
-              style={{ fontSize: "8px", fontFamily: "var(--font-mono, monospace)", letterSpacing: "0.15em" }}
+              className="fill-primary/40"
+              style={{ fontSize: "7px", fontFamily: "var(--font-mono, monospace)", letterSpacing: "0.15em" }}
             >
               CURRENT
             </text>
           </g>
         )}
 
-        {/* ── "Origin" label ── */}
+        {/* ── "ORIGIN" label ── */}
         {nodeCount > 1 && (
           <text
-            x={CENTER_X} y={points[0].y + 25}
+            x={CENTER_X} y={nodePoints[0].y + NODE_R + 32}
             textAnchor="middle"
-            className="fill-muted-foreground/20"
-            style={{ fontSize: "8px", fontFamily: "var(--font-mono, monospace)", letterSpacing: "0.15em" }}
+            className="fill-muted-foreground/15"
+            style={{ fontSize: "7px", fontFamily: "var(--font-mono, monospace)", letterSpacing: "0.15em" }}
           >
             ORIGIN
           </text>
