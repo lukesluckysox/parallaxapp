@@ -1,4 +1,54 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+
+// ── FAQ accordion item ──────────────────────────────────────
+function FaqItem({ q, a }: { q: string; a: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="border-b border-white/[0.04] last:border-0">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-start justify-between gap-4 w-full py-3.5 text-left group"
+      >
+        <span className="text-xs text-white/45 group-hover:text-white/60 transition-colors leading-relaxed">
+          {q}
+        </span>
+        <span className="text-white/15 text-xs shrink-0 mt-0.5">{open ? "−" : "+"}</span>
+      </button>
+      {open && (
+        <p className="text-[11px] text-white/20 leading-relaxed pb-4 -mt-1 pr-6">
+          {a}
+        </p>
+      )}
+    </div>
+  );
+}
+
+const LANDING_FAQS = [
+  {
+    q: "What is Parallax actually doing with my data?",
+    a: "Parallax stores what you choose to give it — your writing, check-ins, and any connected signals — in its own database so it can show you Mirrors, Motion, Trajectory, Helix, Refractions, and other views of your pattern. Your data exists to reflect you back to yourself, not to power an ad network or some hidden third party.",
+  },
+  {
+    q: "Does Parallax sell or share my data?",
+    a: "No. Parallax doesn't sell your data to advertisers or data brokers, and we don't run third-party ad trackers inside the app. The only services that ever see your data are the ones required to operate Parallax, like Anthropic (for AI analysis) and Spotify (if you choose to connect your listening data).",
+  },
+  {
+    q: "Is my data used to train AI models?",
+    a: "When Parallax sends your text to Anthropic's Claude API for analysis, it's only to generate your personal insights in that moment. Anthropic's API terms state that customer API data is not used to train their public models. Parallax does not train its own models on your private entries.",
+  },
+  {
+    q: "Is this a mental health or medical tool?",
+    a: "No. Parallax is a self-reflection and identity pattern tool. It can help you notice themes and shifts, but it isn't a substitute for therapy, medical care, or professional advice.",
+  },
+  {
+    q: 'How "accurate" are the reflections?',
+    a: "Parallax is interpretive, not oracular. It reads patterns in your writing, listening, and check-ins and turns them into mirrors and motion — but it will never know you better than you know yourself. Treat it as a lens and conversation partner, not a verdict machine.",
+  },
+  {
+    q: 'Will Parallax try to "fix" or optimize me?',
+    a: "No. Parallax doesn't score you as good or bad. It shows you where your energy and archetypes are moving so you can decide what you want to lean into, soften, or experiment with. You're in charge of the story; the app is just a mirror.",
+  },
+];
 
 export default function LandingPage({ onShowAuth }: { onShowAuth: () => void }) {
   useEffect(() => {
@@ -187,6 +237,20 @@ export default function LandingPage({ onShowAuth }: { onShowAuth: () => void }) 
             <p className="text-xs text-white/25 leading-relaxed">
               <span className="text-white/40 font-medium">Parallax Pro</span> — deep mirrors, Motion layers, Decision Lab, Refractions, Helix, Time Capsule, and future exports like Wrapped and Mirror Drop.
             </p>
+          </div>
+        </div>
+      </section>
+
+      {/* ── FAQ ──────────────────────────────────────────────── */}
+      <section className="py-16 px-6">
+        <div className="max-w-md mx-auto">
+          <p className="text-[9px] tracking-[5px] uppercase text-white/15 text-center mb-6">
+            Questions
+          </p>
+          <div className="rounded-[10px] border border-white/[0.04] bg-white/[0.015] px-4">
+            {LANDING_FAQS.map((faq) => (
+              <FaqItem key={faq.q} q={faq.q} a={faq.a} />
+            ))}
           </div>
         </div>
       </section>

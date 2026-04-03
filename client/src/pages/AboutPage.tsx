@@ -1,6 +1,81 @@
+import { useState } from "react";
 import { Link } from "wouter";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ChevronRight, ChevronDown } from "lucide-react";
 import { ARCHETYPES } from "@shared/archetypes";
+
+// ── FAQ data ────────────────────────────────────────────
+const ALL_FAQS = [
+  {
+    q: "What is Parallax actually doing with my data?",
+    a: "Parallax stores what you choose to give it — your writing, check-ins, and any connected signals — in its own database so it can show you Mirrors, Motion, Trajectory, Helix, Refractions, and other views of your pattern. Your data exists to reflect you back to yourself, not to power an ad network or some hidden third party.",
+  },
+  {
+    q: "Does Parallax sell or share my data?",
+    a: "No. Parallax doesn't sell your data to advertisers or data brokers, and we don't run third-party ad trackers inside the app. The only services that ever see your data are the ones required to operate Parallax, like Anthropic (for AI analysis) and Spotify (if you choose to connect your listening data).",
+  },
+  {
+    q: "Is my data used to train AI models?",
+    a: "When Parallax sends your text to Anthropic's Claude API for analysis, it's only to generate your personal insights in that moment. Anthropic's API terms state that customer API data is not used to train their public models. Parallax does not train its own models on your private entries without your explicit consent.",
+  },
+  {
+    q: "Can I delete everything?",
+    a: "Yes. You can delete individual entries, or wipe your entire account and all associated data from Settings. Once deleted, your data is removed from the database and the app can no longer use it to generate reflections.",
+  },
+  {
+    q: "What can Parallax actually see?",
+    a: "Only what you explicitly connect or type into it. That might include your check-ins, writing you paste in, and data from services you choose to link (like Spotify). Parallax cannot see your texts, email, photos, or anything else on your phone outside those connections.",
+  },
+  {
+    q: "Is this a mental health or medical tool?",
+    a: "No. Parallax is a self-reflection and identity pattern tool. It can help you notice themes and shifts, but it isn't a substitute for therapy, medical care, or professional advice.",
+  },
+  {
+    q: 'How "accurate" are the reflections?',
+    a: "Parallax is interpretive, not oracular. It reads patterns in your writing, listening, and check-ins and turns them into mirrors and motion — but it will never know you better than you know yourself. Treat it as a lens and conversation partner, not a verdict machine.",
+  },
+  {
+    q: "Do I have to connect Spotify or write long entries for this to work?",
+    a: "No. You can use Parallax in a minimal way — short text check-ins only, no Spotify — and still get useful Mirrors and Motion over time. Connecting more signals just gives the app more to work with if you're comfortable with that.",
+  },
+  {
+    q: "What happens if I stop using Parallax?",
+    a: "Nothing keeps running in the background. If you stop checking in or disconnect services, your pattern simply pauses where you left it. You can come back later, pick up where you were, or delete everything from Settings.",
+  },
+  {
+    q: 'Will Parallax try to "fix" or optimize me?',
+    a: "No. Parallax doesn't score you as good or bad. It shows you where your energy and archetypes are moving so you can decide what you want to lean into, soften, or experiment with. You're in charge of the story; the app is just a mirror.",
+  },
+  {
+    q: "Who is Parallax for?",
+    a: "People who journal, track themselves, or think about identity — and want something that shows how they change over time, not just a list of what happened yesterday.",
+  },
+];
+
+function FaqItem({ q, a }: { q: string; a: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="border-b border-border/20 last:border-0">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-start justify-between gap-3 w-full py-3 text-left group"
+      >
+        <span className="text-xs font-medium text-foreground/60 group-hover:text-foreground/80 transition-colors leading-relaxed">
+          {q}
+        </span>
+        {open ? (
+          <ChevronDown className="w-3 h-3 text-muted-foreground/30 shrink-0 mt-0.5" />
+        ) : (
+          <ChevronRight className="w-3 h-3 text-muted-foreground/30 shrink-0 mt-0.5" />
+        )}
+      </button>
+      {open && (
+        <p className="text-[11px] text-muted-foreground/40 leading-relaxed pb-3.5 -mt-1 pr-6">
+          {a}
+        </p>
+      )}
+    </div>
+  );
+}
 
 export default function AboutPage() {
   return (
@@ -236,6 +311,16 @@ export default function AboutPage() {
               doesn't store your data). You can export all your data as JSON or delete your account entirely
               from the home page.
             </p>
+          </section>
+
+          {/* FAQ */}
+          <section id="faq">
+            <h2 className="text-lg font-display font-semibold mb-4">Frequently asked questions</h2>
+            <div className="rounded-[10px] border border-border/30 bg-card/20 px-4">
+              {ALL_FAQS.map((faq) => (
+                <FaqItem key={faq.q} q={faq.q} a={faq.a} />
+              ))}
+            </div>
           </section>
 
           {/* Philosophy */}

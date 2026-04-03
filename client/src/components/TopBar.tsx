@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { LogOut } from "lucide-react";
+import { LogOut, HelpCircle } from "lucide-react";
+import { Link } from "wouter";
 import { useAuth } from "@/lib/auth-context";
 import ThemeToggle from "./ThemeToggle";
 
@@ -84,6 +85,13 @@ export default function TopBar() {
           {user && (
             <>
               <span className="text-muted-foreground/30">{user.displayName || user.username}</span>
+              <Link
+                href="/about#faq"
+                className="text-muted-foreground/20 hover:text-foreground transition-colors"
+                aria-label="Help & FAQ"
+              >
+                <HelpCircle className="w-3 h-3" />
+              </Link>
               <button
                 onClick={logout}
                 className="text-muted-foreground/20 hover:text-foreground transition-colors"
