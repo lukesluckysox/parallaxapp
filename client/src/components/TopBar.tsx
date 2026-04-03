@@ -86,7 +86,7 @@ export default function TopBar() {
             <>
               <span className="text-muted-foreground/30">{user.displayName || user.username}</span>
               <Link
-                href="/about#faq"
+                href="/about"
                 className="text-muted-foreground/20 hover:text-foreground transition-colors"
                 aria-label="Help & FAQ"
               >
