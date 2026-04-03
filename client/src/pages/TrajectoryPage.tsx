@@ -1,7 +1,7 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { ArrowLeft, ArrowUp, ArrowDown, Minus, Compass } from "lucide-react";
+import { ArrowLeft, ArrowUp, ArrowDown, Minus, Compass, ChevronRight, ChevronDown, Dna } from "lucide-react";
 import FutureSelf from "@/components/FutureSelf";
 import InfoTooltip from "@/components/InfoTooltip";
 import ArchetypeBrowser from "@/components/ArchetypeBrowser";
@@ -10,6 +10,33 @@ import { GatedSection } from "@/components/SignalStrength";
 import { ARCHETYPE_MAP, DIMENSIONS, type DimensionVec } from "@shared/archetypes";
 import { defaultVec } from "@shared/archetype-math";
 import type { Checkin } from "@shared/schema";
+
+// ── Collapsible wrapper ─────────────────────────────────────
+function CollapsibleSection({ title, children }: { title: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="space-y-2">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-2 w-full group"
+      >
+        {open ? (
+          <ChevronDown className="w-3.5 h-3.5 text-muted-foreground/50" />
+        ) : (
+          <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/50" />
+        )}
+        <span className="text-sm font-bold text-foreground/80 group-hover:text-foreground transition-colors">
+          {title}
+        </span>
+      </button>
+      {open && (
+        <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ── Signal Stats Hook ────────────────────────────────────────
 // Computes signal strength (0-5) from running cumulative data.
@@ -358,7 +385,13 @@ export default function TrajectoryPage() {
             <h1 className="text-base font-bold" data-testid="text-page-title">Motion</h1>
             <InfoTooltip text="Your identity trajectory over time. Shows how your archetype dimensions have shifted, what's driving changes, and where you might be heading next." />
           </div>
-          <div />
+          <Link
+            href="/motion/helix"
+            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="Variant DNA helix"
+          >
+            <Dna className="w-4 h-4" />
+          </Link>
         </header>
 
         {/* Trajectory Path — gated */}
@@ -371,21 +404,27 @@ export default function TrajectoryPage() {
           <TrajectoryPathContent />
         </GatedSection>
 
-        {/* Behavioral Drivers — gated */}
+        {/* Behavioral Drivers — gated + collapsed */}
         <GatedSection
           title="Behavioral Drivers"
           strength={stats.driversStrength}
           threshold={DRIVERS_THRESHOLD}
           hint={driversHint}
         >
-          <BehavioralDriversContent checkins={checkins} />
+          <CollapsibleSection title="Behavioral Drivers">
+            <BehavioralDriversContent checkins={checkins} />
+          </CollapsibleSection>
         </GatedSection>
 
-        {/* Future Self Selector — always visible (aspirational, not data-dependent) */}
-        <FutureSelf selfVec={selfVec} />
+        {/* Future Self Selector — collapsed */}
+        <CollapsibleSection title="Future Self">
+          <FutureSelf selfVec={selfVec} />
+        </CollapsibleSection>
 
-        {/* Archetype Browser — always visible (educational) */}
-        <ArchetypeBrowser selfVec={selfVec} />
+        {/* Archetype Browser — collapsed */}
+        <CollapsibleSection title="Archetype Browser">
+          <ArchetypeBrowser selfVec={selfVec} />
+        </CollapsibleSection>
 
         {/* Narrative Projection — gated */}
         <GatedSection

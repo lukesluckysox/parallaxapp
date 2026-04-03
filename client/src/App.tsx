@@ -14,6 +14,7 @@ import SignalsInsightsPage from "./pages/SignalsInsightsPage";
 import SignalsPatternsPage from "./pages/SignalsPatternsPage";
 import HealthPage from "./pages/HealthPage";
 import TrajectoryPage from "./pages/TrajectoryPage";
+import HelixPage from "./pages/HelixPage";
 import HolisticPage from "./pages/HolisticPage";
 import MirrorsPage from "./pages/MirrorsPage";
 import AboutPage from "./pages/AboutPage";
@@ -84,6 +85,7 @@ function AppContent() {
         <Route path="/signals/insights" component={SignalsInsightsPage} />
         <Route path="/signals/patterns" component={SignalsPatternsPage} />
         <Route path="/motion" component={TrajectoryPage} />
+        <Route path="/motion/helix" component={HelixPage} />
         <Route path="/decisions" component={DecisionsPage} />
         <Route path="/about" component={AboutPage} />
         <Route path="/oracle" component={OraclePage} />

@@ -7,7 +7,7 @@ import { ChevronRight, ChevronDown, Download, Share2, Lock, Sparkles } from "luc
 import { apiRequest } from "@/lib/queryClient";
 import InfoTooltip from "@/components/InfoTooltip";
 import ProGate from "@/components/ProGate";
-import IdentityHelix from "@/components/IdentityHelix";
+
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -39,44 +39,6 @@ interface ProfileData {
     exploration_channels: string[];
     description: string;
   } | null;
-}
-
-// ── Helix Deep Layer Section ──────────────────────────────────
-
-function HelixSection() {
-  const [open, setOpen] = useState(false);
-  const { data: helixData } = useQuery<{ history: any[] }>({
-    queryKey: ["/api/variant-history"],
-    queryFn: async () => {
-      const res = await apiRequest("GET", "/api/variant-history");
-      return res.json();
-    },
-    staleTime: 5 * 60_000,
-  });
-
-  const history = helixData?.history || [];
-  if (history.length === 0) return null;
-
-  return (
-    <div className="mt-2">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-1.5 mx-auto text-[10px] font-mono text-muted-foreground/40 hover:text-muted-foreground/60 transition-colors"
-      >
-        {open ? (
-          <ChevronDown className="w-3 h-3" />
-        ) : (
-          <ChevronRight className="w-3 h-3" />
-        )}
-        variant dna
-      </button>
-      {open && (
-        <div className="mt-4 animate-in fade-in slide-in-from-top-2 duration-300">
-          <IdentityHelix history={history} />
-        </div>
-      )}
-    </div>
-  );
 }
 
 // ── 3D Radar Chart (SVG with CSS perspective) ────────────────
@@ -956,8 +918,6 @@ export default function HolisticPage() {
             <InfoTooltip text="Your unified identity dashboard. Synthesizes signals from check-ins, writing, and music into archetype distributions, dimension scores, and signal forecasts. All data shapes one view." />
           </div>
 
-          {/* ── Identity Helix deep layer ── */}
-          {hasData && <HelixSection />}
         </div>
 
         {!hasData ? (
