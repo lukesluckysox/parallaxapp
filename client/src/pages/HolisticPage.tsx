@@ -32,6 +32,7 @@ interface HolisticData {
   checkinCount?: number;
   uniqueDays?: number;
   hasSpotify?: boolean;
+  dimHistory?: Record<string, number[]>;
 }
 
 interface ProfileData {
@@ -61,10 +62,12 @@ const DIMENSION_LABELS: Record<string, string> = {
 function RadarChart({
   selfVec,
   dataVec,
+  dimHistory,
   size = 320,
 }: {
   selfVec: Record<string, number>;
   dataVec: Record<string, number> | null;
+  dimHistory?: Record<string, number[]>;
   size?: number;
 }) {
   const cx = size / 2;
@@ -191,18 +194,34 @@ function RadarChart({
           );
         })}
 
-        {/* Dimension labels */}
+        {/* Dimension labels + sparklines */}
         {dims.map((dim, i) => {
           const angle = -Math.PI / 2 + i * angleStep;
-          const labelR = maxR + 18;
+          const labelR = maxR + 22;
           const lx = cx + labelR * Math.cos(angle);
           const ly = cy + labelR * Math.sin(angle);
           const val = selfVec[dim] || 50;
+          const history = dimHistory?.[dim] || [];
+
+          // Build sparkline path (30px wide, 10px tall)
+          const spW = 30, spH = 8;
+          let sparkPath = "";
+          if (history.length >= 2) {
+            const mn = Math.min(...history);
+            const mx = Math.max(...history);
+            const range = mx - mn || 1;
+            sparkPath = history.map((v, j) => {
+              const sx = (j / (history.length - 1)) * spW;
+              const sy = spH - ((v - mn) / range) * spH;
+              return `${j === 0 ? "M" : "L"} ${sx} ${sy}`;
+            }).join(" ");
+          }
+
           return (
             <g key={dim}>
               <text
                 x={lx}
-                y={ly - 5}
+                y={ly - 8}
                 textAnchor="middle"
                 dominantBaseline="middle"
                 fontSize={9}
@@ -215,7 +234,7 @@ function RadarChart({
               </text>
               <text
                 x={lx}
-                y={ly + 7}
+                y={ly + 4}
                 textAnchor="middle"
                 dominantBaseline="middle"
                 fontSize={10}
@@ -226,6 +245,20 @@ function RadarChart({
               >
                 {val}
               </text>
+              {/* Sparkline */}
+              {sparkPath && (
+                <g transform={`translate(${lx - spW / 2}, ${ly + 11})`}>
+                  <path
+                    d={sparkPath}
+                    fill="none"
+                    stroke="hsl(var(--primary))"
+                    strokeWidth={1}
+                    strokeOpacity={0.3}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </g>
+              )}
             </g>
           );
         })}
@@ -1053,7 +1086,7 @@ export default function HolisticPage() {
                 transition: "opacity 0.5s ease",
               }}
             >
-              <RadarChart selfVec={selfVec} dataVec={dataVec} size={320} />
+              <RadarChart selfVec={selfVec} dataVec={dataVec} dimHistory={data?.dimHistory} size={320} />
             </section>
 
             {/* Drift score */}

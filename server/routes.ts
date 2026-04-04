@@ -2393,6 +2393,22 @@ Return ONLY the single line, no quotes, no explanation.`
       try { daySet.add(new Date(c.timestamp).toISOString().slice(0, 10)); } catch {}
     }
 
+    // Recent dimension history for sparklines (last 10, newest first)
+    const dimHistory: Record<string, number[]> = {};
+    for (const dim of DIMENSIONS) dimHistory[dim] = [];
+    for (const c of allCheckins.slice(0, 10)) {
+      if (c.self_vec) {
+        try {
+          const sv = JSON.parse(c.self_vec);
+          for (const dim of DIMENSIONS) {
+            dimHistory[dim].push(sv[dim] || 50);
+          }
+        } catch {}
+      }
+    }
+    // Reverse so oldest is first (left of sparkline) → newest is last (right)
+    for (const dim of DIMENSIONS) dimHistory[dim].reverse();
+
     const selfVec: Record<string, number> = {};
     const dataVec: Record<string, number> = {};
     for (const dim of DIMENSIONS) {
@@ -2447,6 +2463,7 @@ Return ONLY the single line, no quotes, no explanation.`
       checkinCount: allCheckins.length,
       uniqueDays: daySet.size,
       hasSpotify: spotifyListens.length > 0,
+      dimHistory,
       spotifyStats: {
         avgEnergy: spotifyStats.avgEnergy,
         avgValence: spotifyStats.avgValence,

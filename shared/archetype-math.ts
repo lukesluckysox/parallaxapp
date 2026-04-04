@@ -16,18 +16,34 @@ export function similarity(a: DimensionVec, b: DimensionVec): number {
   return dotProduct / (Math.sqrt(magA) * Math.sqrt(magB));
 }
 
-/** Returns the percentage match for each archetype, normalized to sum to 100 */
+/** Returns the percentage match for each archetype, normalized to sum to 100.
+ *  Uses deviation-based scoring: measures how much the user's dimensions
+ *  deviate from neutral (50) in the direction each archetype cares about.
+ *  This produces meaningful differentiation even when dimensions are 40-60. */
 export function computeMixture(vec: DimensionVec): Record<string, number> {
-  const sims: Record<string, number> = {};
+  const scores: Record<string, number> = {};
   let total = 0;
+
   for (const arch of ARCHETYPES) {
-    const s = Math.max(0, similarity(vec, arch.target));
-    sims[arch.key] = s;
-    total += s;
+    let score = 0;
+    for (const dim of DIMENSIONS) {
+      const userDev = (vec[dim] || 50) - 50;         // user's deviation from neutral
+      const archDev = (arch.target[dim] || 50) - 50; // archetype's deviation from neutral
+      // Reward when user deviates in the same direction the archetype cares about
+      // Weight by how strongly the archetype cares about this dimension
+      const archWeight = Math.abs(archDev) / 50;     // 0-1 importance scale
+      score += userDev * Math.sign(archDev) * archWeight;
+    }
+    // Apply softmax-style offset so all scores are positive before normalizing
+    // Use exponential to amplify differences while keeping distribution smooth
+    const expScore = Math.exp(score / 15); // 15 = temperature, controls spread
+    scores[arch.key] = expScore;
+    total += expScore;
   }
+
   const result: Record<string, number> = {};
   for (const arch of ARCHETYPES) {
-    result[arch.key] = total > 0 ? Math.round((sims[arch.key] / total) * 100) : 0;
+    result[arch.key] = total > 0 ? Math.round((scores[arch.key] / total) * 100) : 20;
   }
   return result;
 }
