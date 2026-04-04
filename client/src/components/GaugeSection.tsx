@@ -1,4 +1,5 @@
 import Gauge from "./Gauge";
+import InfoTooltip from "./InfoTooltip";
 import { ARCHETYPES, ARCHETYPE_MAP, type DimensionVec } from "@shared/archetypes";
 import { topArchetype, computeMixture } from "@shared/archetype-math";
 
@@ -29,9 +30,12 @@ export default function GaugeSection({ selfVec, dataVec, selfArchetype, dataArch
       <div className={`${hasData ? "grid grid-cols-2 gap-5" : ""}`}>
         {hasData && dataArch && (
           <div className="space-y-2">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
-              Your data says
-            </p>
+            <div className="flex items-center gap-1">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+                Your data says
+              </p>
+              <InfoTooltip text="Computed from Spotify listening patterns, writing analysis, and behavioral signals. These sources nudge your baseline dimensions independently of your self-reported check-ins." />
+            </div>
             <div className="flex items-center gap-2.5">
               <span className="text-2xl font-display" style={{ color: dataArch.color }}>{dataArch.emoji}</span>
               <div className="flex-1">
@@ -42,9 +46,12 @@ export default function GaugeSection({ selfVec, dataVec, selfArchetype, dataArch
           </div>
         )}
         <div className="space-y-2">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
-            {hasData ? "You say" : "Self-report"}
-          </p>
+          <div className="flex items-center gap-1">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+              {hasData ? "You say" : "Self-report"}
+            </p>
+            <InfoTooltip text="Weighted average of your most recent check-ins. Your latest entries count the most — the system reflects who you are lately, not an all-time average." />
+          </div>
           <div className="flex items-center gap-2.5">
             <span className="text-2xl font-display" style={{ color: selfArch?.color }}>{selfArch?.emoji}</span>
             <div className="flex-1">
@@ -63,9 +70,12 @@ export default function GaugeSection({ selfVec, dataVec, selfArchetype, dataArch
       {/* Systems Overview — all 5 archetypes */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
-            Systems overview
-          </p>
+          <div className="flex items-center gap-1">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+              Systems overview
+            </p>
+            <InfoTooltip text="Five archetypes scored by how your dimensions deviate from neutral. All begin at an equal 20% — your signal separates them. The vertical marker shows that equilibrium point." />
+          </div>
           <span className="text-[8px] font-mono text-muted-foreground/20">| = 20% equilibrium</span>
         </div>
         <div className="space-y-2.5">

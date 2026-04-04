@@ -70,6 +70,7 @@ function RadarChart({
   dimHistory?: Record<string, number[]>;
   size?: number;
 }) {
+  const [showDeltas, setShowDeltas] = useState(false);
   const cx = size / 2;
   const cy = size / 2;
   const maxR = size * 0.38;
@@ -194,34 +195,34 @@ function RadarChart({
           );
         })}
 
-        {/* Dimension labels + sparklines */}
+        {/* Tap target for showing deltas */}
+        <rect
+          x={0} y={0} width={size} height={size}
+          fill="transparent"
+          onClick={() => setShowDeltas((d) => !d)}
+          style={{ cursor: "pointer" }}
+        />
+
+        {/* Dimension labels + optional delta */}
         {dims.map((dim, i) => {
           const angle = -Math.PI / 2 + i * angleStep;
-          const labelR = maxR + 22;
+          const labelR = maxR + 18;
           const lx = cx + labelR * Math.cos(angle);
           const ly = cy + labelR * Math.sin(angle);
           const val = selfVec[dim] || 50;
-          const history = dimHistory?.[dim] || [];
 
-          // Build sparkline path (30px wide, 10px tall)
-          const spW = 30, spH = 8;
-          let sparkPath = "";
+          // Compute delta from history (newest vs oldest)
+          const history = dimHistory?.[dim] || [];
+          let delta: number | null = null;
           if (history.length >= 2) {
-            const mn = Math.min(...history);
-            const mx = Math.max(...history);
-            const range = mx - mn || 1;
-            sparkPath = history.map((v, j) => {
-              const sx = (j / (history.length - 1)) * spW;
-              const sy = spH - ((v - mn) / range) * spH;
-              return `${j === 0 ? "M" : "L"} ${sx} ${sy}`;
-            }).join(" ");
+            delta = history[history.length - 1] - history[0];
           }
 
           return (
             <g key={dim}>
               <text
                 x={lx}
-                y={ly - 8}
+                y={ly - 5}
                 textAnchor="middle"
                 dominantBaseline="middle"
                 fontSize={9}
@@ -233,8 +234,8 @@ function RadarChart({
                 {DIMENSION_LABELS[dim]}
               </text>
               <text
-                x={lx}
-                y={ly + 4}
+                x={showDeltas && delta !== null ? lx - 10 : lx}
+                y={ly + 7}
                 textAnchor="middle"
                 dominantBaseline="middle"
                 fontSize={10}
@@ -245,19 +246,21 @@ function RadarChart({
               >
                 {val}
               </text>
-              {/* Sparkline */}
-              {sparkPath && (
-                <g transform={`translate(${lx - spW / 2}, ${ly + 11})`}>
-                  <path
-                    d={sparkPath}
-                    fill="none"
-                    stroke="hsl(var(--primary))"
-                    strokeWidth={1}
-                    strokeOpacity={0.3}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </g>
+              {/* Delta indicator (shown on tap) */}
+              {showDeltas && delta !== null && delta !== 0 && (
+                <text
+                  x={lx + 12}
+                  y={ly + 7}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  fontSize={8}
+                  fontFamily="var(--font-mono)"
+                  fontWeight={600}
+                  fill={delta > 0 ? "#6b9080" : "#c17b6e"}
+                  opacity={0.7}
+                >
+                  {delta > 0 ? `+${delta}` : delta}
+                </text>
               )}
             </g>
           );
@@ -1152,9 +1155,12 @@ export default function HolisticPage() {
               <ProGate feature="Signal Forecast">
                 {forecast ? (
                   <section className="space-y-3">
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground/40 font-medium text-center">
-                      Current Signal
-                    </p>
+                    <div className="flex items-center justify-center gap-1">
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground/40 font-medium">
+                        Current Signal
+                      </p>
+                      <InfoTooltip text="A snapshot of which archetypes are currently rising, falling, or stable based on your recent check-ins and connected data sources. This updates as your pattern shifts." />
+                    </div>
                     <div className="flex items-center justify-center gap-3 flex-wrap">
                       {ARCHETYPES.map((arch) => {
                         const level = forecast.archetype_signals[arch.key] || "stable";
