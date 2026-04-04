@@ -61,10 +61,13 @@ export default function IdentityHelix({ history, fullPage }: IdentityHelixProps)
   const SVG_WIDTH = fullPage ? 240 : 200;
   const CENTER_X = SVG_WIDTH / 2;
   const AMPLITUDE = fullPage ? 45 : 36;
-  const NODE_SPACING = fullPage ? 80 : 70;
   const NODE_R = fullPage ? 6 : 5;
-  // How many intermediate points between nodes for smooth crossover
   const INTERP_STEPS = 12;
+
+  // Spacing: recent nodes get full spacing, older ones compress
+  // nodes[] is ordered oldest(0) → newest(last)
+  const RECENT_SPACING = fullPage ? 80 : 70;
+  const MIN_SPACING = fullPage ? 30 : 25;
 
   if (nodeCount === 0) {
     return (
@@ -76,25 +79,54 @@ export default function IdentityHelix({ history, fullPage }: IdentityHelixProps)
     );
   }
 
-  const svgHeight = (nodeCount - 1) * NODE_SPACING + 120 + (fullPage ? 20 : 0);
   const topPad = fullPage ? 50 : 36;
 
-  // ── Build high-res strand points for smooth crossover ──
-  const totalSteps = (nodeCount - 1) * INTERP_STEPS + 1;
-  const strandPoints: { y: number; xA: number; xB: number; phase: number }[] = [];
-  for (let s = 0; s < totalSteps; s++) {
-    const t = s / INTERP_STEPS; // fractional node index
-    const y = topPad + t * NODE_SPACING;
-    const phase = (t * Math.PI) / 1.5;
-    const xA = CENTER_X + Math.sin(phase) * AMPLITUDE;
-    const xB = CENTER_X + Math.sin(phase + Math.PI) * AMPLITUDE;
-    strandPoints.push({ y, xA, xB, phase });
+  // Compute cumulative Y positions with compressed spacing
+  // Newest (last in array) gets full spacing, oldest gets min
+  const nodeYPositions: number[] = [];
+  nodeYPositions[0] = 0; // origin node at y=0 (relative)
+  for (let i = 1; i < nodeCount; i++) {
+    // i goes from oldest(0) to newest(nodeCount-1)
+    // Recency factor: 0 for oldest → 1 for newest
+    const recency = i / Math.max(nodeCount - 1, 1);
+    // Ease: more compression at the old end, smooth transition
+    const easedRecency = recency * recency; // quadratic ease-in
+    const spacing = MIN_SPACING + (RECENT_SPACING - MIN_SPACING) * easedRecency;
+    nodeYPositions[i] = nodeYPositions[i - 1] + spacing;
   }
+  const totalHeight = nodeYPositions[nodeCount - 1] || 0;
+  const svgHeight = totalHeight + topPad + 80;
 
-  // Node positions (subset of strandPoints at integer indices)
+  // Build high-res strand points using interpolated Y positions
+  const strandPoints: { y: number; xA: number; xB: number; phase: number }[] = [];
+  for (let nodeIdx = 0; nodeIdx < nodeCount - 1; nodeIdx++) {
+    const y0 = topPad + nodeYPositions[nodeIdx];
+    const y1 = topPad + nodeYPositions[nodeIdx + 1];
+    for (let step = 0; step < INTERP_STEPS; step++) {
+      const frac = step / INTERP_STEPS;
+      const t = nodeIdx + frac;
+      const y = y0 + (y1 - y0) * frac;
+      const phase = (t * Math.PI) / 1.5;
+      const xA = CENTER_X + Math.sin(phase) * AMPLITUDE;
+      const xB = CENTER_X + Math.sin(phase + Math.PI) * AMPLITUDE;
+      strandPoints.push({ y, xA, xB, phase });
+    }
+  }
+  // Add final node point
+  const lastT = nodeCount - 1;
+  const lastPhase = (lastT * Math.PI) / 1.5;
+  strandPoints.push({
+    y: topPad + nodeYPositions[nodeCount - 1],
+    xA: CENTER_X + Math.sin(lastPhase) * AMPLITUDE,
+    xB: CENTER_X + Math.sin(lastPhase + Math.PI) * AMPLITUDE,
+    phase: lastPhase,
+  });
+
+  // Node positions (at integer boundaries in strand points)
   const nodePoints = nodes.map((_, i) => {
     const idx = i * INTERP_STEPS;
-    return strandPoints[idx];
+    // Last node is at the end of strandPoints
+    return idx < strandPoints.length ? strandPoints[idx] : strandPoints[strandPoints.length - 1];
   });
 
   // ── Build strand paths with depth-aware segments ──
@@ -149,8 +181,8 @@ export default function IdentityHelix({ history, fullPage }: IdentityHelixProps)
   const frontB = buildDepthStrands(false, true);
 
   function isStrandAFront(i: number): boolean {
-    const phase = (i * Math.PI) / 1.5;
-    return Math.sin(phase) >= 0;
+    // Use the actual phase from the node point
+    return nodePoints[i] ? Math.sin(nodePoints[i].phase) >= 0 : true;
   }
 
   function handleNodeTap(nodeId: number) {
@@ -206,12 +238,20 @@ export default function IdentityHelix({ history, fullPage }: IdentityHelixProps)
           const aFront = isStrandAFront(i);
           const isSelected = fullPage && selectedId === node.id;
 
+          // Recency factor for label visibility (0 = oldest, 1 = newest)
+          const recency = nodeCount > 1 ? i / (nodeCount - 1) : 1;
+          // Compressed nodes: only show name for recent half, date for recent third
+          const showName = recency > 0.3 || isSelected || nodeCount <= 5;
+          const showDate = recency > 0.6 || isSelected || nodeCount <= 3;
+          // Node size scales slightly with compression
+          const nodeR = NODE_R * (0.7 + 0.3 * recency);
+
           return (
             <g key={node.id}>
               {/* Back node */}
               <circle
                 cx={aFront ? p.xB : p.xA} cy={p.y}
-                r={NODE_R - 1.5}
+                r={Math.max(nodeR - 1.5, 2)}
                 fill={aFront ? secondaryColor : primaryColor}
                 opacity={0.25}
               />
@@ -219,40 +259,45 @@ export default function IdentityHelix({ history, fullPage }: IdentityHelixProps)
               {/* Front node */}
               <circle
                 cx={aFront ? p.xA : p.xB} cy={p.y}
-                r={isSelected ? NODE_R + 1.5 : NODE_R}
+                r={isSelected ? nodeR + 1.5 : nodeR}
                 fill={aFront ? primaryColor : secondaryColor}
-                opacity={isSelected ? 1 : 0.8}
+                opacity={isSelected ? 1 : 0.6 + 0.3 * recency}
                 filter="url(#helix-glow)"
                 style={fullPage ? { cursor: "pointer" } : undefined}
                 onClick={() => handleNodeTap(node.id)}
               />
 
               {/* Variant name — centered below node */}
-              <text
-                x={CENTER_X}
-                y={p.y + NODE_R + 12}
-                textAnchor="middle"
-                className="fill-foreground/60"
-                style={{
-                  fontSize: fullPage ? "9px" : "8px",
-                  fontFamily: "var(--font-mono, monospace)",
-                  cursor: fullPage ? "pointer" : undefined,
-                }}
-                onClick={() => handleNodeTap(node.id)}
-              >
-                {node.variant_name}
-              </text>
+              {showName && (
+                <text
+                  x={CENTER_X}
+                  y={p.y + NODE_R + 12}
+                  textAnchor="middle"
+                  className="fill-foreground/60"
+                  style={{
+                    fontSize: fullPage ? "9px" : "8px",
+                    fontFamily: "var(--font-mono, monospace)",
+                    cursor: fullPage ? "pointer" : undefined,
+                    opacity: 0.4 + 0.6 * recency,
+                  }}
+                  onClick={() => handleNodeTap(node.id)}
+                >
+                  {node.variant_name}
+                </text>
+              )}
 
               {/* Date — centered below name */}
-              <text
-                x={CENTER_X}
-                y={p.y + NODE_R + 22}
-                textAnchor="middle"
-                className="fill-muted-foreground/20"
-                style={{ fontSize: "7px", fontFamily: "var(--font-mono, monospace)" }}
-              >
-                {formatDate(node.started_at)}
-              </text>
+              {showDate && (
+                <text
+                  x={CENTER_X}
+                  y={p.y + NODE_R + 22}
+                  textAnchor="middle"
+                  className="fill-muted-foreground/20"
+                  style={{ fontSize: "7px", fontFamily: "var(--font-mono, monospace)" }}
+                >
+                  {formatDate(node.started_at)}
+                </text>
+              )}
 
               {/* ── Archetype badge (full page, tapped) ── */}
               {isSelected && (
