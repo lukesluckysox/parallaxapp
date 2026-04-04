@@ -109,6 +109,9 @@ function RadarChart({
           transformStyle: "preserve-3d",
         }}
       >
+        {/* Center dot */}
+        <circle cx={cx} cy={cy} r={2} fill="hsl(var(--muted-foreground))" opacity={0.15} />
+
         {/* Grid rings */}
         {rings.map((r) => (
           <polygon
@@ -121,17 +124,17 @@ function RadarChart({
               .join(" ")}
             fill="none"
             stroke={r === 0.5 ? "hsl(var(--primary))" : "hsl(var(--border))"}
-            strokeWidth={r === 1 ? 0.8 : r === 0.5 ? 0.7 : 0.4}
-            strokeDasharray={r === 0.5 ? "3 3" : "none"}
-            opacity={r === 1 ? 0.5 : r === 0.5 ? 0.25 : 0.2}
+            strokeWidth={r === 1 ? 0.8 : r === 0.5 ? 1.0 : 0.4}
+            strokeDasharray={r === 0.5 ? "4 3" : "none"}
+            opacity={r === 1 ? 0.5 : r === 0.5 ? 0.35 : 0.15}
           />
         ))}
 
-        {/* 50 baseline label */}
+        {/* 50 baseline label — positioned on the ring along the top axis */}
         <text
-          x={cx + maxR * 0.5 + 4}
-          y={cy - maxR * 0.5 - 2}
-          className="fill-primary/20"
+          x={cx + 8}
+          y={cy - maxR * 0.5 + 3}
+          className="fill-primary/30"
           style={{ fontSize: "7px", fontFamily: "var(--font-mono, monospace)" }}
         >
           50
