@@ -418,7 +418,8 @@ export default function CharacterApp() {
         setDataNudges(prev => {
           const merged = { ...prev };
           for (const [k, v] of Object.entries(data.nudges)) {
-            merged[k as keyof DimensionVec] = ((merged[k as keyof DimensionVec] || 0) + (v as number));
+            const nudge = Math.max(-25, Math.min(25, v as number));
+            merged[k as keyof DimensionVec] = Math.max(-50, Math.min(50, (merged[k as keyof DimensionVec] || 0) + nudge));
           }
           return merged;
         });
@@ -441,7 +442,8 @@ export default function CharacterApp() {
         setDataNudges(prev => {
           const merged = { ...prev };
           for (const [k, v] of Object.entries(data.nudges)) {
-            merged[k as keyof DimensionVec] = ((merged[k as keyof DimensionVec] || 0) + (v as number));
+            const nudge = Math.max(-25, Math.min(25, v as number));
+            merged[k as keyof DimensionVec] = Math.max(-50, Math.min(50, (merged[k as keyof DimensionVec] || 0) + nudge));
           }
           return merged;
         });

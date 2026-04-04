@@ -742,6 +742,14 @@ Respond ONLY with valid JSON:
       }
 
       const parsed = JSON.parse(jsonMatch[0]);
+      // Clamp all dimensions to 0-100
+      if (parsed.dimensions) {
+        for (const dim of DIMENSIONS) {
+          if (typeof parsed.dimensions[dim] === "number") {
+            parsed.dimensions[dim] = Math.max(0, Math.min(100, Math.round(parsed.dimensions[dim])));
+          }
+        }
+      }
       return res.json(parsed);
     } catch (err: any) {
       console.error("Interpret error:", err);
@@ -1199,7 +1207,27 @@ Return ONLY valid JSON:
   app.post("/api/checkins", async (req, res) => {
     try {
       const userId = getUserId(req);
-      const checkin = storage.createCheckin({ ...req.body, user_id: userId });
+      // Clamp dimension vectors before saving
+      const body = { ...req.body, user_id: userId };
+      if (body.self_vec) {
+        try {
+          const sv = JSON.parse(body.self_vec);
+          for (const dim of DIMENSIONS) {
+            if (typeof sv[dim] === "number") sv[dim] = Math.max(0, Math.min(100, Math.round(sv[dim])));
+          }
+          body.self_vec = JSON.stringify(sv);
+        } catch {}
+      }
+      if (body.data_vec) {
+        try {
+          const dv = JSON.parse(body.data_vec);
+          for (const dim of DIMENSIONS) {
+            if (typeof dv[dim] === "number") dv[dim] = Math.max(0, Math.min(100, Math.round(dv[dim])));
+          }
+          body.data_vec = JSON.stringify(dv);
+        } catch {}
+      }
+      const checkin = storage.createCheckin(body);
       // Clear related caches so they refresh with new data
       if (userId) {
         storage.clearUserCache(userId, "mythology");
