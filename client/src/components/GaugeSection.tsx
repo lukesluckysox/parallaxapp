@@ -74,7 +74,7 @@ export default function GaugeSection({ selfVec, dataVec, selfArchetype, dataArch
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
               Systems overview
             </p>
-            <InfoTooltip text="Archetype breakdown of your current check-in. All begin at an equal 20% — your signal separates them. The vertical marker shows that equilibrium point." />
+            <InfoTooltip text="All five archetypes scored from your running behavioral data — the same source as 'Your Data Says', recency-weighted across your last 10 entries. The vertical marker shows the 20% equilibrium starting point." />
           </div>
           <span className="text-[8px] font-mono text-muted-foreground/20">| = 20% equilibrium</span>
         </div>
@@ -100,7 +100,7 @@ export default function GaugeSection({ selfVec, dataVec, selfArchetype, dataArch
                 <span className="text-xs font-medium w-16 text-foreground/80">{arch.name}</span>
                 <div className="flex-1">
                   <Gauge
-                    percentage={dataVal !== null ? dataVal : selfVal}
+                    percentage={dataMix ? (dataMix[arch.key] || 0) : selfVal}
                     label=""
                     color={arch.color}
                     showBaseline
@@ -111,7 +111,7 @@ export default function GaugeSection({ selfVec, dataVec, selfArchetype, dataArch
           })}
         </div>
         <p className="text-[8px] font-mono text-muted-foreground/15 text-center mt-2">
-          archetypes begin at equal 20% — your signal separates them
+          {dataMix ? "running behavioral breakdown · recency-weighted" : "archetypes begin at equal 20% — your signal separates them"}
         </p>
       </div>
 
