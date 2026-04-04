@@ -16,6 +16,7 @@ interface HolisticData {
   hasData: boolean;
   selfVec: Record<string, number>;
   dataVec: Record<string, number> | null;
+  allTimeVec?: Record<string, number>;
   archetypeDistribution: Record<string, number>;
   writingArchetypes: Record<string, number>;
   topThemes: string[];
@@ -1132,15 +1133,18 @@ export default function HolisticPage() {
               )}
             </div>
             <p className="text-[8px] font-mono text-muted-foreground/15 text-center mt-2">
-              recently weighted from your latest check-ins · dashed ring = neutral baseline (50)
+              weighted from the last few days · dashed ring = neutral baseline (50)
             </p>
 
             {/* ── Layer 3: Archetype Distribution (unlocks at 3 check-ins) ── */}
             {(data?.sources.checkins || 0) >= 3 ? (
               <section style={{ opacity: freshness }}>
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground/40 font-medium text-center mb-2">
-                  Archetype Distribution
-                </p>
+                <div className="flex items-center justify-center gap-1 mb-2">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground/40 font-medium">
+                    Archetype Distribution
+                  </p>
+                  <InfoTooltip text="Your all-time archetype breakdown across every check-in. This is the macro view — it reflects your full history, not just recent activity." />
+                </div>
                 <ArchetypeRing
                   distribution={data?.archetypeDistribution || {}}
                   latest={data?.latestArchetype || null}

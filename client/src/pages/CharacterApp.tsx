@@ -459,35 +459,35 @@ export default function CharacterApp() {
 
   // Load latest check-in + all data sources on page load
   useEffect(() => {
-    // Restore CUMULATIVE state from ALL check-ins (weighted average, recent weighted heavier)
+    // Micro→macro: Snapshot = immediate (latest check-in) + running data
     (async () => {
       try {
         const res = await apiRequest("GET", "/api/checkins");
         const checkins = await res.json();
         if (Array.isArray(checkins) && checkins.length > 0) {
-          // Use last 10 check-ins with exponential decay (most recent = strongest)
+          // "You Say" = most recent check-in only (micro)
+          const latest = checkins[checkins.length - 1];
+          if (latest.self_vec) {
+            try {
+              const sv = JSON.parse(latest.self_vec);
+              const clamped = {} as DimensionVec;
+              for (const dim of DIMENSIONS) {
+                clamped[dim as keyof DimensionVec] = Math.max(0, Math.min(100, Math.round(sv[dim] || 50)));
+              }
+              setSelfVec(clamped);
+            } catch {}
+          }
+
+          // "Your Data Says" = recency-weighted last 10 data vecs (running behavioral read)
           const recentCheckins = checkins.slice(-10);
-          const avgSelf: Record<string, number> = {};
           const avgData: Record<string, number> = {};
-          let selfCount = 0;
           let dataCount = 0;
-          const decay = 0.75; // each older entry is 75% of the next
+          const decay = 0.75;
           
           for (let i = 0; i < recentCheckins.length; i++) {
             const c = recentCheckins[i];
-            // Exponential: newest (last) gets weight 1.0, second-newest 0.75, etc.
             const age = recentCheckins.length - 1 - i;
             const weight = Math.pow(decay, age);
-            
-            if (c.self_vec) {
-              try {
-                const sv = JSON.parse(c.self_vec);
-                for (const dim of DIMENSIONS) {
-                  avgSelf[dim] = (avgSelf[dim] || 0) + (sv[dim] || 50) * weight;
-                }
-                selfCount += weight;
-              } catch {}
-            }
             if (c.data_vec) {
               try {
                 const dv = JSON.parse(c.data_vec);
@@ -499,16 +499,6 @@ export default function CharacterApp() {
             }
           }
           
-          // Apply averaged self vec
-          if (selfCount > 0) {
-            const finalSelf: DimensionVec = {} as DimensionVec;
-            for (const dim of DIMENSIONS) {
-              finalSelf[dim as keyof DimensionVec] = Math.round((avgSelf[dim] || 0) / selfCount);
-            }
-            setSelfVec(finalSelf);
-          }
-          
-          // Apply averaged data vec as nudges
           if (dataCount > 0) {
             const nudges: Partial<DimensionVec> = {};
             for (const dim of DIMENSIONS) {
@@ -520,10 +510,7 @@ export default function CharacterApp() {
             setHasDataSources(true);
           }
           
-          // Latest summaries for display — but don't restore stale narrative
-          const latest = checkins[checkins.length - 1];
           if (latest.spotify_summary) setSpotifySummary(latest.spotify_summary);
-          // Don't restore old llm_narrative — it's from a past session and confusing
         }
       } catch {}
       setInitialLoaded(true);

@@ -2382,19 +2382,28 @@ Return ONLY the single line, no quotes, no explanation.`
     const hasData = allCheckins.length > 0 || allWritings.length > 0 || spotifyListens.length > 0;
     if (!hasData) return res.json({ hasData: false });
 
-    // Recency-weighted dimension vectors: last 10 check-ins, exponential decay 0.75
-    // Matches client-side Snapshot logic exactly
-    const recentCheckins = allCheckins.slice(0, 10); // already sorted newest-first
+    // ── Micro→Macro hierarchy ──
+    // Home page selfVec = last 3-5 days ("this week" lens)
+    // Home page dataVec = recency-weighted last 10 data vecs
+    // Home page allTimeVec = all check-ins equal weight (for archetype distribution)
+
+    const now = new Date();
+    const fiveDaysAgo = new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000).toISOString();
+
+    // Filter check-ins from last 5 days for selfVec
+    const recentWindow = allCheckins.filter((c: any) => {
+      try { return c.timestamp >= fiveDaysAgo; } catch { return false; }
+    });
+    // Fall back to last 5 check-ins if window is too small
+    const windowCheckins = recentWindow.length >= 2 ? recentWindow : allCheckins.slice(0, 5);
+
     const selfDims: Record<string, number> = {};
-    const dataDims: Record<string, number> = {};
     let selfWeight = 0;
-    let dataWeight = 0;
     const decay = 0.75;
 
-    for (let i = 0; i < recentCheckins.length; i++) {
-      const c = recentCheckins[i];
-      // i=0 is newest (weight 1.0), i=1 is next (0.75), etc.
-      const weight = Math.pow(decay, i);
+    for (let i = 0; i < windowCheckins.length; i++) {
+      const c = windowCheckins[i];
+      const weight = Math.pow(decay, i); // i=0 is newest
       if (c.self_vec) {
         try {
           const sv = JSON.parse(c.self_vec);
@@ -2404,6 +2413,16 @@ Return ONLY the single line, no quotes, no explanation.`
           selfWeight += weight;
         } catch {}
       }
+    }
+
+    // Data vec: recency-weighted last 10 data vecs (running behavioral read)
+    const recentForData = allCheckins.slice(0, 10);
+    const dataDims: Record<string, number> = {};
+    let dataWeight = 0;
+
+    for (let i = 0; i < recentForData.length; i++) {
+      const c = recentForData[i];
+      const weight = Math.pow(decay, i);
       if (c.data_vec) {
         try {
           const dv = JSON.parse(c.data_vec);
@@ -2411,6 +2430,21 @@ Return ONLY the single line, no quotes, no explanation.`
             dataDims[dim] = (dataDims[dim] || 0) + (dv[dim] || 50) * weight;
           }
           dataWeight += weight;
+        } catch {}
+      }
+    }
+
+    // All-time vec: equal weight across ALL check-ins (macro view for arch distribution)
+    const allTimeDims: Record<string, number> = {};
+    let allTimeCount = 0;
+    for (const c of allCheckins) {
+      if (c.self_vec) {
+        try {
+          const sv = JSON.parse(c.self_vec);
+          for (const dim of DIMENSIONS) {
+            allTimeDims[dim] = (allTimeDims[dim] || 0) + (sv[dim] || 50);
+          }
+          allTimeCount++;
         } catch {}
       }
     }
@@ -2439,12 +2473,14 @@ Return ONLY the single line, no quotes, no explanation.`
 
     const selfVec: Record<string, number> = {};
     const dataVec: Record<string, number> = {};
+    const allTimeVec: Record<string, number> = {};
     for (const dim of DIMENSIONS) {
       selfVec[dim] = selfWeight > 0 ? Math.round((selfDims[dim] || 0) / selfWeight) : 50;
       dataVec[dim] = dataWeight > 0 ? Math.round((dataDims[dim] || 0) / dataWeight) : 50;
+      allTimeVec[dim] = allTimeCount > 0 ? Math.round((allTimeDims[dim] || 0) / allTimeCount) : 50;
     }
 
-    // Archetype distribution
+    // Archetype distribution — computed from all-time vec (macro view)
     const archDist: Record<string, number> = {};
     for (const c of allCheckins) {
       archDist[c.self_archetype] = (archDist[c.self_archetype] || 0) + 1;
@@ -2484,6 +2520,7 @@ Return ONLY the single line, no quotes, no explanation.`
       hasData: true,
       selfVec,
       dataVec: dataWeight > 0 ? dataVec : null,
+      allTimeVec,
       archetypeDistribution: archDist,
       writingArchetypes,
       topThemes,

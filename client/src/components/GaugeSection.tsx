@@ -34,7 +34,7 @@ export default function GaugeSection({ selfVec, dataVec, selfArchetype, dataArch
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
                 Your data says
               </p>
-              <InfoTooltip text="Computed from Spotify listening patterns, writing analysis, and behavioral signals. These sources nudge your baseline dimensions independently of your self-reported check-ins." />
+              <InfoTooltip text="Your running behavioral read from Spotify, writing, and fitness signals — recency-weighted across your last 10 entries. This is what your data says about you lately." />
             </div>
             <div className="flex items-center gap-2.5">
               <span className="text-2xl font-display" style={{ color: dataArch.color }}>{dataArch.emoji}</span>
@@ -50,7 +50,7 @@ export default function GaugeSection({ selfVec, dataVec, selfArchetype, dataArch
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
               {hasData ? "You say" : "Self-report"}
             </p>
-            <InfoTooltip text="Weighted average of your most recent check-ins. Your latest entries count the most — the system reflects who you are lately, not an all-time average." />
+            <InfoTooltip text="Based on this specific check-in only. This is your immediate self-report — how you see yourself right now, not a running average." />
           </div>
           <div className="flex items-center gap-2.5">
             <span className="text-2xl font-display" style={{ color: selfArch?.color }}>{selfArch?.emoji}</span>
@@ -74,7 +74,7 @@ export default function GaugeSection({ selfVec, dataVec, selfArchetype, dataArch
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
               Systems overview
             </p>
-            <InfoTooltip text="Five archetypes scored by how your dimensions deviate from neutral. All begin at an equal 20% — your signal separates them. The vertical marker shows that equilibrium point." />
+            <InfoTooltip text="Archetype breakdown of your current check-in. All begin at an equal 20% — your signal separates them. The vertical marker shows that equilibrium point." />
           </div>
           <span className="text-[8px] font-mono text-muted-foreground/20">| = 20% equilibrium</span>
         </div>
