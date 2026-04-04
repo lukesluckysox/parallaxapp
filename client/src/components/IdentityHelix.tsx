@@ -248,19 +248,19 @@ export default function IdentityHelix({ history, fullPage }: IdentityHelixProps)
 
           return (
             <g key={node.id}>
-              {/* Back node */}
+              {/* Back node (secondary archetype strand) */}
               <circle
                 cx={aFront ? p.xB : p.xA} cy={p.y}
                 r={Math.max(nodeR - 1.5, 2)}
-                fill={aFront ? secondaryColor : primaryColor}
+                fill={secondaryColor}
                 opacity={0.25}
               />
 
-              {/* Front node */}
+              {/* Front node (always primary archetype color) */}
               <circle
                 cx={aFront ? p.xA : p.xB} cy={p.y}
                 r={isSelected ? nodeR + 1.5 : nodeR}
-                fill={aFront ? primaryColor : secondaryColor}
+                fill={primaryColor}
                 opacity={isSelected ? 1 : 0.6 + 0.3 * recency}
                 filter="url(#helix-glow)"
                 style={fullPage ? { cursor: "pointer" } : undefined}
