@@ -62,9 +62,12 @@ export default function GaugeSection({ selfVec, dataVec, selfArchetype, dataArch
 
       {/* Systems Overview — all 5 archetypes */}
       <div>
-        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-3">
-          Systems overview
-        </p>
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+            Systems overview
+          </p>
+          <span className="text-[8px] font-mono text-muted-foreground/20">| = 20% equilibrium</span>
+        </div>
         <div className="space-y-2.5">
           {ARCHETYPES.map(arch => {
             const selfVal = selfMix[arch.key] || 0;
@@ -90,12 +93,16 @@ export default function GaugeSection({ selfVec, dataVec, selfArchetype, dataArch
                     percentage={dataVal !== null ? dataVal : selfVal}
                     label=""
                     color={arch.color}
+                    showBaseline
                   />
                 </div>
               </div>
             );
           })}
         </div>
+        <p className="text-[8px] font-mono text-muted-foreground/15 text-center mt-2">
+          archetypes begin at equal 20% — your signal separates them
+        </p>
       </div>
 
       {/* Gap Analysis */}

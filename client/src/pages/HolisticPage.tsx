@@ -7,6 +7,7 @@ import { ChevronRight, ChevronDown, Download, Share2, Lock, Sparkles } from "luc
 import { apiRequest } from "@/lib/queryClient";
 import InfoTooltip from "@/components/InfoTooltip";
 import ProGate from "@/components/ProGate";
+import SignalStrength from "@/components/SignalStrength";
 
 
 // ── Types ────────────────────────────────────────────────────
@@ -28,6 +29,9 @@ interface HolisticData {
   latestArchetype: string | null;
   latestDataArchetype: string | null;
   lastCheckinAt: string | null;
+  checkinCount?: number;
+  uniqueDays?: number;
+  hasSpotify?: boolean;
 }
 
 interface ProfileData {
@@ -111,11 +115,22 @@ function RadarChart({
               })
               .join(" ")}
             fill="none"
-            stroke="hsl(var(--border))"
-            strokeWidth={r === 1 ? 0.8 : 0.4}
-            opacity={r === 1 ? 0.5 : 0.2}
+            stroke={r === 0.5 ? "hsl(var(--primary))" : "hsl(var(--border))"}
+            strokeWidth={r === 1 ? 0.8 : r === 0.5 ? 0.7 : 0.4}
+            strokeDasharray={r === 0.5 ? "3 3" : "none"}
+            opacity={r === 1 ? 0.5 : r === 0.5 ? 0.25 : 0.2}
           />
         ))}
+
+        {/* 50 baseline label */}
+        <text
+          x={cx + maxR * 0.5 + 4}
+          y={cy - maxR * 0.5 - 2}
+          className="fill-primary/20"
+          style={{ fontSize: "7px", fontFamily: "var(--font-mono, monospace)" }}
+        >
+          50
+        </text>
 
         {/* Axis lines */}
         {dims.map((_, i) => {
@@ -918,6 +933,31 @@ export default function HolisticPage() {
             <InfoTooltip text="Your unified identity dashboard. Synthesizes signals from check-ins, writing, and music into archetype distributions, dimension scores, and signal forecasts. All data shapes one view." />
           </div>
 
+          {/* Signal strength */}
+          {hasData && (() => {
+            const cc = data?.checkinCount || 0;
+            const ud = data?.uniqueDays || 0;
+            const hasSp = data?.hasSpotify || false;
+            const hasWr = (data?.sources?.writings || 0) > 0;
+            // Weighted: checkins matter most, days add breadth, sources add depth
+            let raw = 0;
+            if (cc >= 1) raw += 0.5;
+            if (cc >= 3) raw += 0.5;
+            if (cc >= 5) raw += 0.5;
+            if (cc >= 10) raw += 0.5;
+            if (cc >= 20) raw += 0.5;
+            if (ud >= 2) raw += 0.5;
+            if (ud >= 5) raw += 0.5;
+            if (ud >= 10) raw += 0.5;
+            if (hasSp) raw += 0.5;
+            if (hasWr) raw += 0.5;
+            const strength = Math.min(5, Math.round(raw));
+            return (
+              <div className="flex justify-center mt-1">
+                <SignalStrength strength={strength} label="identity read" compact />
+              </div>
+            );
+          })()}
         </div>
 
         {!hasData ? (
@@ -1055,6 +1095,9 @@ export default function HolisticPage() {
                 </div>
               )}
             </div>
+            <p className="text-[8px] font-mono text-muted-foreground/15 text-center mt-2">
+              recently weighted from your latest check-ins · dashed ring = neutral baseline (50)
+            </p>
 
             {/* ── Layer 3: Archetype Distribution (unlocks at 3 check-ins) ── */}
             {(data?.sources.checkins || 0) >= 3 ? (

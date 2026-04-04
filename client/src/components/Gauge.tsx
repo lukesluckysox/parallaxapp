@@ -3,15 +3,23 @@ interface GaugeProps {
   label: string;
   color: string;
   size?: number;
+  showBaseline?: boolean; // show 20% equilibrium marker
 }
 
-export default function Gauge({ percentage, label, color, size = 160 }: GaugeProps) {
+export default function Gauge({ percentage, label, color, size = 160, showBaseline }: GaugeProps) {
   const clampedPct = Math.max(0, Math.min(100, percentage));
 
   return (
     <div className="w-full">
       <div className="flex items-center gap-3">
-        <div className="flex-1 h-1 rounded-full bg-muted/50 overflow-hidden">
+        <div className="flex-1 h-1 rounded-full bg-muted/50 overflow-hidden relative">
+          {/* 20% equilibrium marker */}
+          {showBaseline && (
+            <div
+              className="absolute top-0 h-full w-px bg-foreground/10 z-10"
+              style={{ left: "20%" }}
+            />
+          )}
           <div
             className="h-full rounded-full transition-all duration-700 ease-out"
             style={{ width: `${clampedPct}%`, backgroundColor: color }}

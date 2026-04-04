@@ -2354,15 +2354,19 @@ Return ONLY the single line, no quotes, no explanation.`
     const hasData = allCheckins.length > 0 || allWritings.length > 0 || spotifyListens.length > 0;
     if (!hasData) return res.json({ hasData: false });
 
-    // Compute cumulative dimension vectors (same logic as CharacterApp)
+    // Recency-weighted dimension vectors: last 10 check-ins, exponential decay 0.75
+    // Matches client-side Snapshot logic exactly
+    const recentCheckins = allCheckins.slice(0, 10); // already sorted newest-first
     const selfDims: Record<string, number> = {};
     const dataDims: Record<string, number> = {};
     let selfWeight = 0;
     let dataWeight = 0;
+    const decay = 0.75;
 
-    for (let i = 0; i < allCheckins.length; i++) {
-      const c = allCheckins[i];
-      const weight = 1 + (2 * i / Math.max(allCheckins.length - 1, 1));
+    for (let i = 0; i < recentCheckins.length; i++) {
+      const c = recentCheckins[i];
+      // i=0 is newest (weight 1.0), i=1 is next (0.75), etc.
+      const weight = Math.pow(decay, i);
       if (c.self_vec) {
         try {
           const sv = JSON.parse(c.self_vec);
@@ -2381,6 +2385,12 @@ Return ONLY the single line, no quotes, no explanation.`
           dataWeight += weight;
         } catch {}
       }
+    }
+
+    // Count unique active days for signal strength
+    const daySet = new Set<string>();
+    for (const c of allCheckins) {
+      try { daySet.add(new Date(c.timestamp).toISOString().slice(0, 10)); } catch {}
     }
 
     const selfVec: Record<string, number> = {};
@@ -2434,6 +2444,9 @@ Return ONLY the single line, no quotes, no explanation.`
       writingArchetypes,
       topThemes,
       sources,
+      checkinCount: allCheckins.length,
+      uniqueDays: daySet.size,
+      hasSpotify: spotifyListens.length > 0,
       spotifyStats: {
         avgEnergy: spotifyStats.avgEnergy,
         avgValence: spotifyStats.avgValence,
