@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { ArrowLeft, Eye, AlertTriangle, Sparkles, TrendingUp, Zap, Activity, ArrowRightLeft, RefreshCw } from "lucide-react";
 import { queryClient } from "@/lib/queryClient";
+import InfoTooltip from "@/components/InfoTooltip";
 
 type InsightType = "observation" | "blind_spot" | "creative_signal" | "trajectory" | "emotional_anomaly" | "creative_surge" | "state_transition";
 
@@ -44,7 +45,10 @@ export default function SignalsInsightsPage() {
           <Link href="/signals" className="text-xs text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1">
             <ArrowLeft className="w-3.5 h-3.5" /> Signals
           </Link>
-          <h1 className="text-base font-display font-semibold">Insights</h1>
+          <div className="flex items-center gap-1.5">
+            <h1 className="text-base font-display font-semibold">Insights</h1>
+            <InfoTooltip text="Observations drawn from your recent check-ins, writing, and listening patterns. Surfaces blind spots, anomalies, and emerging signals you might not notice on your own." />
+          </div>
           <div />
         </header>
 

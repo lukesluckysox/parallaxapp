@@ -1233,6 +1233,7 @@ Return ONLY valid JSON:
         storage.clearUserCache(userId, "mythology");
         storage.clearUserCache(userId, "forecast");
         storage.clearUserCache(userId, "daily-reading");
+        storage.clearUserCache(userId, "profile");
       }
 
       // --- Echo detection ---
@@ -1559,21 +1560,23 @@ Return ONLY a JSON array of 4 strings, each starting with "Should I...". Example
 
   function gatherUserContext(userId: number, tz: string = "UTC") {
     const allCheckins = storage.getCheckins(userId);
+    // Recent window: last 15 check-ins for LLM context (covers ~1-2 weeks)
     const checkinSlice = allCheckins.slice(0, 15);
+    // Recent writings: last 15 entries
     const allWritings = storage.getWritings(15, userId);
     const spotifyListensAll = storage.getSpotifyListens(userId, 50);
     const spotifyStats = storage.getSpotifyStats(userId);
 
-    const checkinSummary = checkinSlice.map(c => {
+    const checkinSummary = `[Recent check-ins, newest first — last ~1-2 weeks]\n` + checkinSlice.map(c => {
       return `${c.timestamp.slice(0,10)}: self=${c.self_archetype}, data=${c.data_archetype || "n/a"}, feeling="${c.feeling_text || ""}"`;
     }).join("\n");
 
-    const writingSummary = allWritings.map(w => {
+    const writingSummary = `[Recent writings, newest first]\n` + allWritings.map(w => {
       const a = w.analysis ? JSON.parse(w.analysis) : null;
       return `${w.timestamp.slice(0,10)}: "${w.title || "untitled"}" - archetype=${a?.archetype_lean || "?"}, mbti=${a?.mbti?.type || "?"}, themes=${a?.word_themes?.join(",") || "?"}, emotions=${a?.emotions ? JSON.stringify(a.emotions) : "?"}${a?.political_compass ? `, compass=${JSON.stringify(a.political_compass)}` : ""}`;
     }).join("\n");
 
-    const musicSummary = `${spotifyStats.totalTracks} tracks, avg energy ${spotifyStats.avgEnergy}%, avg valence ${spotifyStats.avgValence}%, avg danceability ${spotifyStats.avgDanceability}%, top artists: ${spotifyStats.topArtists.map((a: any) => `${a.name} (${a.count})`).join(", ")}`;
+    const musicSummary = `[Listening patterns — recent sessions]\n${spotifyStats.totalTracks} tracks, avg energy ${spotifyStats.avgEnergy}%, avg valence ${spotifyStats.avgValence}%, avg danceability ${spotifyStats.avgDanceability}%, top artists: ${spotifyStats.topArtists.map((a: any) => `${a.name} (${a.count})`).join(", ")}`;
 
     // Temporal patterns: timestamps of listening — converted to user's local timezone
     const listenTimestamps = spotifyListensAll.slice(0, 30).map(t => {
@@ -1581,7 +1584,7 @@ Return ONLY a JSON array of 4 strings, each starting with "Should I...". Example
     }).join("\n");
 
     // Archetype timeline for state transitions
-    const archetypeTimeline = checkinSlice.map(c =>
+    const archetypeTimeline = `[Archetype shifts over time, newest first]\n` + checkinSlice.map(c =>
       `${c.timestamp.slice(0,10)}: self=${c.self_archetype}, data=${c.data_archetype || "n/a"}`
     ).join("\n");
 
