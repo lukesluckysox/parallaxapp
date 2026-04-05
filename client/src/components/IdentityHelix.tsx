@@ -64,10 +64,12 @@ export default function IdentityHelix({ history, fullPage }: IdentityHelixProps)
   const NODE_R = fullPage ? 6 : 5;
   const INTERP_STEPS = 12;
 
-  // Spacing: recent nodes get full spacing, older ones compress
+  // Spacing: newest at top (full spacing), compresses toward bottom (older)
   // nodes[] is ordered oldest(0) → newest(last)
+  // We render newest-first (top of SVG), so reverse for Y computation
   const RECENT_SPACING = fullPage ? 80 : 70;
   const MIN_SPACING = fullPage ? 30 : 25;
+  const RECENT_COUNT = fullPage ? 8 : 5; // how many get full spacing
 
   if (nodeCount === 0) {
     return (
@@ -79,19 +81,25 @@ export default function IdentityHelix({ history, fullPage }: IdentityHelixProps)
     );
   }
 
+  // Reverse render order: newest first (index 0 = newest = top of SVG)
+  const renderNodes = useMemo(() => [...nodes].reverse(), [nodes]);
   const topPad = fullPage ? 50 : 36;
 
-  // Compute cumulative Y positions with compressed spacing
-  // Newest (last in array) gets full spacing, oldest gets min
+  // Compute cumulative Y positions: newest gets full spacing, older compresses
   const nodeYPositions: number[] = [];
-  nodeYPositions[0] = 0; // origin node at y=0 (relative)
+  nodeYPositions[0] = 0;
   for (let i = 1; i < nodeCount; i++) {
-    // i goes from oldest(0) to newest(nodeCount-1)
-    // Recency factor: 0 for oldest → 1 for newest
-    const recency = i / Math.max(nodeCount - 1, 1);
-    // Ease: more compression at the old end, smooth transition
-    const easedRecency = recency * recency; // quadratic ease-in
-    const spacing = MIN_SPACING + (RECENT_SPACING - MIN_SPACING) * easedRecency;
+    // i=0 is newest (top), i increases toward oldest (bottom)
+    const distFromTop = i;
+    // Full spacing for first RECENT_COUNT, then compress
+    let spacing: number;
+    if (distFromTop <= RECENT_COUNT) {
+      spacing = RECENT_SPACING;
+    } else {
+      // Compress progressively for older entries
+      const compressionFactor = Math.min(1, (distFromTop - RECENT_COUNT) / Math.max(nodeCount - RECENT_COUNT, 1));
+      spacing = RECENT_SPACING - (RECENT_SPACING - MIN_SPACING) * compressionFactor;
+    }
     nodeYPositions[i] = nodeYPositions[i - 1] + spacing;
   }
   const totalHeight = nodeYPositions[nodeCount - 1] || 0;
@@ -231,19 +239,20 @@ export default function IdentityHelix({ history, fullPage }: IdentityHelixProps)
         ))}
 
         {/* ── Nodes + labels ── */}
-        {nodes.map((node, i) => {
+        {renderNodes.map((node, i) => {
           const p = nodePoints[i];
+          if (!p) return null;
           const primaryColor = archetypeColor(node.primary_archetype);
           const secondaryColor = archetypeColor(node.secondary_archetype);
           const aFront = isStrandAFront(i);
           const isSelected = fullPage && selectedId === node.id;
 
-          // Recency factor for label visibility (0 = oldest, 1 = newest)
-          const recency = nodeCount > 1 ? i / (nodeCount - 1) : 1;
-          // Compressed nodes: only show name for recent half, date for recent third
-          const showName = recency > 0.3 || isSelected || nodeCount <= 5;
-          const showDate = recency > 0.6 || isSelected || nodeCount <= 3;
-          // Node size scales slightly with compression
+          // Recency factor: 0 = newest (top, most prominent), higher = older
+          // Invert: i=0 is newest = full size, i=nodeCount-1 is oldest = compressed
+          const recency = nodeCount > 1 ? 1 - (i / (nodeCount - 1)) : 1;
+          const isRecent = i < RECENT_COUNT;
+          const showName = isRecent || isSelected || nodeCount <= 5;
+          const showDate = i < Math.ceil(RECENT_COUNT * 0.6) || isSelected || nodeCount <= 3;
           const nodeR = NODE_R * (0.7 + 0.3 * recency);
 
           return (
@@ -352,12 +361,12 @@ export default function IdentityHelix({ history, fullPage }: IdentityHelixProps)
           );
         })}
 
-        {/* ── "CURRENT" pulse ── */}
-        {nodeCount > 0 && (
+        {/* ── "CURRENT" pulse (top = newest) ── */}
+        {nodeCount > 0 && nodePoints[0] && (
           <g>
             <circle
               cx={CENTER_X}
-              cy={nodePoints[nodeCount - 1].y - 18}
+              cy={nodePoints[0].y - 18}
               r={2.5}
               className="fill-primary"
               opacity={0.6}
@@ -365,7 +374,7 @@ export default function IdentityHelix({ history, fullPage }: IdentityHelixProps)
               <animate attributeName="opacity" values="0.3;0.8;0.3" dur="2s" repeatCount="indefinite" />
             </circle>
             <text
-              x={CENTER_X} y={nodePoints[nodeCount - 1].y - 28}
+              x={CENTER_X} y={nodePoints[0].y - 28}
               textAnchor="middle"
               className="fill-primary/40"
               style={{ fontSize: "7px", fontFamily: "var(--font-mono, monospace)", letterSpacing: "0.15em" }}
@@ -375,10 +384,10 @@ export default function IdentityHelix({ history, fullPage }: IdentityHelixProps)
           </g>
         )}
 
-        {/* ── "ORIGIN" label ── */}
-        {nodeCount > 1 && (
+        {/* ── "ORIGIN" label (bottom = oldest) ── */}
+        {nodeCount > 1 && nodePoints[nodeCount - 1] && (
           <text
-            x={CENTER_X} y={nodePoints[0].y + NODE_R + 32}
+            x={CENTER_X} y={nodePoints[nodeCount - 1].y + NODE_R + 32}
             textAnchor="middle"
             className="fill-muted-foreground/15"
             style={{ fontSize: "7px", fontFamily: "var(--font-mono, monospace)", letterSpacing: "0.15em" }}

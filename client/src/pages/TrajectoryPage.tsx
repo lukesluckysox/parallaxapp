@@ -200,14 +200,37 @@ function TrajectoryPathContent() {
 }
 
 // ── Behavioral Drivers (inner content) ────────────────────────
+type TimeWindow = "day" | "week" | "month";
+
+function filterByWindow(checkins: Checkin[], window: TimeWindow): { recent: Checkin[]; older: Checkin[] } {
+  const now = new Date();
+  const msMap: Record<TimeWindow, number> = {
+    day: 24 * 60 * 60 * 1000,
+    week: 7 * 24 * 60 * 60 * 1000,
+    month: 30 * 24 * 60 * 60 * 1000,
+  };
+  const cutoff = new Date(now.getTime() - msMap[window]).toISOString();
+  const prevCutoff = new Date(now.getTime() - msMap[window] * 2).toISOString();
+
+  const recent = checkins.filter(c => c.timestamp >= cutoff);
+  const older = checkins.filter(c => c.timestamp >= prevCutoff && c.timestamp < cutoff);
+
+  // Fallback: if window yields too few, use index-based split
+  if (recent.length < 2 || older.length < 1) {
+    const half = Math.floor(checkins.length / 2);
+    return { recent: checkins.slice(0, Math.max(half, 1)), older: checkins.slice(half) };
+  }
+  return { recent, older };
+}
+
 function BehavioralDriversContent({ checkins }: { checkins: Checkin[] }) {
+  const [window, setWindow] = useState<TimeWindow>("week");
+
   const trends = useMemo(() => {
     if (checkins.length < 2) return null;
 
-    const recent = checkins.slice(0, Math.min(5, checkins.length));
-    const older = checkins.slice(Math.min(5, checkins.length), Math.min(10, checkins.length));
-
-    if (older.length === 0) return null;
+    const { recent, older } = filterByWindow(checkins, window);
+    if (recent.length === 0 || older.length === 0) return null;
 
     const avgVec = (items: Checkin[]): DimensionVec => {
       const sum = defaultVec();
@@ -234,19 +257,40 @@ function BehavioralDriversContent({ checkins }: { checkins: Checkin[] }) {
 
     return DIMENSIONS.map(dim => {
       const diff = recentAvg[dim] - olderAvg[dim];
-      const direction = diff > 5 ? "up" : diff < -5 ? "down" : "stable";
+      const direction = diff > 3 ? "up" : diff < -3 ? "down" : "stable";
       return { dim, diff, direction, recent: recentAvg[dim], older: olderAvg[dim] };
     }).sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff));
-  }, [checkins]);
+  }, [checkins, window]);
 
   if (!trends) return null;
 
   const movers = trends.filter(t => t.direction !== "stable");
   const stable = trends.filter(t => t.direction === "stable");
+  const windowLabels: Record<TimeWindow, string> = { day: "Today", week: "This week", month: "This month" };
 
   return (
     <div className="space-y-2" data-testid="card-behavioral-drivers">
-      <h2 className="text-sm font-bold">Behavioral Drivers</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-bold">Behavioral Drivers</h2>
+        <div className="flex gap-1">
+          {(["day", "week", "month"] as TimeWindow[]).map(w => (
+            <button
+              key={w}
+              onClick={() => setWindow(w)}
+              className={`px-2 py-0.5 rounded text-[9px] font-mono transition-colors ${
+                window === w
+                  ? "bg-primary/20 text-primary"
+                  : "text-muted-foreground/30 hover:text-muted-foreground/50"
+              }`}
+            >
+              {w === "day" ? "D" : w === "week" ? "W" : "M"}
+            </button>
+          ))}
+        </div>
+      </div>
+      <p className="text-[9px] font-mono text-muted-foreground/25">
+        {windowLabels[window]} vs previous {window}
+      </p>
       <div className="grid grid-cols-2 gap-2">
         {movers.map(t => (
           <div

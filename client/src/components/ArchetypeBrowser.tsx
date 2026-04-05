@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { ARCHETYPES, type DimensionVec } from "@shared/archetypes";
+import { useQuery } from "@tanstack/react-query";
+import { ARCHETYPES, DIMENSIONS, type DimensionVec } from "@shared/archetypes";
 import { computeMixture } from "@shared/archetype-math";
 import Gauge from "./Gauge";
 
@@ -8,7 +9,13 @@ interface ArchetypeBrowserProps {
 }
 
 export default function ArchetypeBrowser({ selfVec }: ArchetypeBrowserProps) {
-  const mixture = computeMixture(selfVec);
+  // Use all-time vec from holistic API (macro view, matches home page distribution)
+  const { data: holistic } = useQuery<{ allTimeVec?: Record<string, number> }>({
+    queryKey: ["/api/holistic"],
+    staleTime: 5 * 60_000,
+  });
+  const vec = (holistic?.allTimeVec || selfVec) as DimensionVec;
+  const mixture = computeMixture(vec);
   const sorted = ARCHETYPES.map(a => ({ ...a, pct: mixture[a.key] || 0 })).sort((a, b) => b.pct - a.pct);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const selected = sorted.find(a => a.key === selectedKey) || null;

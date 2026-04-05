@@ -1,7 +1,21 @@
 import { useState } from "react";
-import { ARCHETYPES, type DimensionVec } from "@shared/archetypes";
-import { similarity } from "@shared/archetype-math";
+import { ARCHETYPES, DIMENSIONS, type DimensionVec } from "@shared/archetypes";
 import Gauge from "./Gauge";
+
+// Alignment = how close your current vec is to the archetype's target
+// Uses normalized distance: 100% = perfect match, 0% = maximally distant
+function computeAlignment(selfVec: DimensionVec, target: DimensionVec): number {
+  let sumSqDiff = 0;
+  for (const dim of DIMENSIONS) {
+    const diff = (selfVec[dim] || 50) - (target[dim] || 50);
+    sumSqDiff += diff * diff;
+  }
+  // Max possible distance: all dims differ by 100 = sqrt(8 * 10000) ≈ 283
+  const maxDist = Math.sqrt(DIMENSIONS.length * 10000);
+  const dist = Math.sqrt(sumSqDiff);
+  // Convert to 0-100 percentage (100 = identical)
+  return Math.round(Math.max(0, (1 - dist / maxDist) * 100));
+}
 
 interface FutureSelfProps {
   selfVec: DimensionVec;
@@ -10,7 +24,7 @@ interface FutureSelfProps {
 export default function FutureSelf({ selfVec }: FutureSelfProps) {
   const [targetKey, setTargetKey] = useState<string>("");
   const target = ARCHETYPES.find(a => a.key === targetKey);
-  const alignmentPct = target ? Math.round(similarity(selfVec, target.target) * 100) : 0;
+  const alignmentPct = target ? computeAlignment(selfVec, target.target) : 0;
 
   return (
     <div className="space-y-3">
