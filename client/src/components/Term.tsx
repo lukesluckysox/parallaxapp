@@ -3,7 +3,7 @@ import { useState } from "react";
 const TERMS: Record<string, string> = {
   archetype: "One of 5 identity modes — Observer, Builder, Explorer, Dissenter, Seeker — each representing a core drive.",
   variant: "Your unique identity pattern, synthesized by the LLM from all your data. Like a character class derived from your behavior.",
-  dimension: "One of 8 measurable identity axes: focus, calm, discipline, health, social, creativity, exploration, ambition.",
+  dimension: "One of 8 measurable identity axes: focus, calm, agency, vitality, social, creativity, exploration, drive.",
   constellation: "A recurring identity mode discovered by clustering your check-in history. Requires 15+ check-ins over 14 days.",
   echo: "Detected when your current signals match a previous constellation at 85%+ similarity — reveals cyclical patterns.",
   forecast: "A daily prediction of which archetypes are rising or falling, based on your recent behavioral data.",

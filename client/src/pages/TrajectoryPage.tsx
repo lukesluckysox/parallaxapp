@@ -124,8 +124,8 @@ interface MythologyData {
 }
 
 const DIMENSION_LABELS: Record<string, string> = {
-  focus: "Focus", calm: "Calm", discipline: "Discipline", health: "Health",
-  social: "Social", creativity: "Creativity", exploration: "Exploration", ambition: "Ambition",
+  focus: "Focus", calm: "Calm", agency: "Agency", vitality: "Vitality",
+  social: "Social", creativity: "Creativity", exploration: "Exploration", drive: "Drive",
 };
 
 // ── Trajectory Path (inner content) ──────────────────────────

@@ -96,7 +96,7 @@ export const identityModes = sqliteTable("identity_modes", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   user_id: integer("user_id").notNull(),
   mode_name: text("mode_name").notNull(),
-  centroid_vec: text("centroid_vec").notNull(), // JSON: {focus, calm, discipline, health, social, creativity, exploration, ambition}
+  centroid_vec: text("centroid_vec").notNull(), // JSON: {focus, calm, agency, vitality, social, creativity, exploration, drive}
   archetype_distribution: text("archetype_distribution").notNull(), // JSON: {observer: 25, builder: 30, ...}
   dominant_archetype: text("dominant_archetype").notNull(),
   conditions: text("conditions"), // JSON: {timeOfDay, musicEnergy, writingTone, etc.}

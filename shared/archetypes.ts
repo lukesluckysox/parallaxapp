@@ -1,5 +1,5 @@
 export const DIMENSIONS = [
-  "focus", "calm", "discipline", "health", "social", "creativity", "exploration", "ambition"
+  "focus", "calm", "agency", "vitality", "social", "creativity", "exploration", "drive"
 ] as const;
 
 export type Dimension = typeof DIMENSIONS[number];
@@ -35,7 +35,7 @@ export const ARCHETYPES: ArchetypeDef[] = [
     color: "#7c8ba0",
     coreDrive: "Understanding reality and patterns",
     philosophy: "The Observer believes clarity comes before action. They watch, record, and decode the world — not from detachment, but from a deep need to understand what's actually happening before anyone tells them what to think.",
-    target: { focus: 92, calm: 85, discipline: 75, health: 60, social: 25, creativity: 65, exploration: 40, ambition: 45 },
+    target: { focus: 92, calm: 85, agency: 60, vitality: 55, social: 25, creativity: 65, exploration: 40, drive: 45 },
     subtypes: [
       { key: "analyst", name: "The Analyst", description: "Breaks systems down logically" },
       { key: "philosopher", name: "The Philosopher", description: "Explores existential and abstract ideas" },
@@ -54,7 +54,7 @@ export const ARCHETYPES: ArchetypeDef[] = [
     color: "#5a7d9a",
     coreDrive: "Creating structure and tangible progress",
     philosophy: "The Builder measures life in what they've made real. Ideas are cheap — execution is the craft. They design systems, ship outcomes, and optimize relentlessly because momentum is the only proof that matters.",
-    target: { focus: 88, calm: 55, discipline: 92, health: 68, social: 35, creativity: 45, exploration: 25, ambition: 95 },
+    target: { focus: 88, calm: 55, agency: 75, vitality: 65, social: 35, creativity: 45, exploration: 25, drive: 90 },
     subtypes: [
       { key: "architect", name: "The Architect", description: "Designs systems and long-term plans" },
       { key: "strategist", name: "The Strategist", description: "Optimizes paths to achieve goals" },
@@ -73,7 +73,7 @@ export const ARCHETYPES: ArchetypeDef[] = [
     color: "#6b9080",
     coreDrive: "Novelty, experience, and creative expression",
     philosophy: "The Explorer knows that growth lives outside the familiar. Routine is where curiosity goes to die. They chase novelty not for escape but because every new angle reveals something the old view couldn't — about the world and about themselves.",
-    target: { focus: 40, calm: 42, discipline: 35, health: 55, social: 65, creativity: 90, exploration: 95, ambition: 55 },
+    target: { focus: 40, calm: 42, agency: 45, vitality: 60, social: 65, creativity: 90, exploration: 95, drive: 55 },
     subtypes: [
       { key: "wanderer", name: "The Wanderer", description: "Seeks new environments and perspectives" },
       { key: "creator", name: "The Creator", description: "Generates art, ideas, and expression" },
@@ -92,7 +92,7 @@ export const ARCHETYPES: ArchetypeDef[] = [
     color: "#c17b6e",
     coreDrive: "Autonomy and resistance to imposed systems",
     philosophy: "The Dissenter refuses to inherit someone else's framework for living. They deconstruct, challenge, and rebuild — not from nihilism but from a conviction that most structures serve their creators, not their participants.",
-    target: { focus: 65, calm: 30, discipline: 40, health: 50, social: 55, creativity: 80, exploration: 75, ambition: 70 },
+    target: { focus: 65, calm: 30, agency: 85, vitality: 55, social: 55, creativity: 80, exploration: 75, drive: 65 },
     subtypes: [
       { key: "rebel", name: "The Rebel", description: "Rejects authority and constraints" },
       { key: "critic", name: "The Critic", description: "Deconstructs institutions and assumptions" },
@@ -111,7 +111,7 @@ export const ARCHETYPES: ArchetypeDef[] = [
     color: "#b8976a",
     coreDrive: "Meaning, transformation, and self-discovery",
     philosophy: "The Seeker is in motion toward something they can't fully name yet. Purpose isn't given — it's excavated through experience, suffering, and honest self-examination. The journey is the point, but the direction matters.",
-    target: { focus: 60, calm: 55, discipline: 50, health: 65, social: 50, creativity: 70, exploration: 80, ambition: 60 },
+    target: { focus: 60, calm: 55, agency: 55, vitality: 65, social: 50, creativity: 70, exploration: 80, drive: 60 },
     subtypes: [
       { key: "pilgrim", name: "The Pilgrim", description: "Searching for purpose or direction" },
       { key: "alchemist", name: "The Alchemist", description: "Transforming hardship into insight" },

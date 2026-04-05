@@ -20,7 +20,7 @@ const EXPERIMENT_POOL: Record<string, Experiment[]> = {
     { title: "Log one pattern you notice daily that nobody asked about", duration: "7 days", watching: "observer signal strength, writing depth", target: "observer" },
   ],
   builder: [
-    { title: "Ship one small thing every day before noon", duration: "5 days", watching: "discipline trend, ambition signal", target: "builder" },
+    { title: "Ship one small thing every day before noon", duration: "5 days", watching: "drive trend, agency signal", target: "builder" },
     { title: "Time-block 2 hours of deep work with no context switching", duration: "3 days", watching: "focus consistency, builder emergence", target: "builder" },
   ],
   explorer: [
@@ -58,9 +58,9 @@ function getSuggestedExperiments(checkins: any[]): Experiment[] {
   // Simple archetype scoring from dimensions
   const scores: Record<string, number> = {
     observer: ((dimTotals["focus"] || 0) + (dimTotals["calm"] || 0)) / count,
-    builder: ((dimTotals["discipline"] || 0) + (dimTotals["ambition"] || 0)) / count,
+    builder: ((dimTotals["agency"] || 0) + (dimTotals["drive"] || 0)) / count,
     explorer: ((dimTotals["creativity"] || 0) + (dimTotals["exploration"] || 0)) / count,
-    dissenter: ((dimTotals["exploration"] || 0) + (dimTotals["creativity"] || 0) - (dimTotals["discipline"] || 0) / 2) / count,
+    dissenter: ((dimTotals["agency"] || 0) + (dimTotals["exploration"] || 0) - (dimTotals["calm"] || 0) / 2) / count,
     seeker: ((dimTotals["exploration"] || 0) + (dimTotals["calm"] || 0)) / count,
   };
 

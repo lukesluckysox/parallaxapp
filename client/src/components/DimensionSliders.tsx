@@ -11,12 +11,12 @@ interface DimensionSlidersProps {
 const DIMENSION_LABELS: Record<string, string> = {
   focus: "Focus",
   calm: "Calm",
-  discipline: "Discipline",
-  health: "Health",
+  agency: "Agency",
+  vitality: "Vitality",
   social: "Social",
   creativity: "Creativity",
   exploration: "Exploration",
-  ambition: "Ambition",
+  drive: "Drive",
 };
 
 export default function DimensionSliders({ vec, onChange, open, onToggle }: DimensionSlidersProps) {

@@ -14,8 +14,8 @@ interface DecisionEngineProps {
 }
 
 const DIMENSION_LABELS: Record<string, string> = {
-  focus: "Focus", calm: "Calm", discipline: "Discipline", health: "Health",
-  social: "Social", creativity: "Creativity", exploration: "Exploration", ambition: "Ambition",
+  focus: "Focus", calm: "Calm", agency: "Agency", vitality: "Vitality",
+  social: "Social", creativity: "Creativity", exploration: "Exploration", drive: "Drive",
 };
 
 export default function DecisionEngine({ selfVec, dataVec, prefill }: DecisionEngineProps) {

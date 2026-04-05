@@ -16,12 +16,12 @@ import type { Writing } from "@shared/schema";
 const DIMENSION_LABELS: Record<string, string> = {
   focus: "Focus",
   calm: "Calm",
-  discipline: "Discipline",
-  health: "Health",
+  agency: "Agency",
+  vitality: "Vitality",
   social: "Social",
   creativity: "Creativity",
   exploration: "Exploration",
-  ambition: "Ambition",
+  drive: "Drive",
 };
 
 interface MirrorMoment {

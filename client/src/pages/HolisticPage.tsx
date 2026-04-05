@@ -51,12 +51,12 @@ interface ProfileData {
 const DIM_ARCHETYPE_COLORS: Record<string, string> = {
   focus: "#7c8ba0",       // Observer
   calm: "#7c8ba0",        // Observer
-  discipline: "#5a7d9a",  // Builder
-  health: "#5a7d9a",      // Builder
+  agency: "#c17b6e",      // Dissenter
+  vitality: "#5a7d9a",    // Builder
   social: "#b8976a",      // Seeker
   creativity: "#6b9080",  // Explorer
   exploration: "#6b9080", // Explorer
-  ambition: "#c17b6e",    // Dissenter
+  drive: "#5a7d9a",       // Builder
 };
 
 // ── 3D Radar Chart (SVG with CSS perspective) ────────────────
@@ -64,12 +64,12 @@ const DIM_ARCHETYPE_COLORS: Record<string, string> = {
 const DIMENSION_LABELS: Record<string, string> = {
   focus: "Focus",
   calm: "Calm",
-  discipline: "Discipline",
-  health: "Health",
+  agency: "Agency",
+  vitality: "Vitality",
   social: "Social",
   creativity: "Creativity",
   exploration: "Exploration",
-  ambition: "Ambition",
+  drive: "Drive",
 };
 
 function RadarChart({

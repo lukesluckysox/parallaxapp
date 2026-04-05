@@ -202,6 +202,45 @@ export class DatabaseStorage implements IStorage {
       );
     `);
 
+    // Migrate dimension names: discipline→agency, health→vitality, ambition→drive
+    try {
+      const KEY_MAP: Record<string, string> = { discipline: "agency", health: "vitality", ambition: "drive" };
+      const migrateVec = (json: string): string => {
+        try {
+          const obj = JSON.parse(json);
+          let changed = false;
+          for (const [oldKey, newKey] of Object.entries(KEY_MAP)) {
+            if (oldKey in obj && !(newKey in obj)) {
+              obj[newKey] = obj[oldKey];
+              delete obj[oldKey];
+              changed = true;
+            }
+          }
+          return changed ? JSON.stringify(obj) : json;
+        } catch { return json; }
+      };
+      // Migrate checkins
+      const checkins = sqlite.prepare("SELECT id, self_vec, data_vec FROM checkins").all() as any[];
+      const updateStmt = sqlite.prepare("UPDATE checkins SET self_vec = ?, data_vec = ? WHERE id = ?");
+      for (const c of checkins) {
+        const newSelf = c.self_vec ? migrateVec(c.self_vec) : c.self_vec;
+        const newData = c.data_vec ? migrateVec(c.data_vec) : c.data_vec;
+        if (newSelf !== c.self_vec || newData !== c.data_vec) {
+          updateStmt.run(newSelf, newData, c.id);
+        }
+      }
+      // Migrate identity_modes centroids
+      const modes = sqlite.prepare("SELECT id, centroid_vec FROM identity_modes").all() as any[];
+      const updateMode = sqlite.prepare("UPDATE identity_modes SET centroid_vec = ? WHERE id = ?");
+      for (const m of modes) {
+        const newVec = m.centroid_vec ? migrateVec(m.centroid_vec) : m.centroid_vec;
+        if (newVec !== m.centroid_vec) updateMode.run(newVec, m.id);
+      }
+      console.log(`[migration] Dimension rename: checked ${checkins.length} checkins, ${modes.length} modes`);
+    } catch (e) {
+      console.error("Dimension migration error (non-fatal):", e);
+    }
+
     // Add user_id column to existing tables if they don't have it
     try { sqlite.exec("ALTER TABLE checkins ADD COLUMN user_id INTEGER"); } catch { /* column already exists */ }
     try { sqlite.exec("ALTER TABLE decisions ADD COLUMN user_id INTEGER"); } catch { /* column already exists */ }

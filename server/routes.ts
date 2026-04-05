@@ -256,8 +256,8 @@ export async function registerRoutes(
     // choices is array of 5 strings like ["freedom", "mystery", "connection", "expression", "meaning"]
     // Map word choices to archetype leanings and dimension seeds
     const dimScores: Record<string, number> = {
-      focus: 50, calm: 50, discipline: 50, health: 50,
-      social: 50, creativity: 50, exploration: 50, ambition: 50,
+      focus: 50, calm: 50, agency: 50, vitality: 50,
+      social: 50, creativity: 50, exploration: 50, drive: 50,
     };
 
     const archetypeLean: Record<string, number> = {
@@ -266,15 +266,15 @@ export async function registerRoutes(
 
     // Word-pair → archetype/dimension mappings
     const wordMap: Record<string, { arch: string; dims: Record<string, number> }> = {
-      structure: { arch: "builder", dims: { discipline: 12, focus: 8 } },
+      structure: { arch: "builder", dims: { agency: 12, focus: 8 } },
       freedom: { arch: "explorer", dims: { exploration: 12, creativity: 8 } },
       clarity: { arch: "observer", dims: { focus: 12, calm: 8 } },
       mystery: { arch: "seeker", dims: { creativity: 10, exploration: 8 } },
       solitude: { arch: "observer", dims: { calm: 10, focus: 6 } },
-      connection: { arch: "builder", dims: { social: 12, health: 6 } },
-      expression: { arch: "dissenter", dims: { creativity: 12, ambition: 8 } },
-      restraint: { arch: "observer", dims: { discipline: 10, calm: 8 } },
-      action: { arch: "builder", dims: { ambition: 12, discipline: 8 } },
+      connection: { arch: "builder", dims: { social: 12, vitality: 6 } },
+      expression: { arch: "dissenter", dims: { creativity: 12, agency: 8 } },
+      restraint: { arch: "observer", dims: { agency: 10, calm: 8 } },
+      action: { arch: "builder", dims: { drive: 12, agency: 8 } },
       reflection: { arch: "seeker", dims: { calm: 10, creativity: 6 } },
     };
 
@@ -547,20 +547,20 @@ export async function registerRoutes(
           const avgInstrumental = instrumentalSum / featureCount;
           const avgTempo = tempoSum / featureCount;
 
-          if (avgEnergy > 0.7) { nudges.ambition = (nudges.ambition || 0) + 10; nudges.health = (nudges.health || 0) + 6; }
-          else if (avgEnergy > 0.55) { nudges.ambition = (nudges.ambition || 0) + 4; }
+          if (avgEnergy > 0.7) { nudges.drive = (nudges.drive || 0) + 10; nudges.vitality = (nudges.vitality || 0) + 6; }
+          else if (avgEnergy > 0.55) { nudges.drive = (nudges.drive || 0) + 4; }
           else if (avgEnergy < 0.3) { nudges.calm = (nudges.calm || 0) + 10; nudges.focus = (nudges.focus || 0) + 6; }
 
           if (avgValence > 0.7) { nudges.social = (nudges.social || 0) + 8; nudges.exploration = (nudges.exploration || 0) + 5; }
           else if (avgValence < 0.3) { nudges.creativity = (nudges.creativity || 0) + 10; nudges.calm = (nudges.calm || 0) - 5; }
 
           if (avgDance > 0.7) { nudges.social = (nudges.social || 0) + 6; nudges.exploration = (nudges.exploration || 0) + 4; }
-          else if (avgDance < 0.3) { nudges.focus = (nudges.focus || 0) + 5; nudges.discipline = (nudges.discipline || 0) + 3; }
+          else if (avgDance < 0.3) { nudges.focus = (nudges.focus || 0) + 5; nudges.agency = (nudges.agency || 0) + 3; }
 
           if (avgAcoustic > 0.6) { nudges.calm = (nudges.calm || 0) + 6; nudges.focus = (nudges.focus || 0) + 4; }
-          if (avgInstrumental > 0.4) { nudges.focus = (nudges.focus || 0) + 10; nudges.creativity = (nudges.creativity || 0) + 5; nudges.discipline = (nudges.discipline || 0) + 5; }
+          if (avgInstrumental > 0.4) { nudges.focus = (nudges.focus || 0) + 10; nudges.creativity = (nudges.creativity || 0) + 5; nudges.agency = (nudges.agency || 0) + 5; }
 
-          if (avgTempo > 140) { nudges.ambition = (nudges.ambition || 0) + 4; nudges.health = (nudges.health || 0) + 3; }
+          if (avgTempo > 140) { nudges.drive = (nudges.drive || 0) + 4; nudges.vitality = (nudges.vitality || 0) + 3; }
           else if (avgTempo < 90) { nudges.calm = (nudges.calm || 0) + 4; nudges.creativity = (nudges.creativity || 0) + 3; }
 
           summaryParts.push(`${todayTracks.length} tracks today`);
@@ -577,13 +577,13 @@ export async function registerRoutes(
         }
       } else if (currentFeatures) {
         const { energy = 0.5, valence = 0.5, danceability = 0.5, acousticness = 0.3, instrumentalness = 0 } = currentFeatures;
-        if (energy > 0.75) { nudges.ambition = 10; nudges.health = 6; }
+        if (energy > 0.75) { nudges.drive = 10; nudges.vitality = 6; }
         if (energy < 0.3) { nudges.calm = 10; nudges.focus = 6; }
         if (valence > 0.7) { nudges.social = 8; nudges.exploration = 5; }
         if (valence < 0.3) { nudges.creativity = 10; nudges.calm = (nudges.calm || 0) - 5; }
         if (danceability > 0.75) { nudges.social = (nudges.social || 0) + 6; nudges.exploration = (nudges.exploration || 0) + 4; }
         if (acousticness > 0.65) { nudges.calm = (nudges.calm || 0) + 6; nudges.focus = (nudges.focus || 0) + 4; }
-        if (instrumentalness > 0.5) { nudges.focus = (nudges.focus || 0) + 10; nudges.creativity = (nudges.creativity || 0) + 5; nudges.discipline = 5; }
+        if (instrumentalness > 0.5) { nudges.focus = (nudges.focus || 0) + 10; nudges.creativity = (nudges.creativity || 0) + 5; nudges.agency = 5; }
         for (const key of Object.keys(nudges)) { nudges[key] = clamp(nudges[key], -15, 15); }
       }
 
@@ -665,16 +665,16 @@ export async function registerRoutes(
 
       const nudges: Record<string, number> = {};
 
-      if (steps > 10000) { nudges.health = (nudges.health || 0) + 10; nudges.discipline = (nudges.discipline || 0) + 5; }
-      else if (steps > 7000) { nudges.health = (nudges.health || 0) + 5; }
-      else if (steps < 3000) { nudges.health = (nudges.health || 0) - 5; }
+      if (steps > 10000) { nudges.vitality = (nudges.vitality || 0) + 10; nudges.agency = (nudges.agency || 0) + 5; }
+      else if (steps > 7000) { nudges.vitality = (nudges.vitality || 0) + 5; }
+      else if (steps < 3000) { nudges.vitality = (nudges.vitality || 0) - 5; }
 
       if (sleepHours >= 7.5) { nudges.calm = (nudges.calm || 0) + 8; nudges.focus = (nudges.focus || 0) + 6; }
       else if (sleepHours < 6) { nudges.calm = (nudges.calm || 0) - 8; nudges.focus = (nudges.focus || 0) - 5; }
 
-      if (exerciseMinutes > 30) { nudges.health = (nudges.health || 0) + 8; nudges.ambition = (nudges.ambition || 0) + 5; nudges.discipline = (nudges.discipline || 0) + 5; }
+      if (exerciseMinutes > 30) { nudges.vitality = (nudges.vitality || 0) + 8; nudges.drive = (nudges.drive || 0) + 5; nudges.agency = (nudges.agency || 0) + 5; }
 
-      if (hrv > 50) { nudges.calm = (nudges.calm || 0) + 6; nudges.health = (nudges.health || 0) + 4; }
+      if (hrv > 50) { nudges.calm = (nudges.calm || 0) + 6; nudges.vitality = (nudges.vitality || 0) + 4; }
       else if (hrv > 0 && hrv < 30) { nudges.calm = (nudges.calm || 0) - 5; }
 
       for (const key of Object.keys(nudges)) {
@@ -726,12 +726,20 @@ export async function registerRoutes(
 
 Interpret this into 8 psychological/behavioral dimensions, each scored 0-100. Also provide a brief narrative (2-3 sentences) and which archetype they seem to lean toward.
 
-The 8 dimensions are: focus, calm, discipline, health, social, creativity, exploration, ambition.
+The 8 identity dimensions are:
+- focus: mental clarity and ability to direct attention (0-100)
+- calm: inner stillness, emotional regulation, groundedness (0-100)
+- agency: sense of autonomy, self-determination, feeling in control of choices (0-100)
+- vitality: physical and mental energy, aliveness, feeling embodied (0-100)
+- social: connection to others, relational engagement, community pull (0-100)
+- creativity: generative impulse, novel thinking, expressive output (0-100)
+- exploration: openness to new experience, curiosity, willingness to wander (0-100)
+- drive: forward momentum, internal motivation, purposeful energy (0-100)
 
 The 5 meta-archetypes are: observer (understanding patterns), builder (creating structure), explorer (novelty and expression), dissenter (autonomy and resistance), seeker (meaning and transformation).
 
 Respond ONLY with valid JSON:
-{"dimensions":{"focus":N,"calm":N,"discipline":N,"health":N,"social":N,"creativity":N,"exploration":N,"ambition":N},"narrative":"...","archetype_lean":"observer|builder|explorer|dissenter|seeker"}`
+{"dimensions":{"focus":N,"calm":N,"agency":N,"vitality":N,"social":N,"creativity":N,"exploration":N,"drive":N},"narrative":"...","archetype_lean":"observer|builder|explorer|dissenter|seeker"}`
         }],
       });
 
@@ -779,7 +787,7 @@ Respond ONLY with valid JSON:
 The 5 meta-archetypes are: observer (understanding patterns), builder (creating structure), explorer (novelty and expression), dissenter (autonomy and resistance), seeker (meaning and transformation).
 
 Estimate the impact on 8 dimensions (each -50 to +50, where positive means the dimension increases):
-focus, calm, discipline, health, social, creativity, exploration, ambition.
+focus, calm, agency, vitality, social, creativity, exploration, drive.
 
 Also provide:
 - reasoning: 2-3 sentences explaining the decision's impact
@@ -790,7 +798,7 @@ Also provide:
 - narrative: A short narrative sentence framing this as identity progression (e.g. "This decision moves you from observation into active exploration — trading certainty for discovery.")
 
 Respond ONLY with valid JSON:
-{"impacts":{"focus":N,"calm":N,"discipline":N,"health":N,"social":N,"creativity":N,"exploration":N,"ambition":N},"reasoning":"...","quick_take":"...","predicted_shift":{"from":"archetype","to":"archetype","confidence":0.0},"risk_factors":["..."],"potential_gains":["..."],"narrative":"..."}`
+{"impacts":{"focus":N,"calm":N,"agency":N,"vitality":N,"social":N,"creativity":N,"exploration":N,"drive":N},"reasoning":"...","quick_take":"...","predicted_shift":{"from":"archetype","to":"archetype","confidence":0.0},"risk_factors":["..."],"potential_gains":["..."],"narrative":"..."}`
         }],
       });
 
@@ -977,7 +985,7 @@ Return ONLY valid JSON:
           if (doSecondary) {
             const result = await callAndParseJSON(
               SYSTEM_JSON,
-              `Analyze this writing:${writingBlock}\n\nReturn JSON with these exact keys:\n- dimensions: {focus, calm, discipline, health, social, creativity, exploration, ambition} each 0-100\n- nudges: {focus, calm, discipline, health, social, creativity, exploration, ambition} each -15 to +15\n- quotes: array of 5 objects {"text": "quote", "author": "name"} from real well-known authors relevant to this writing\n- recommended_reading: array of 3 objects {"title": "book", "author": "name", "reason": "one sentence"}`,
+              `Analyze this writing:${writingBlock}\n\nReturn JSON with these exact keys:\n- dimensions: {focus, calm, agency, vitality, social, creativity, exploration, drive} each 0-100\n- nudges: {focus, calm, agency, vitality, social, creativity, exploration, drive} each -15 to +15\n- quotes: array of 5 objects {"text": "quote", "author": "name"} from real well-known authors relevant to this writing\n- recommended_reading: array of 3 objects {"title": "book", "author": "name", "reason": "one sentence"}`,
               2000
             );
             if (result) merged = { ...merged, ...result };
@@ -1129,12 +1137,12 @@ Return ONLY valid JSON:
             if (extraversion > 60) { averaged.social = (averaged.social || 0) + 3; averaged.exploration = (averaged.exploration || 0) + 2; }
             // Intuition → creativity, exploration
             if (intuition > 60) { averaged.creativity = (averaged.creativity || 0) + 3; averaged.exploration = (averaged.exploration || 0) + 2; }
-            // Thinking → focus, discipline (Builder signals)
-            if (feeling < 40) { averaged.focus = (averaged.focus || 0) + 2; averaged.discipline = (averaged.discipline || 0) + 3; }
+            // Thinking → focus, agency (Builder signals)
+            if (feeling < 40) { averaged.focus = (averaged.focus || 0) + 2; averaged.agency = (averaged.agency || 0) + 3; }
             // Perceiving → exploration, creativity
             if (perceiving > 60) { averaged.exploration = (averaged.exploration || 0) + 3; averaged.creativity = (averaged.creativity || 0) + 2; }
-            // Judging → discipline, ambition (Builder signals)
-            if (perceiving < 40) { averaged.discipline = (averaged.discipline || 0) + 3; averaged.ambition = (averaged.ambition || 0) + 2; }
+            // Judging → agency, drive (Builder signals)
+            if (perceiving < 40) { averaged.agency = (averaged.agency || 0) + 3; averaged.drive = (averaged.drive || 0) + 2; }
           }
 
           // Political compass influence
@@ -1143,7 +1151,7 @@ Return ONLY valid JSON:
             // Libertarian lean → exploration, creativity (Dissenter/Explorer signals)
             if (socialAxis < -3) { averaged.exploration = (averaged.exploration || 0) + 3; averaged.creativity = (averaged.creativity || 0) + 2; }
             // Authoritarian lean → discipline, ambition (Builder signals)
-            if (socialAxis > 3) { averaged.discipline = (averaged.discipline || 0) + 2; averaged.ambition = (averaged.ambition || 0) + 2; }
+            if (socialAxis > 3) { averaged.agency = (averaged.agency || 0) + 2; averaged.drive = (averaged.drive || 0) + 2; }
           }
 
           // Moral foundations influence
@@ -1154,7 +1162,7 @@ Return ONLY valid JSON:
             // High liberty → exploration (Dissenter signals)
             if (liberty > 0.7) { averaged.exploration = (averaged.exploration || 0) + 3; }
             // High authority → discipline (Builder signals)
-            if (authority > 0.7) { averaged.discipline = (averaged.discipline || 0) + 3; }
+            if (authority > 0.7) { averaged.agency = (averaged.agency || 0) + 3; }
           }
         } catch { /* skip */ }
       }
@@ -1241,7 +1249,7 @@ Return ONLY valid JSON:
         if (userId) {
           const modes = storage.getIdentityModes(userId);
           if (modes.length > 0 && req.body.self_vec) {
-            const DIMS = ["focus", "calm", "discipline", "health", "social", "creativity", "exploration", "ambition"];
+            const DIMS = DIMENSIONS as unknown as string[];
             const currentVec = JSON.parse(req.body.self_vec);
             const currentArr = DIMS.map(d => currentVec[d] || 50);
 
@@ -1499,13 +1507,13 @@ Return ONLY a JSON array of 4 strings, each starting with "Should I...". Example
       const nudges: Record<string, number> = {};
       if (audioFeatures) {
         const { energy = 0.5, valence = 0.5, danceability = 0.5, acousticness = 0.3, instrumentalness = 0 } = audioFeatures;
-        if (energy > 0.75) { nudges.ambition = (nudges.ambition || 0) + 10; nudges.health = (nudges.health || 0) + 6; }
+        if (energy > 0.75) { nudges.drive = (nudges.drive || 0) + 10; nudges.vitality = (nudges.vitality || 0) + 6; }
         if (energy < 0.3) { nudges.calm = (nudges.calm || 0) + 10; nudges.focus = (nudges.focus || 0) + 6; }
         if (valence > 0.7) { nudges.social = (nudges.social || 0) + 8; nudges.exploration = (nudges.exploration || 0) + 5; }
         if (valence < 0.3) { nudges.creativity = (nudges.creativity || 0) + 10; nudges.calm = (nudges.calm || 0) - 5; }
         if (danceability > 0.75) { nudges.social = (nudges.social || 0) + 6; nudges.exploration = (nudges.exploration || 0) + 4; }
         if (acousticness > 0.65) { nudges.calm = (nudges.calm || 0) + 6; nudges.focus = (nudges.focus || 0) + 4; }
-        if (instrumentalness > 0.5) { nudges.focus = (nudges.focus || 0) + 10; nudges.creativity = (nudges.creativity || 0) + 5; nudges.discipline = (nudges.discipline || 0) + 5; }
+        if (instrumentalness > 0.5) { nudges.focus = (nudges.focus || 0) + 10; nudges.creativity = (nudges.creativity || 0) + 5; nudges.agency = (nudges.agency || 0) + 5; }
         for (const key of Object.keys(nudges)) {
           nudges[key] = clamp(nudges[key], -15, 15);
         }
@@ -1906,7 +1914,7 @@ Return ONLY valid JSON:
 
       if (vecs.length < 8) return res.json({ recovery: null });
 
-      const dims = ["focus", "calm", "discipline", "health", "social", "creativity", "exploration", "ambition"];
+      const dims = DIMENSIONS as unknown as string[];
 
       // Calculate volatility in sliding windows of 4
       const windowSize = 4;
@@ -2699,7 +2707,7 @@ Return ONLY the single line, no quotes, no explanation.`
     }
 
     // Parse check-in vectors
-    const DIMS = ["focus", "calm", "discipline", "health", "social", "creativity", "exploration", "ambition"];
+    const DIMS = DIMENSIONS as unknown as string[];
     const vectors: { id: number; vec: number[]; archetype: string; timestamp: string }[] = [];
 
     for (const c of allCheckins) {
