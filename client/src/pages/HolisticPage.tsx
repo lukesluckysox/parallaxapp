@@ -47,6 +47,18 @@ interface ProfileData {
   } | null;
 }
 
+// ── Dimension → archetype color map ──────────────────────────
+const DIM_ARCHETYPE_COLORS: Record<string, string> = {
+  focus: "#7c8ba0",       // Observer
+  calm: "#7c8ba0",        // Observer
+  discipline: "#5a7d9a",  // Builder
+  health: "#5a7d9a",      // Builder
+  social: "#b8976a",      // Seeker
+  creativity: "#6b9080",  // Explorer
+  exploration: "#6b9080", // Explorer
+  ambition: "#c17b6e",    // Dissenter
+};
+
 // ── 3D Radar Chart (SVG with CSS perspective) ────────────────
 
 const DIMENSION_LABELS: Record<string, string> = {
@@ -230,10 +242,10 @@ function RadarChart({
                 textAnchor="middle"
                 dominantBaseline="middle"
                 fontSize={9}
-                fill="hsl(var(--muted-foreground))"
+                fill={DIM_ARCHETYPE_COLORS[dim] || "hsl(var(--muted-foreground))"}
                 fontFamily="var(--font-sans)"
                 fontWeight={500}
-                opacity={0.7}
+                opacity={0.65}
               >
                 {DIMENSION_LABELS[dim]}
               </text>
