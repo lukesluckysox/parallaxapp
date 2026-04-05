@@ -68,8 +68,8 @@ export default function IdentityHelix({ history, fullPage }: IdentityHelixProps)
   // nodes[] is ordered oldest(0) → newest(last)
   // We render newest-first (top of SVG), so reverse for Y computation
   const RECENT_SPACING = fullPage ? 80 : 70;
-  const MIN_SPACING = fullPage ? 30 : 25;
-  const RECENT_COUNT = fullPage ? 8 : 5; // how many get full spacing
+  const MIN_SPACING = fullPage ? 22 : 18; // tighter compression after recent
+  const RECENT_COUNT = 10; // last 10 get full spacing
 
   if (nodeCount === 0) {
     return (
@@ -247,13 +247,12 @@ export default function IdentityHelix({ history, fullPage }: IdentityHelixProps)
           const aFront = isStrandAFront(i);
           const isSelected = fullPage && selectedId === node.id;
 
-          // Recency factor: 0 = newest (top, most prominent), higher = older
-          // Invert: i=0 is newest = full size, i=nodeCount-1 is oldest = compressed
           const recency = nodeCount > 1 ? 1 - (i / (nodeCount - 1)) : 1;
           const isRecent = i < RECENT_COUNT;
-          const showName = isRecent || isSelected || nodeCount <= 5;
-          const showDate = i < Math.ceil(RECENT_COUNT * 0.6) || isSelected || nodeCount <= 3;
-          const nodeR = NODE_R * (0.7 + 0.3 * recency);
+          // All nodes show variant name, but older ones are smaller/dimmer
+          const showName = true;
+          const showDate = isRecent || isSelected;
+          const nodeR = isRecent ? NODE_R : NODE_R * (0.5 + 0.2 * recency);
 
           return (
             <g key={node.id}>
@@ -277,23 +276,21 @@ export default function IdentityHelix({ history, fullPage }: IdentityHelixProps)
               />
 
               {/* Variant name — centered below node */}
-              {showName && (
-                <text
-                  x={CENTER_X}
-                  y={p.y + NODE_R + 12}
-                  textAnchor="middle"
-                  className="fill-foreground/60"
-                  style={{
-                    fontSize: fullPage ? "9px" : "8px",
-                    fontFamily: "var(--font-mono, monospace)",
-                    cursor: fullPage ? "pointer" : undefined,
-                    opacity: 0.4 + 0.6 * recency,
-                  }}
-                  onClick={() => handleNodeTap(node.id)}
-                >
-                  {node.variant_name}
-                </text>
-              )}
+              <text
+                x={CENTER_X}
+                y={p.y + NODE_R + 12}
+                textAnchor="middle"
+                className="fill-foreground/60"
+                style={{
+                  fontSize: isRecent ? (fullPage ? "9px" : "8px") : "7px",
+                  fontFamily: "var(--font-mono, monospace)",
+                  cursor: fullPage ? "pointer" : undefined,
+                  opacity: isRecent ? 0.6 + 0.4 * recency : 0.25,
+                }}
+                onClick={() => handleNodeTap(node.id)}
+              >
+                {node.variant_name}
+              </text>
 
               {/* Date — centered below name */}
               {showDate && (
