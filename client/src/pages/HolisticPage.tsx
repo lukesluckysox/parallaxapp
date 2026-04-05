@@ -1161,7 +1161,7 @@ export default function HolisticPage() {
                   <InfoTooltip text="Your all-time archetype breakdown across every check-in. This is the macro view — it reflects your full history, not just recent activity." />
                 </div>
                 <ArchetypeRing
-                  distribution={data?.archetypeDistribution || {}}
+                  distribution={data?.allTimeVec ? computeMixture(data.allTimeVec as DimensionVec) : (data?.archetypeDistribution || {})}
                   latest={data?.latestArchetype || null}
                 />
               </section>

@@ -8,7 +8,7 @@ import ArchetypeBrowser from "@/components/ArchetypeBrowser";
 import TimeCapsule from "@/components/TimeCapsule";
 import { GatedSection } from "@/components/SignalStrength";
 import { ARCHETYPE_MAP, DIMENSIONS, type DimensionVec } from "@shared/archetypes";
-import { defaultVec } from "@shared/archetype-math";
+import { defaultVec, computeMixture } from "@shared/archetype-math";
 import type { Checkin } from "@shared/schema";
 
 // ── Collapsible wrapper ─────────────────────────────────────
@@ -129,10 +129,46 @@ const DIMENSION_LABELS: Record<string, string> = {
 };
 
 // ── Trajectory Path (inner content) ──────────────────────────
-function TrajectoryPathContent() {
+function TrajectoryPathContent({ checkins }: { checkins: Checkin[] }) {
+  const [window, setWindow] = useState<TimeWindow>("week");
   const { data, isLoading } = useQuery<MythologyData>({
     queryKey: ["/api/mythology"],
   });
+
+  // Compute archetype from each time window
+  const windowArchetype = useMemo(() => {
+    const { recent, older } = filterByWindow(checkins, window);
+
+    const avgVec = (items: Checkin[]): DimensionVec => {
+      const sum = defaultVec();
+      let count = 0;
+      for (const c of items) {
+        try {
+          const vec = JSON.parse(c.self_vec);
+          for (const dim of DIMENSIONS) {
+            sum[dim] = (sum[dim] || 0) + (vec[dim] || 50);
+          }
+          count++;
+        } catch {}
+      }
+      if (count === 0) return defaultVec();
+      for (const dim of DIMENSIONS) sum[dim] = Math.round(sum[dim] / count);
+      return sum;
+    };
+
+    const recentVec = avgVec(recent);
+    const olderVec = avgVec(older);
+    const recentMix = computeMixture(recentVec);
+    const olderMix = computeMixture(olderVec);
+
+    const topRecent = Object.entries(recentMix).sort((a, b) => b[1] - a[1])[0];
+    const topOlder = Object.entries(olderMix).sort((a, b) => b[1] - a[1])[0];
+
+    return {
+      current: topRecent ? { key: topRecent[0], pct: topRecent[1] } : null,
+      previous: topOlder ? { key: topOlder[0], pct: topOlder[1] } : null,
+    };
+  }, [checkins, window]);
 
   if (isLoading) {
     return (
@@ -150,18 +186,39 @@ function TrajectoryPathContent() {
   if (!data || data.empty) return null;
 
   const baseline = data.baseline_archetype ? ARCHETYPE_MAP[data.baseline_archetype] : null;
-  const current = data.current_archetype ? ARCHETYPE_MAP[data.current_archetype] : null;
   const emerging = data.emerging_archetype ? ARCHETYPE_MAP[data.emerging_archetype] : null;
+  const currentArch = windowArchetype.current ? ARCHETYPE_MAP[windowArchetype.current.key] : null;
+  const previousArch = windowArchetype.previous ? ARCHETYPE_MAP[windowArchetype.previous.key] : null;
+
+  const windowLabels: Record<TimeWindow, string> = { day: "Today", week: "This week", month: "This month" };
 
   const nodes = [
-    { arch: baseline, label: "Baseline", sublabel: "Where you started", symbol: "○" },
-    { arch: current, label: "Current", sublabel: "Where you are now", symbol: "●" },
-    { arch: emerging, label: "Emerging", sublabel: "Where you're heading", symbol: "◎" },
-  ].filter(n => n.arch);
+    baseline && { arch: baseline, label: "Baseline", sublabel: "Where you started", symbol: "○" },
+    previousArch && { arch: previousArch, label: `Prev ${window}`, sublabel: `${windowArchetype.previous?.pct}%`, symbol: "○" },
+    currentArch && { arch: currentArch, label: windowLabels[window], sublabel: `${windowArchetype.current?.pct}%`, symbol: "●" },
+    emerging && { arch: emerging, label: "Emerging", sublabel: "Where you're heading", symbol: "◎" },
+  ].filter(Boolean) as { arch: typeof baseline & {}; label: string; sublabel: string; symbol: string }[];
 
   return (
     <div className="space-y-2" data-testid="card-trajectory-path">
-      <h2 className="text-sm font-bold">Trajectory Path</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-bold">Trajectory Path</h2>
+        <div className="flex gap-1">
+          {(["day", "week", "month"] as TimeWindow[]).map(w => (
+            <button
+              key={w}
+              onClick={() => setWindow(w)}
+              className={`px-2 py-0.5 rounded text-[9px] font-mono transition-colors ${
+                window === w
+                  ? "bg-primary/20 text-primary"
+                  : "text-muted-foreground/30 hover:text-muted-foreground/50"
+              }`}
+            >
+              {w === "day" ? "D" : w === "week" ? "W" : "M"}
+            </button>
+          ))}
+        </div>
+      </div>
       <div className="p-4 rounded-[10px] border border-border bg-card">
         <div className="space-y-0">
           {nodes.map((node, i) => (
@@ -170,12 +227,12 @@ function TrajectoryPathContent() {
                 <div
                   className="w-5 h-5 rounded-full border-2 flex items-center justify-center text-[10px] font-bold"
                   style={{
-                    borderColor: node.arch!.color,
-                    backgroundColor: node.label === "Current" ? node.arch!.color : "transparent",
-                    color: node.label === "Current" ? "white" : node.arch!.color,
+                    borderColor: node.arch.color,
+                    backgroundColor: node.symbol === "●" ? node.arch.color : "transparent",
+                    color: node.symbol === "●" ? "white" : node.arch.color,
                   }}
                 >
-                  {node.symbol === "●" ? "" : ""}
+                  {""}
                 </div>
                 {i < nodes.length - 1 && (
                   <div className="w-0.5 h-8 bg-border" />
@@ -183,9 +240,9 @@ function TrajectoryPathContent() {
               </div>
               <div className="pb-4">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-sm font-display" style={{ color: node.arch!.color }}>{node.arch!.emoji}</span>
-                  <span className="text-sm font-medium" style={{ color: node.arch!.color }}>
-                    {node.arch!.name}
+                  <span className="text-sm font-display" style={{ color: node.arch.color }}>{node.arch.emoji}</span>
+                  <span className="text-sm font-medium" style={{ color: node.arch.color }}>
+                    {node.arch.name}
                   </span>
                   <span className="text-[10px] text-muted-foreground">{node.label}</span>
                 </div>
@@ -445,7 +502,7 @@ export default function TrajectoryPage() {
           threshold={TRAJECTORY_THRESHOLD}
           hint={trajectoryHint}
         >
-          <TrajectoryPathContent />
+          <TrajectoryPathContent checkins={checkins} />
         </GatedSection>
 
         {/* Behavioral Drivers — gated + collapsed */}
