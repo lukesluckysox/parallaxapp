@@ -7,6 +7,7 @@ import { DIMENSIONS, ARCHETYPE_MAP } from "@shared/archetypes";
 import bcrypt from "bcryptjs";
 import { getAuthUrl, exchangeCode, refreshAccessToken, spotifyApi } from "./spotify-auth";
 import jwt from "jsonwebtoken";
+import { randomUUID } from "crypto";
 import type { InsertIdentityMode } from "@shared/schema";
 import { decisions as decisionsTable, checkins as checkinsTable, users as usersTable } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
@@ -350,7 +351,7 @@ export async function registerRoutes(
       let user = storage.getUserByUsername(payload.username);
       if (!user) {
         // Create a shadow account — no real password needed for SSO users
-        const randomHash = await bcrypt.hash(crypto.randomUUID(), 10);
+        const randomHash = await bcrypt.hash(randomUUID(), 10);
         user = storage.createUser({
           username: payload.username,
           password_hash: randomHash,
