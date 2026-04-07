@@ -11,6 +11,7 @@ export const users = sqliteTable("users", {
   age: text("age"),
   gender: text("gender"),
   location: text("location"),
+  lumen_user_id: text("lumen_user_id"),
 });
 
 export const checkins = sqliteTable("checkins", {

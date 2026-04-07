@@ -9,6 +9,7 @@ import { getAuthUrl, exchangeCode, refreshAccessToken, spotifyApi } from "./spot
 import jwt from "jsonwebtoken";
 import { randomUUID } from "crypto";
 import type { InsertIdentityMode } from "@shared/schema";
+import { emitLumenEvent, classifyParallaxRecord } from "./lumenEmitter";
 import { decisions as decisionsTable, checkins as checkinsTable, users as usersTable } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
 
@@ -60,6 +61,30 @@ function getUserId(req: Request): number | null {
   }
   // No fallback — JWT only
   return null;
+}
+
+// Fire-and-forget: classify a record and emit Lumen events
+function emitForRecord(userId: number, recordId: number, record: any) {
+  try {
+    const user = storage.getUserById(userId) as any;
+    const lumenUserId = user?.lumen_user_id;
+    if (!lumenUserId) return;
+    const signals = classifyParallaxRecord(record);
+    for (const signal of signals) {
+      emitLumenEvent({
+        userId: lumenUserId,
+        sourceRecordId: String(recordId),
+        eventType: signal.eventType,
+        confidence: signal.confidence,
+        salience: signal.salience,
+        payload: { ...signal.payload, createdAt: record.timestamp || new Date().toISOString(), historical: false },
+        ingestionMode: "live",
+        createdAt: new Date().toISOString(),
+      }).catch(() => {}); // swallow
+    }
+  } catch {
+    // Never throw from emitter
+  }
 }
 
 function getUserTimezone(req: Request): string {
@@ -358,6 +383,11 @@ export async function registerRoutes(
           display_name: payload.username,
           created_at: new Date().toISOString(),
         });
+      }
+
+      // Store the Lumen userId for epistemic event emission
+      if (payload.userId) {
+        storage.setLumenUserId(user.id, String(payload.userId));
       }
 
       // Issue a 30-day parallax_token cookie
@@ -1004,6 +1034,9 @@ Return ONLY valid JSON:
         status: "pending",
       });
 
+      // Lumen epistemic emission (fire-and-forget)
+      if (userId) emitForRecord(userId, writing.id, { title, content, timestamp: writing.timestamp });
+
       // Return immediately
       res.json({ id: writing.id, status: "pending" });
 
@@ -1334,6 +1367,9 @@ Return ONLY valid JSON:
         console.error("Echo detection error:", echoErr);
       }
 
+      // Lumen epistemic emission (fire-and-forget)
+      if (userId) emitForRecord(userId, checkin.id, { ...body, timestamp: checkin.timestamp });
+
       return res.json(checkin);
     } catch (err: any) {
       return res.status(500).json({ error: err.message });
@@ -1356,6 +1392,10 @@ Return ONLY valid JSON:
     try {
       const userId = getUserId(req);
       const decision = storage.createDecision({ ...req.body, user_id: userId });
+
+      // Lumen epistemic emission (fire-and-forget)
+      if (userId) emitForRecord(userId, decision.id, { ...req.body, timestamp: decision.timestamp });
+
       return res.json(decision);
     } catch (err: any) {
       return res.status(500).json({ error: err.message });
@@ -3404,6 +3444,167 @@ Return ONLY valid JSON:
 
     storage.deleteWhitelistRequest(id);
     return res.json({ success: true });
+  });
+
+  // ===================== LUMEN INTERNAL ENDPOINTS =====================
+
+  const LUMEN_INTERNAL_TOKEN = process.env.LUMEN_INTERNAL_TOKEN;
+
+  function requireInternalToken(req: any, res: any): boolean {
+    const token = req.headers["x-lumen-internal-token"];
+    if (!LUMEN_INTERNAL_TOKEN || token !== LUMEN_INTERNAL_TOKEN) {
+      res.status(401).json({ error: "Unauthorized" });
+      return false;
+    }
+    return true;
+  }
+
+  // GET /api/internal/export-records — Lumen pulls all records
+  app.get("/api/internal/export-records", async (req, res) => {
+    if (!requireInternalToken(req, res)) return;
+
+    try {
+      const users = storage.getAllUsers();
+      const userMap = new Map<number, any>();
+      for (const u of users) userMap.set(u.id, u);
+
+      const checkins = storage.getAllCheckins();
+      const decisions = storage.getAllDecisions();
+      const writings = storage.getAllWritings();
+
+      const records: any[] = [];
+
+      for (const c of checkins) {
+        const u = c.user_id ? userMap.get(c.user_id) : null;
+        records.push({
+          id: c.id,
+          type: "checkin",
+          userId: c.user_id,
+          lumenUserId: u?.lumen_user_id || null,
+          selfArchetype: c.self_archetype,
+          selfVec: c.self_vec,
+          dataVec: c.data_vec,
+          feelingText: c.feeling_text,
+          createdAt: c.timestamp,
+        });
+      }
+
+      for (const d of decisions) {
+        const u = d.user_id ? userMap.get(d.user_id) : null;
+        records.push({
+          id: d.id,
+          type: "decision",
+          userId: d.user_id,
+          lumenUserId: u?.lumen_user_id || null,
+          decisionText: d.decision_text,
+          verdict: d.verdict,
+          impactVec: d.impact_vec,
+          createdAt: d.timestamp,
+        });
+      }
+
+      for (const w of writings) {
+        const u = w.user_id ? userMap.get(w.user_id) : null;
+        records.push({
+          id: w.id,
+          type: "writing",
+          userId: w.user_id,
+          lumenUserId: u?.lumen_user_id || null,
+          title: w.title,
+          content: w.content,
+          analysis: w.analysis,
+          createdAt: w.timestamp,
+        });
+      }
+
+      return res.json(records);
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  // POST /api/internal/backfill-to-lumen — trigger backfill from within the app
+  app.post("/api/internal/backfill-to-lumen", async (req, res) => {
+    if (!requireInternalToken(req, res)) return;
+
+    const LUMEN_API_URL = process.env.LUMEN_API_URL;
+    if (!LUMEN_API_URL) {
+      return res.status(500).json({ error: "LUMEN_API_URL not configured" });
+    }
+
+    try {
+      const users = storage.getAllUsers();
+      const userMap = new Map<number, string>();
+      for (const u of users) {
+        if (u.lumen_user_id) userMap.set(u.id, u.lumen_user_id);
+      }
+
+      if (userMap.size === 0) {
+        return res.json({ message: "No users with lumen_user_id", sent: 0 });
+      }
+
+      const checkins = storage.getAllCheckins();
+      const decisions = storage.getAllDecisions();
+      const writings = storage.getAllWritings();
+
+      const byUser = new Map<string, any[]>();
+
+      for (const c of checkins) {
+        const luid = c.user_id ? userMap.get(c.user_id) : null;
+        if (!luid) continue;
+        if (!byUser.has(luid)) byUser.set(luid, []);
+        byUser.get(luid)!.push({
+          id: String(c.id), type: "checkin", label: c.self_archetype || "checkin",
+          description: c.feeling_text || "", frequency: 1, contextCount: 1, createdAt: c.timestamp,
+        });
+      }
+
+      for (const d of decisions) {
+        const luid = d.user_id ? userMap.get(d.user_id) : null;
+        if (!luid) continue;
+        if (!byUser.has(luid)) byUser.set(luid, []);
+        byUser.get(luid)!.push({
+          id: String(d.id), type: "decision", label: d.decision_text || "decision",
+          description: d.decision_text || "", frequency: 1, contextCount: 1, createdAt: d.timestamp,
+        });
+      }
+
+      for (const w of writings) {
+        const luid = w.user_id ? userMap.get(w.user_id) : null;
+        if (!luid) continue;
+        if (!byUser.has(luid)) byUser.set(luid, []);
+        byUser.get(luid)!.push({
+          id: String(w.id), type: "writing", label: w.title || "writing",
+          description: (w.content || "").slice(0, 500), frequency: 1, contextCount: 1, createdAt: w.timestamp,
+        });
+      }
+
+      let totalSent = 0;
+      const userEntries = Array.from(byUser.entries());
+      for (const [lumenUserId, records] of userEntries) {
+        // Send in batches of 50
+        for (let i = 0; i < records.length; i += 50) {
+          const batch = records.slice(i, i + 50);
+          try {
+            await fetch(`${LUMEN_API_URL}/api/epistemic/backfill/parallax`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "x-lumen-internal-token": LUMEN_INTERNAL_TOKEN!,
+              },
+              body: JSON.stringify({ userId: lumenUserId, records: batch }),
+            });
+            totalSent += batch.length;
+          } catch (err) {
+            console.error(`[backfill] User ${lumenUserId} batch failed:`, err);
+          }
+        }
+      }
+
+      return res.json({ message: "Backfill complete", sent: totalSent, users: userEntries.length });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
   });
 
   return httpServer;
