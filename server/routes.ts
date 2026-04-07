@@ -3549,16 +3549,82 @@ Return ONLY valid JSON:
 
       const byUser = new Map<string, any[]>();
 
+      // ── Aggregate checkins by self_archetype ───────────────────────────────
+      // Individual checkins have no recurrence signal on their own.
+      // Group by archetype so Lumen sees frequency >= 2 and can promote patterns.
+      const checkinsByUser = new Map<string, typeof checkins>();
       for (const c of checkins) {
         const luid = c.user_id ? userMap.get(c.user_id) : null;
         if (!luid) continue;
-        if (!byUser.has(luid)) byUser.set(luid, []);
-        byUser.get(luid)!.push({
-          id: String(c.id), type: "checkin", label: c.self_archetype || "checkin",
-          description: c.feeling_text || "", frequency: 1, contextCount: 1, createdAt: c.timestamp,
-        });
+        if (!checkinsByUser.has(luid)) checkinsByUser.set(luid, []);
+        checkinsByUser.get(luid)!.push(c);
       }
 
+      for (const luid of Array.from(checkinsByUser.keys())) {
+        const userCheckins = checkinsByUser.get(luid)!;
+        if (!byUser.has(luid)) byUser.set(luid, []);
+
+        // Group by self_archetype
+        const archetypeGroups = new Map<string, typeof checkins>();
+        for (const c of userCheckins) {
+          const arch = c.self_archetype || "unknown";
+          if (!archetypeGroups.has(arch)) archetypeGroups.set(arch, []);
+          archetypeGroups.get(arch)!.push(c);
+        }
+
+        for (const arch of Array.from(archetypeGroups.keys())) {
+          const group = archetypeGroups.get(arch)!;
+
+          // Parse selfVec averages
+          const vecs = group.map(c => {
+            try { return JSON.parse((c as any).self_vec || "{}" ); } catch { return {}; }
+          }).filter((v: any) => Object.keys(v).length > 0);
+
+          const avgVec: Record<string, number> = {};
+          if (vecs.length > 0) {
+            for (const key of Object.keys(vecs[0] as object)) {
+              avgVec[key] = (vecs as any[]).reduce((s: number, v: any) => s + (v[key] || 0), 0) / vecs.length;
+            }
+          }
+
+          const highDims = Object.entries(avgVec).filter(([, v]) => v >= 65).map(([k]) => k);
+          const lowDims  = Object.entries(avgVec).filter(([, v]) => v <= 45).map(([k]) => k);
+
+          // Detect self vs data discrepancy
+          let discrepancy: string | null = null;
+          const dataVecs = group.map(c => {
+            try { return (c as any).data_vec ? JSON.parse((c as any).data_vec) : null; } catch { return null; }
+          }).filter(Boolean);
+          if (dataVecs.length > 0 && Object.keys(avgVec).length > 0) {
+            const avgData: Record<string, number> = {};
+            for (const key of Object.keys(dataVecs[0] as object)) {
+              avgData[key] = (dataVecs as any[]).reduce((s: number, v: any) => s + (v[key] || 0), 0) / dataVecs.length;
+            }
+            const gapDims = Object.keys(avgVec).filter(k => avgData[k] !== undefined && Math.abs((avgVec[k] || 0) - (avgData[k] || 0)) > 15);
+            if (gapDims.length > 0) {
+              discrepancy = gapDims.map(d => `self rates ${d} at ${avgVec[d]?.toFixed(0)}, data shows ${avgData[d]?.toFixed(0)}`).join("; ");
+            }
+          }
+
+          const uniqueDays = new Set(group.map(c => (c.timestamp || "").slice(0, 10))).size;
+          byUser.get(luid)!.push({
+            id: `archetype-pattern-${arch}-${luid}`,
+            type: "checkin-pattern",
+            label: `Identifies as "${arch}"`,
+            description: `Consistent self-archetype "${arch}" across ${group.length} check-ins over ${uniqueDays} days.` +
+              (highDims.length ? ` Consistently high: ${highDims.join(", ")}.` : "") +
+              (lowDims.length  ? ` Consistently low: ${lowDims.join(", ")}.`  : ""),
+            frequency: group.length,
+            contextCount: uniqueDays,
+            discrepancy,
+            selfArchetype: arch,
+            avgVec,
+            createdAt: group[0].timestamp || new Date().toISOString(),
+          });
+        }
+      }
+
+      // ── Decisions and writings — send individually (text-based) ───────────
       for (const d of decisions) {
         const luid = d.user_id ? userMap.get(d.user_id) : null;
         if (!luid) continue;
