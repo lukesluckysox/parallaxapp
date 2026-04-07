@@ -328,6 +328,54 @@ export async function registerRoutes(
     return res.json({ ok: true });
   });
 
+  // GET /api/auth/sso — Lumen SSO token exchange
+  // Verifies the short-lived Lumen SSO token, finds/creates the user,
+  // sets a parallax_token cookie, then redirects to the app root.
+  app.get("/api/auth/sso", async (req, res) => {
+    const token = req.query.token as string;
+    if (!token) return res.status(400).send("Missing SSO token");
+
+    try {
+      const payload = jwt.verify(token, JWT_SECRET) as {
+        userId: number;
+        username: string;
+        sso: boolean;
+      };
+
+      if (!payload.sso || !payload.username) {
+        return res.status(400).send("Invalid SSO token");
+      }
+
+      // Find or create Parallax user matching the Lumen username
+      let user = storage.getUserByUsername(payload.username);
+      if (!user) {
+        // Create a shadow account — no real password needed for SSO users
+        const randomHash = await bcrypt.hash(crypto.randomUUID(), 10);
+        user = storage.createUser({
+          username: payload.username,
+          password_hash: randomHash,
+          display_name: payload.username,
+          created_at: new Date().toISOString(),
+        });
+      }
+
+      // Issue a 30-day parallax_token cookie
+      const sessionToken = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "30d" });
+      res.cookie("parallax_token", sessionToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 30 * 24 * 60 * 60 * 1000,
+        path: "/",
+      });
+
+      return res.redirect("/");
+    } catch (err) {
+      console.error("[sso] token verification failed:", err);
+      return res.status(401).send("SSO token expired or invalid. Please return to Lumen and try again.");
+    }
+  });
+
   // ===================== SPOTIFY OAUTH ROUTES =====================
 
   // GET /api/spotify/connect — Redirects user to Spotify auth (opened in popup)
