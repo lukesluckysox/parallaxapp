@@ -4,6 +4,12 @@ import { Radio, ArrowRight, Sparkles, Repeat, Eye } from "lucide-react";
 import { ARCHETYPE_MAP } from "@shared/archetypes";
 import InfoTooltip from "@/components/InfoTooltip";
 
+interface LoopStatus {
+  liminalSessionsToday: number;
+  patternsExported: boolean;
+  lastExportedTo: string[];
+}
+
 interface DiscoverResponse {
   insights: { type: string; title: string; body: string }[];
   hasData?: boolean;
@@ -35,6 +41,12 @@ export default function DiscoverPage() {
   const { data: echoData } = useQuery<EchoData>({
     queryKey: ["/api/echo"],
     staleTime: 2 * 60 * 1000,
+  });
+
+  const { data: loopStatus } = useQuery<LoopStatus>({
+    queryKey: ["/api/loop-status"],
+    staleTime: 5 * 60 * 1000,
+    retry: false,
   });
 
   const featuredInsight = insightData?.insights?.[0] || null;
@@ -124,6 +136,37 @@ export default function DiscoverPage() {
             </div>
           </Link>
         </div>
+
+        {/* Loop status — shown only when patterns are flowing */}
+        {loopStatus?.patternsExported && loopStatus.lastExportedTo.length > 0 && (
+          <div
+            className="flex items-center gap-2.5 px-3 py-2.5 rounded-[10px] border"
+            style={{ borderColor: "#9c865430", background: "#9c865408" }}
+          >
+            {/* Simple loop icon (SVG) */}
+            <svg
+              width="14" height="14" viewBox="0 0 16 16" fill="none"
+              style={{ color: "#9c8654", flexShrink: 0 }}
+              aria-hidden="true"
+            >
+              <path d="M2 8a6 6 0 1 0 6-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              <path d="M2 4v4h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <p className="text-[11px]" style={{ color: "#9c8654" }}>
+              Your patterns are flowing to{" "}
+              {loopStatus.lastExportedTo
+                .map((t) => t.charAt(0).toUpperCase() + t.slice(1))
+                .join(" and ")}
+            </p>
+          </div>
+        )}
+
+        {/* Liminal data note — shown when there are Liminal sessions today */}
+        {loopStatus && loopStatus.liminalSessionsToday > 0 && (
+          <p className="text-[10px] text-center font-mono" style={{ color: "#9c8654" }}>
+            Includes data from {loopStatus.liminalSessionsToday} Liminal session{loopStatus.liminalSessionsToday === 1 ? "" : "s"} today
+          </p>
+        )}
       </div>
     </div>
   );

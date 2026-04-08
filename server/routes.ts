@@ -4034,5 +4034,35 @@ Return ONLY valid JSON:
     }
   });
 
+  // GET /api/loop-status — authenticated user: loop activity summary
+  app.get("/api/loop-status", async (req, res) => {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Not authenticated" });
+
+    try {
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const liminalSessions = storage.getLiminalSessions(userId, 50);
+      const liminalToday = liminalSessions.filter((s: any) => s.created_at >= oneDayAgo);
+
+      const lumenApiConfigured = !!(process.env.LUMEN_API_URL);
+      // "patternsExported" is true when LUMEN_API_URL is set and there are any liminal sessions ever
+      const patternsExported = lumenApiConfigured && liminalSessions.length > 0;
+      // Downstream tools — infer from env vars if set
+      const lastExportedTo: string[] = [];
+      if (patternsExported) {
+        if (process.env.PRAXIS_URL || lumenApiConfigured) lastExportedTo.push("praxis");
+        if (process.env.AXIOM_URL || lumenApiConfigured) lastExportedTo.push("axiom");
+      }
+
+      return res.json({
+        liminalSessionsToday: liminalToday.length,
+        patternsExported,
+        lastExportedTo,
+      });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
   return httpServer;
 }

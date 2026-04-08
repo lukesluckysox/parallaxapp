@@ -4,6 +4,33 @@ import { ChevronDown, Clock } from "lucide-react";
 import { ARCHETYPE_MAP } from "@shared/archetypes";
 import type { Checkin } from "@shared/schema";
 
+const LIMINAL_TOOL_NAMES: Record<string, string> = {
+  "fool": "The Fool",
+  "genealogist": "The Genealogist",
+  "interlocutor": "The Interlocutor",
+  "interpreter": "The Interpreter",
+  "stoics-ledger": "The Stoic's Ledger",
+  "small-council": "Small Council",
+};
+
+function parseLiminalSlug(feelingText: string | null): string | null {
+  if (!feelingText) return null;
+  const match = feelingText.match(/^\[Liminal:\s*([^\]]+)\]/);
+  return match ? match[1].trim() : null;
+}
+
+function LiminalBadge({ slug }: { slug: string }) {
+  const toolName = LIMINAL_TOOL_NAMES[slug] || slug;
+  return (
+    <span
+      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium"
+      style={{ background: "#9c865422", color: "#9c8654", border: "1px solid #9c865440" }}
+    >
+      <span style={{ opacity: 0.7 }}>◈</span> From Liminal · {toolName}
+    </span>
+  );
+}
+
 export default function HistorySection() {
   const [open, setOpen] = useState(false);
 
@@ -60,9 +87,20 @@ export default function HistorySection() {
                       </div>
                       <span className="text-muted-foreground">{dateStr} {timeStr}</span>
                     </div>
-                    {c.feeling_text && (
-                      <p className="text-muted-foreground line-clamp-2">{c.feeling_text}</p>
-                    )}
+                    {c.feeling_text && (() => {
+                      const slug = parseLiminalSlug(c.feeling_text);
+                      const displayText = slug
+                        ? c.feeling_text.replace(/^\[Liminal:\s*[^\]]+\]\s*/, "")
+                        : c.feeling_text;
+                      return (
+                        <>
+                          {slug && <LiminalBadge slug={slug} />}
+                          {displayText && (
+                            <p className="text-muted-foreground line-clamp-2">{displayText}</p>
+                          )}
+                        </>
+                      );
+                    })()}
                     {c.llm_narrative && (
                       <p className="text-muted-foreground/70 italic line-clamp-1">{c.llm_narrative}</p>
                     )}

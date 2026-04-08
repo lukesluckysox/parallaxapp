@@ -13,6 +13,35 @@ import SignalStrength from "@/components/SignalStrength";
 import { ARCHETYPE_MAP, DIMENSIONS } from "@shared/archetypes";
 import type { Writing } from "@shared/schema";
 
+// ── Liminal Provenance ─────────────────────────────────
+const LIMINAL_TOOL_NAMES_WRITING: Record<string, string> = {
+  "fool": "The Fool",
+  "genealogist": "The Genealogist",
+  "interlocutor": "The Interlocutor",
+  "interpreter": "The Interpreter",
+  "stoics-ledger": "The Stoic's Ledger",
+  "small-council": "Small Council",
+};
+
+function getLiminalSlugFromWriting(w: Writing): string | null {
+  // Title format: "Liminal Session — {toolSlug} ({sessionId})"
+  if (!w.title) return null;
+  const match = w.title.match(/^Liminal Session \u2014 ([^\s(]+)/);
+  return match ? match[1].trim() : null;
+}
+
+function WritingLiminalBadge({ slug }: { slug: string }) {
+  const toolName = LIMINAL_TOOL_NAMES_WRITING[slug] || slug;
+  return (
+    <span
+      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium"
+      style={{ background: "#9c865422", color: "#9c8654", border: "1px solid #9c865440" }}
+    >
+      <span style={{ opacity: 0.7 }}>◈</span> From Liminal · {toolName}
+    </span>
+  );
+}
+
 const DIMENSION_LABELS: Record<string, string> = {
   focus: "Focus",
   calm: "Calm",
@@ -931,6 +960,7 @@ export default function WritingPage() {
                 const dateStr = ts.toLocaleDateString("en-US", { month: "short", day: "numeric" });
                 const archKey = analysis?.archetype_lean;
                 const arch = archKey ? ARCHETYPE_MAP[archKey] : null;
+                const liminalSlug = getLiminalSlugFromWriting(w);
 
                 return (
                   <div
@@ -942,7 +972,7 @@ export default function WritingPage() {
                       className="w-full flex items-center justify-between px-3 py-2.5 text-left hover:bg-accent/50 transition-colors"
                       onClick={() => setExpandedId(isExpanded ? null : w.id)}
                     >
-                      <div className="flex items-center gap-2 min-w-0">
+                      <div className="flex items-center gap-2 min-w-0 flex-wrap">
                         {arch && <span className="text-sm font-display" style={{ color: arch.color }}>{arch.emoji}</span>}
                         <span className="text-sm font-medium truncate">
                           {w.title || "Untitled"}
@@ -952,6 +982,7 @@ export default function WritingPage() {
                             {arch.name}
                           </span>
                         )}
+                        {liminalSlug && <WritingLiminalBadge slug={liminalSlug} />}
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
                         <span className="text-xs text-muted-foreground">{dateStr}</span>

@@ -12,6 +12,34 @@ import ProGate, { useIsPro } from "@/components/ProGate";
 import { Link } from "wouter";
 import type { Writing, Checkin } from "@shared/schema";
 
+// ── Liminal Provenance Helpers ──────────────────────────────
+const LIMINAL_TOOL_NAMES: Record<string, string> = {
+  "fool": "The Fool",
+  "genealogist": "The Genealogist",
+  "interlocutor": "The Interlocutor",
+  "interpreter": "The Interpreter",
+  "stoics-ledger": "The Stoic's Ledger",
+  "small-council": "Small Council",
+};
+
+function parseLiminalSlug(feelingText: string | null | undefined): string | null {
+  if (!feelingText) return null;
+  const match = feelingText.match(/^\[Liminal:\s*([^\]]+)\]/);
+  return match ? match[1].trim() : null;
+}
+
+function LiminalBadge({ slug }: { slug: string }) {
+  const toolName = LIMINAL_TOOL_NAMES[slug] || slug;
+  return (
+    <span
+      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium"
+      style={{ background: "#9c865422", color: "#9c8654", border: "1px solid #9c865440" }}
+    >
+      <span style={{ opacity: 0.7 }}>◈</span> From Liminal · {toolName}
+    </span>
+  );
+}
+
 // ── Parallax Mirror (one-liner under username) ───────────────
 function ParallaxMirror() {
   const { data } = useQuery<{ line: string | null }>({
@@ -280,11 +308,22 @@ function ReflectionHistory() {
                     </button>
                   </div>
                 </div>
-                {c.feeling_text && (
-                  <p className="text-[11px] text-muted-foreground/60 leading-relaxed mb-1.5 italic">
-                    "{c.feeling_text}"
-                  </p>
-                )}
+                {c.feeling_text && (() => {
+                  const slug = parseLiminalSlug(c.feeling_text);
+                  const displayText = slug
+                    ? c.feeling_text.replace(/^\[Liminal:\s*[^\]]+\]\s*/, "")
+                    : c.feeling_text;
+                  return (
+                    <>
+                      {slug && <div className="mb-1"><LiminalBadge slug={slug} /></div>}
+                      {displayText && (
+                        <p className="text-[11px] text-muted-foreground/60 leading-relaxed mb-1.5 italic">
+                          "{displayText}"
+                        </p>
+                      )}
+                    </>
+                  );
+                })()}
                 {c.llm_narrative && (
                   <p className="text-[11px] text-muted-foreground/50 leading-relaxed">
                     {c.llm_narrative}
@@ -360,9 +399,63 @@ function StreakCounter() {
   );
 }
 
+// ── Loop Onboarding Card ─────────────────────────────────────
+function LiminalLoopOnboarding({ checkins }: { checkins: Checkin[] }) {
+  const [visible, setVisible] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return !localStorage.getItem("parallax_loop_onboarding_shown");
+  });
+
+  const hasLiminalCheckin = checkins.some((c) =>
+    c.feeling_text?.startsWith("[Liminal:")
+  );
+
+  if (!visible || !hasLiminalCheckin) return null;
+
+  function dismiss() {
+    localStorage.setItem("parallax_loop_onboarding_shown", "1");
+    setVisible(false);
+  }
+
+  return (
+    <div
+      className="rounded-[10px] border border-border/40 bg-card/30 overflow-hidden"
+      style={{ borderLeft: "2px solid #9c8654" }}
+      data-testid="card-loop-onboarding"
+    >
+      <div className="p-4 space-y-2">
+        <div className="flex items-start justify-between gap-3">
+          <p
+            className="text-xs font-medium"
+            style={{ color: "#9c8654" }}
+          >
+            Your Liminal session is here.
+          </p>
+          <button
+            onClick={dismiss}
+            aria-label="Dismiss"
+            className="text-muted-foreground/30 hover:text-muted-foreground/60 transition-colors flex-shrink-0 text-xs leading-none mt-0.5"
+          >
+            ✕
+          </button>
+        </div>
+        <p className="text-[11px] text-muted-foreground/60 leading-relaxed">
+          When you use Liminal&rsquo;s thinking tools, the patterns in your responses flow to Parallax
+          automatically. Over time, this builds a richer picture of how you think.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Dashboard ────────────────────────────────────────────
 export default function CharacterApp() {
   const { toast } = useToast();
+
+  // Check-ins (shared query, also used by ReflectionHistory via cache)
+  const { data: allCheckins = [] } = useQuery<Checkin[]>({
+    queryKey: ["/api/checkins"],
+  });
 
   // State for dimension vectors — initialized from latest check-in below
   const [selfVec, setSelfVec] = useState<DimensionVec>(defaultVec());
@@ -465,6 +558,21 @@ export default function CharacterApp() {
         const res = await apiRequest("GET", "/api/checkins");
         const checkins = await res.json();
         if (Array.isArray(checkins) && checkins.length > 0) {
+          // ── Liminal loop toast (once per session) ──
+          const toastKey = "parallax_liminal_toast_shown";
+          if (!sessionStorage.getItem(toastKey)) {
+            const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+            const liminalToday = checkins.filter((c: any) =>
+              c.feeling_text?.startsWith("[Liminal:") && c.timestamp >= oneDayAgo
+            );
+            if (liminalToday.length > 0) {
+              sessionStorage.setItem(toastKey, "1");
+              toast({
+                title: "Liminal → Parallax",
+                description: `Liminal sent ${liminalToday.length} session${liminalToday.length === 1 ? "" : "s"} to your timeline today.`,
+              });
+            }
+          }
           // "You Say" = most recent check-in only (micro)
           const latest = checkins[checkins.length - 1];
           if (latest.self_vec) {
@@ -595,6 +703,9 @@ export default function CharacterApp() {
             <p className="text-[10px] text-muted-foreground/40 font-mono mt-0.5">how are you feeling right now?</p>
           </div>
         </header>
+
+        {/* Loop onboarding — shown once when the first Liminal-sourced check-in appears */}
+        <LiminalLoopOnboarding checkins={allCheckins} />
 
         {/* Streak Counter */}
         <StreakCounter />
