@@ -9,6 +9,7 @@ import {
   type IdentityMode, type InsertIdentityMode, identityModes,
   type IdentityEcho, type InsertIdentityEcho, identityEchoes,
   type SpotifyWhitelist, type InsertSpotifyWhitelist, spotifyWhitelistQueue,
+  type LiminalSession, type InsertLiminalSession, liminalSessions,
 } from "@shared/schema";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import Database from "better-sqlite3";
@@ -199,6 +200,19 @@ export class DatabaseStorage implements IStorage {
         exploration_channels TEXT,
         started_at TEXT NOT NULL,
         ended_at TEXT
+      );
+      CREATE TABLE IF NOT EXISTS liminal_sessions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        liminal_session_id TEXT NOT NULL,
+        tool_slug TEXT NOT NULL,
+        input_text TEXT,
+        structured_output TEXT,
+        summary TEXT,
+        dimension_nudges TEXT,
+        checkin_id INTEGER,
+        writing_id INTEGER,
+        created_at TEXT NOT NULL
       );
     `);
 
@@ -675,6 +689,24 @@ export class DatabaseStorage implements IStorage {
     ).get(userId) as any | null;
   }
 
+  // ---- Liminal Sessions ----
+  createLiminalSession(data: InsertLiminalSession): LiminalSession {
+    return db.insert(liminalSessions).values(data).returning().get();
+  }
+
+  getLiminalSessions(userId: number, limit: number = 50): LiminalSession[] {
+    return db.select().from(liminalSessions)
+      .where(eq(liminalSessions.user_id, userId))
+      .orderBy(desc(liminalSessions.created_at))
+      .limit(limit)
+      .all();
+  }
+
+  updateLiminalSessionIds(id: number, checkinId: number, writingId: number): void {
+    sqlite.prepare("UPDATE liminal_sessions SET checkin_id = ?, writing_id = ? WHERE id = ?")
+      .run(checkinId, writingId, id);
+  }
+
   // ---- Account Deletion ----
   deleteUserAndData(userId: number): void {
     sqlite.exec(`DELETE FROM checkins WHERE user_id = ${userId}`);
@@ -686,6 +718,7 @@ export class DatabaseStorage implements IStorage {
     sqlite.exec(`DELETE FROM identity_modes WHERE user_id = ${userId}`);
     sqlite.exec(`DELETE FROM identity_echoes WHERE user_id = ${userId}`);
     sqlite.exec(`DELETE FROM variant_history WHERE user_id = ${userId}`);
+    sqlite.exec(`DELETE FROM liminal_sessions WHERE user_id = ${userId}`);
     sqlite.exec(`DELETE FROM users WHERE id = ${userId}`);
   }
 }

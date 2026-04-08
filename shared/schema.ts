@@ -53,9 +53,26 @@ export const writings = sqliteTable("writings", {
   status: text("status"), // "pending", "processing", "complete", "failed"
 });
 
+export const liminalSessions = sqliteTable("liminal_sessions", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  user_id: integer("user_id"),
+  liminal_session_id: text("liminal_session_id").notNull(),
+  tool_slug: text("tool_slug").notNull(),
+  input_text: text("input_text"),
+  structured_output: text("structured_output"), // JSON string
+  summary: text("summary"),
+  dimension_nudges: text("dimension_nudges"), // JSON: {focus, calm, agency, vitality, social, creativity, exploration, drive}
+  checkin_id: integer("checkin_id"), // FK to the synthetic check-in created
+  writing_id: integer("writing_id"), // FK to the writing record created
+  created_at: text("created_at").notNull(),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
 export const insertCheckinSchema = createInsertSchema(checkins).omit({ id: true });
 export const insertDecisionSchema = createInsertSchema(decisions).omit({ id: true });
+export const insertLiminalSessionSchema = createInsertSchema(liminalSessions).omit({ id: true });
+export type InsertLiminalSession = z.infer<typeof insertLiminalSessionSchema>;
+export type LiminalSession = typeof liminalSessions.$inferSelect;
 export const spotifyListens = sqliteTable("spotify_listens", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   user_id: integer("user_id"),

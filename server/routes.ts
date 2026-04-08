@@ -11,6 +11,7 @@ import { randomUUID } from "crypto";
 import type { InsertIdentityMode } from "@shared/schema";
 import { emitLumenEvent, classifyParallaxRecord } from "./lumenEmitter";
 import { decisions as decisionsTable, checkins as checkinsTable, users as usersTable } from "@shared/schema";
+import { computeMixture, topArchetype } from "@shared/archetype-math";
 import { eq, and } from "drizzle-orm";
 
 const JWT_SECRET = process.env.JWT_SECRET || "parallax-dev-secret-change-in-production";
@@ -3669,6 +3670,366 @@ Return ONLY valid JSON:
 
       return res.json({ message: "Backfill complete", sent: totalSent, users: userEntries.length });
     } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  // POST /api/internal/from-liminal — ingest a completed Liminal session as a synthetic Parallax check-in
+  app.post("/api/internal/from-liminal", async (req, res) => {
+    if (!requireInternalToken(req, res)) return;
+
+    try {
+      const { lumenUserId, sessionId, toolSlug, inputText, structuredOutput, summary, createdAt } = req.body;
+
+      if (!lumenUserId || !sessionId || !toolSlug) {
+        return res.status(400).json({ error: "lumenUserId, sessionId, and toolSlug are required" });
+      }
+
+      // Find local Parallax user by lumen_user_id
+      const allUsers = storage.getAllUsers();
+      const user = allUsers.find((u: any) => u.lumen_user_id === lumenUserId);
+      if (!user) {
+        return res.status(404).json({ error: `No Parallax user found for lumenUserId: ${lumenUserId}` });
+      }
+      const userId: number = user.id;
+
+      // ---- Compute dimension nudges ----
+      // Scale factor: longer + richer text = stronger signal, capped at 1.0
+      const textLength = (inputText || "").length;
+      // Richness: count non-empty keys in structuredOutput
+      const outputKeys = structuredOutput ? Object.keys(structuredOutput).length : 0;
+      // Scale: 500 chars = 0.5, 2000+ chars = 1.0; outputKeys boosts up to 0.2
+      const lengthScale = Math.min(1.0, textLength / 2000);
+      const richnessBoost = Math.min(0.2, outputKeys * 0.03);
+      const scale = Math.min(1.0, lengthScale + richnessBoost);
+
+      // Base nudge values per tool (before scaling), max ±30
+      // All base values are at ±20 so they can scale up to ±20 (well within ±30 cap)
+      type NudgeMap = { focus?: number; calm?: number; agency?: number; vitality?: number; social?: number; creativity?: number; exploration?: number; drive?: number };
+      const TOOL_BASE_NUDGES: Record<string, NudgeMap> = {
+        "genealogist":     { agency: 20, exploration: 18, calm: -15 },
+        "small-council":   { social: 20, focus: 16, calm: 18 },
+        "interlocutor":    { focus: 20, drive: 18, calm: -16 },
+        "fool":            { creativity: 20, exploration: 16, agency: -14 },
+        "stoics-ledger":   { calm: 20, agency: 18, creativity: -14 },
+        "interpreter":     { creativity: 20, exploration: 16, calm: 16 },
+      };
+
+      const baseNudges: NudgeMap = TOOL_BASE_NUDGES[toolSlug] || { exploration: 10 };
+
+      // Apply scale and cap at ±30
+      const scaledNudges: NudgeMap = {};
+      for (const [dim, val] of Object.entries(baseNudges) as [keyof NudgeMap, number][]) {
+        const scaled = val * scale;
+        scaledNudges[dim] = Math.max(-30, Math.min(30, Math.round(scaled)));
+      }
+
+      // Build a full 8-dim data_vec starting from neutral (50) and applying nudges
+      const baseVec = { focus: 50, calm: 50, agency: 50, vitality: 50, social: 50, creativity: 50, exploration: 50, drive: 50 };
+      const dataVec = { ...baseVec };
+      for (const [dim, nudge] of Object.entries(scaledNudges) as [keyof typeof baseVec, number][]) {
+        dataVec[dim] = Math.max(0, Math.min(100, baseVec[dim] + nudge));
+      }
+
+      // Compute data_archetype from the data_vec using archetype math
+      const mixture = computeMixture(dataVec);
+      const dominantEntry = Object.entries(mixture).sort((a, b) => b[1] - a[1])[0];
+      const dataArchetype = dominantEntry ? dominantEntry[0] : "seeker";
+
+      // The self_vec is also neutral (this is a synthetic/external-signal check-in, no self-report)
+      const selfVec = { ...baseVec };
+      const selfArchetype = dataArchetype; // fallback — same as data
+
+      const timestamp = createdAt || new Date().toISOString();
+
+      // ---- Create the synthetic check-in ----
+      const checkin = storage.createCheckin({
+        user_id: userId,
+        timestamp,
+        self_vec: JSON.stringify(selfVec),
+        data_vec: JSON.stringify(dataVec),
+        self_archetype: selfArchetype,
+        data_archetype: dataArchetype,
+        feeling_text: summary ? `[Liminal: ${toolSlug}] ${summary}` : `[Liminal session: ${toolSlug}]`,
+        spotify_summary: null,
+        fitness_summary: `liminal:${toolSlug}`,
+        llm_narrative: summary || null,
+      });
+
+      // ---- Create the writing record ----
+      const writing = storage.createWriting({
+        user_id: userId,
+        timestamp,
+        title: `Liminal Session — ${toolSlug} (${sessionId})`,
+        content: inputText || "",
+        date_written: timestamp.substring(0, 10),
+        analysis: structuredOutput ? JSON.stringify(structuredOutput) : null,
+        nudges: JSON.stringify(scaledNudges),
+        status: "complete",
+      });
+
+      // ---- Store the liminal session record ----
+      const liminalRecord = storage.createLiminalSession({
+        user_id: userId,
+        liminal_session_id: sessionId,
+        tool_slug: toolSlug,
+        input_text: inputText || null,
+        structured_output: structuredOutput ? JSON.stringify(structuredOutput) : null,
+        summary: summary || null,
+        dimension_nudges: JSON.stringify(scaledNudges),
+        checkin_id: checkin.id,
+        writing_id: writing.id,
+        created_at: timestamp,
+      });
+
+      // ---- Emit Lumen events (fire-and-forget) ----
+      emitForRecord(userId, checkin.id, {
+        label: `liminal-${toolSlug}`,
+        timestamp,
+        frequency: 2, // Liminal sessions always represent deliberate engagement (2+ implies recurrence signal)
+        contextCount: outputKeys,
+        ...(scaledNudges as any),
+      });
+      emitForRecord(userId, writing.id, {
+        title: `Liminal: ${toolSlug}`,
+        content: inputText || "",
+        timestamp,
+      });
+
+      // Clear relevant caches for this user
+      storage.clearUserCache(userId, "discover");
+      storage.clearUserCache(userId, "profile");
+      storage.clearUserCache(userId, "mythology");
+      storage.clearUserCache(userId, "forecast");
+
+      return res.json({ success: true, checkinId: checkin.id, writingId: writing.id, liminalSessionId: liminalRecord.id });
+    } catch (err: any) {
+      console.error("[from-liminal] Error:", err);
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  // GET /api/internal/patterns-for-lumen — export detected patterns for Praxis/Axiom
+  app.get("/api/internal/patterns-for-lumen", async (req, res) => {
+    if (!requireInternalToken(req, res)) return;
+
+    try {
+      const lumenUserId = req.query.lumenUserId as string;
+      if (!lumenUserId) {
+        return res.status(400).json({ error: "lumenUserId query param required" });
+      }
+
+      // Find local user
+      const allUsers = storage.getAllUsers();
+      const user = allUsers.find((u: any) => u.lumen_user_id === lumenUserId);
+      if (!user) {
+        return res.status(404).json({ error: `No Parallax user found for lumenUserId: ${lumenUserId}` });
+      }
+      const userId: number = user.id;
+
+      // ---- Current vector: latest self_vec ----
+      const recentCheckins = storage.getCheckins(userId);
+      const latestCheckin = recentCheckins[0]; // already ordered desc
+      let currentVector: Record<string, number> | null = null;
+      if (latestCheckin?.self_vec) {
+        try { currentVector = JSON.parse(latestCheckin.self_vec); } catch {}
+      }
+
+      // ---- Dominant archetype ----
+      let dominantArchetype = "unknown";
+      if (currentVector) {
+        const arch = topArchetype(currentVector as any);
+        if (arch.length > 0) dominantArchetype = arch[0].key;
+      }
+
+      // ---- Identity modes ----
+      const identityModes = storage.getIdentityModes(userId);
+
+      // ---- Recent insights (last 10 cached) ----
+      let recentInsights: any[] = [];
+      const discoverCache = storage.getCachedResponse(userId, "discover", 60 * 24); // last 24h
+      if (discoverCache) {
+        try {
+          const parsed = JSON.parse(discoverCache);
+          recentInsights = (parsed.insights || []).slice(0, 10);
+        } catch {}
+      }
+
+      // ---- Archetype trajectory: last 30 days of archetype shifts ----
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      const allCheckins = recentCheckins.filter((c: any) => c.timestamp >= thirtyDaysAgo);
+      const archetypeTrajectory = allCheckins.map((c: any) => ({
+        timestamp: c.timestamp,
+        archetype: c.self_archetype,
+        data_archetype: c.data_archetype || null,
+      })).reverse(); // chronological order
+
+      // ---- Pattern signals: analyze check-in history ----
+      const patternSignals: Array<{
+        type: string;
+        description: string;
+        confidence: number;
+        firstSeen: string;
+        lastSeen: string;
+      }> = [];
+
+      if (allCheckins.length >= 3) {
+        // 1. Dimension trend signals: 3+ consecutive same-direction shifts
+        const dims = ["focus", "calm", "agency", "vitality", "social", "creativity", "exploration", "drive"] as const;
+        // Parse vectors in chronological order
+        const chronCheckins = [...allCheckins].reverse();
+        const parsedVecs: Array<{ ts: string; vec: Record<string, number> }> = [];
+        for (const c of chronCheckins) {
+          try {
+            const v = JSON.parse(c.self_vec);
+            parsedVecs.push({ ts: c.timestamp, vec: v });
+          } catch {}
+        }
+
+        for (const dim of dims) {
+          let streakDir = 0; // +1 or -1
+          let streakLen = 0;
+          let streakStart = 0;
+          let maxStreak = 0;
+          let maxStreakStart = 0;
+          let maxStreakEnd = 0;
+
+          for (let i = 1; i < parsedVecs.length; i++) {
+            const prev = parsedVecs[i - 1].vec[dim] ?? 50;
+            const curr = parsedVecs[i].vec[dim] ?? 50;
+            const diff = curr - prev;
+            const dir = diff > 1 ? 1 : diff < -1 ? -1 : 0;
+
+            if (dir !== 0 && dir === streakDir) {
+              streakLen++;
+            } else if (dir !== 0) {
+              streakDir = dir;
+              streakLen = 1;
+              streakStart = i;
+            } else {
+              streakLen = 0;
+            }
+
+            if (streakLen >= maxStreak) {
+              maxStreak = streakLen;
+              maxStreakStart = streakStart;
+              maxStreakEnd = i;
+            }
+          }
+
+          if (maxStreak >= 2) { // 3 consecutive data points = 2 consecutive shifts
+            const direction = parsedVecs[maxStreakStart]?.vec[dim] > (parsedVecs[maxStreakStart > 0 ? maxStreakStart - 1 : 0]?.vec[dim] ?? 50) ? "rising" : "declining";
+            const confidence = Math.min(0.9, 0.4 + maxStreak * 0.1);
+            patternSignals.push({
+              type: "dimension_trend",
+              description: `${dim} consistently ${direction} over ${maxStreak + 1} check-ins`,
+              confidence,
+              firstSeen: parsedVecs[maxStreakStart > 0 ? maxStreakStart - 1 : 0]?.ts || allCheckins[0].timestamp,
+              lastSeen: parsedVecs[maxStreakEnd]?.ts || allCheckins[allCheckins.length - 1].timestamp,
+            });
+          }
+        }
+
+        // 2. Archetype oscillation: switching between 2+ archetypes
+        const archetypeSeq = chronCheckins.map((c: any) => c.self_archetype).filter(Boolean);
+        if (archetypeSeq.length >= 4) {
+          const uniqueArchs = new Set(archetypeSeq);
+          if (uniqueArchs.size >= 2) {
+            // Count transitions
+            let transitions = 0;
+            for (let i = 1; i < archetypeSeq.length; i++) {
+              if (archetypeSeq[i] !== archetypeSeq[i - 1]) transitions++;
+            }
+            const transitionRate = transitions / (archetypeSeq.length - 1);
+            if (transitionRate >= 0.4) {
+              const archList = Array.from(uniqueArchs).join(", ");
+              patternSignals.push({
+                type: "archetype_oscillation",
+                description: `Oscillating between ${uniqueArchs.size} archetypes (${archList}) — transition rate ${Math.round(transitionRate * 100)}%`,
+                confidence: Math.min(0.85, 0.3 + transitionRate * 0.7),
+                firstSeen: chronCheckins[0].timestamp,
+                lastSeen: chronCheckins[chronCheckins.length - 1].timestamp,
+              });
+            }
+          }
+        }
+
+        // 3. Time-of-day correlations: group by morning/afternoon/evening/night
+        const timeGroups: Record<string, { vecs: Record<string, number>[]; archetypes: string[] }> = {
+          morning:   { vecs: [], archetypes: [] }, // 05-11
+          afternoon: { vecs: [], archetypes: [] }, // 11-17
+          evening:   { vecs: [], archetypes: [] }, // 17-22
+          night:     { vecs: [], archetypes: [] }, // 22-05
+        };
+        for (const { ts, vec } of parsedVecs) {
+          const hour = new Date(ts).getUTCHours();
+          const slot = hour >= 5 && hour < 11 ? "morning"
+            : hour >= 11 && hour < 17 ? "afternoon"
+            : hour >= 17 && hour < 22 ? "evening"
+            : "night";
+          timeGroups[slot].vecs.push(vec);
+          const matchC = chronCheckins.find((c: any) => c.timestamp === ts);
+          if (matchC?.self_archetype) timeGroups[slot].archetypes.push(matchC.self_archetype);
+        }
+
+        for (const [slot, { vecs, archetypes }] of Object.entries(timeGroups)) {
+          if (vecs.length < 2) continue;
+          // Find dominant dim in this slot vs overall
+          const slotAvg: Record<string, number> = {};
+          for (const dim of dims) {
+            slotAvg[dim] = vecs.reduce((s, v) => s + (v[dim] ?? 50), 0) / vecs.length;
+          }
+          // Find the dim with the highest deviation from 50
+          const [topDim, topVal] = Object.entries(slotAvg).sort((a, b) => Math.abs(b[1] - 50) - Math.abs(a[1] - 50))[0];
+          const deviation = topVal - 50;
+          if (Math.abs(deviation) >= 8) {
+            const dir = deviation > 0 ? "elevated" : "suppressed";
+            // Find dominant archetype for this slot
+            const archCounts: Record<string, number> = {};
+            for (const a of archetypes) archCounts[a] = (archCounts[a] || 0) + 1;
+            const dominantSlotArch = Object.entries(archCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "";
+            patternSignals.push({
+              type: "time_of_day_correlation",
+              description: `${slot} check-ins show ${dir} ${topDim} (avg ${Math.round(topVal)})${dominantSlotArch ? `, often as ${dominantSlotArch}` : ""}`,
+              confidence: Math.min(0.8, 0.3 + vecs.length * 0.08),
+              firstSeen: chronCheckins.find((c: any) => {
+                const h = new Date(c.timestamp).getUTCHours();
+                return slot === "morning" ? (h >= 5 && h < 11)
+                  : slot === "afternoon" ? (h >= 11 && h < 17)
+                  : slot === "evening" ? (h >= 17 && h < 22)
+                  : (h >= 22 || h < 5);
+              })?.timestamp || chronCheckins[0].timestamp,
+              lastSeen: [...chronCheckins].reverse().find((c: any) => {
+                const h = new Date(c.timestamp).getUTCHours();
+                return slot === "morning" ? (h >= 5 && h < 11)
+                  : slot === "afternoon" ? (h >= 11 && h < 17)
+                  : slot === "evening" ? (h >= 17 && h < 22)
+                  : (h >= 22 || h < 5);
+              })?.timestamp || chronCheckins[chronCheckins.length - 1].timestamp,
+            });
+          }
+        }
+      }
+
+      return res.json({
+        currentVector,
+        dominantArchetype,
+        identityModes: identityModes.map((m: any) => ({
+          id: m.id,
+          mode_name: m.mode_name,
+          dominant_archetype: m.dominant_archetype,
+          centroid_vec: m.centroid_vec ? JSON.parse(m.centroid_vec) : null,
+          archetype_distribution: m.archetype_distribution ? JSON.parse(m.archetype_distribution) : null,
+          occurrence_count: m.occurrence_count,
+          first_seen: m.first_seen,
+          last_seen: m.last_seen,
+        })),
+        recentInsights,
+        patternSignals,
+        archetypeTrajectory,
+      });
+    } catch (err: any) {
+      console.error("[patterns-for-lumen] Error:", err);
       return res.status(500).json({ error: err.message });
     }
   });
