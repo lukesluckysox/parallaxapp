@@ -86,14 +86,14 @@ export default function TopBar() {
               <span className="text-muted-foreground/30">{user.displayName || user.username}</span>
               <a
                 href="#/about"
-                className="text-muted-foreground/20 hover:text-foreground transition-colors"
+                className="text-muted-foreground/20 hover:text-foreground transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
                 aria-label="Help & FAQ"
               >
                 <HelpCircle className="w-3 h-3" />
               </a>
               <button
                 onClick={logout}
-                className="text-muted-foreground/20 hover:text-foreground transition-colors"
+                className="text-muted-foreground/20 hover:text-foreground transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
                 aria-label="Sign out"
               >
                 <LogOut className="w-3 h-3" />

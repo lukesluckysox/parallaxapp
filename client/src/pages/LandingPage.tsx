@@ -59,10 +59,10 @@ export default function LandingPage({ onShowAuth }: { onShowAuth: () => void }) 
     <div className="min-h-screen bg-[#0a0c10] text-white overflow-y-auto scroll-smooth">
 
       {/* ── Hero ──────────────────────────────────────────────── */}
-      <section className="min-h-screen flex flex-col items-center justify-center px-6 text-center relative">
+      <section className="min-h-[85dvh] sm:min-h-screen flex flex-col items-center justify-center px-6 text-center relative">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_40%,#5eaaa808_0%,transparent_70%)]" />
 
-        <p className="text-[9px] tracking-[6px] uppercase text-white/15 mb-6 relative z-10">
+        <p className="text-[9px] tracking-[6px] uppercase text-white/35 mb-6 relative z-10">
           Parallax
         </p>
         <h1 className="text-4xl sm:text-5xl font-display font-semibold tracking-tight text-white/85 mb-4 relative z-10 leading-tight">
@@ -74,7 +74,7 @@ export default function LandingPage({ onShowAuth }: { onShowAuth: () => void }) 
 
         <button
           onClick={onShowAuth}
-          className="px-7 py-2.5 rounded-[10px] bg-white/10 text-white/80 text-sm font-medium hover:bg-white/15 transition-colors border border-white/10 relative z-10"
+          className="px-7 py-2.5 min-h-[44px] rounded-[10px] bg-white/10 text-white/80 text-sm font-medium hover:bg-white/15 transition-colors border border-white/10 relative z-10"
         >
           Start free
         </button>
@@ -263,7 +263,7 @@ export default function LandingPage({ onShowAuth }: { onShowAuth: () => void }) 
         </p>
         <button
           onClick={onShowAuth}
-          className="px-7 py-2.5 rounded-[10px] bg-white/10 text-white/80 text-sm font-medium hover:bg-white/15 transition-colors border border-white/10"
+          className="px-7 py-2.5 min-h-[44px] rounded-[10px] bg-white/10 text-white/80 text-sm font-medium hover:bg-white/15 transition-colors border border-white/10"
         >
           Start free
         </button>
@@ -271,7 +271,7 @@ export default function LandingPage({ onShowAuth }: { onShowAuth: () => void }) 
 
       {/* ── Footer ───────────────────────────────────────────── */}
       <footer className="py-8 text-center">
-        <p className="text-[9px] text-white/8 font-mono">parallax — all signals, one view</p>
+        <p className="text-[9px] text-white/20 font-mono">parallax — all signals, one view</p>
       </footer>
     </div>
   );

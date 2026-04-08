@@ -43,7 +43,7 @@ export default function BottomNav() {
               key={href}
               href={href}
               data-testid={`nav-${label.toLowerCase()}`}
-              className={`relative flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition-all ${
+              className={`relative flex flex-col items-center gap-0.5 px-3 py-2.5 rounded-lg transition-all ${
                 isActive
                   ? "text-foreground"
                   : "text-muted-foreground/40 hover:text-muted-foreground"
