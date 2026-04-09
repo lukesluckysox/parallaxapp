@@ -65,7 +65,7 @@ function getUserId(req: Request): number | null {
 }
 
 // Fire-and-forget: emit a base Lumen event for every record, plus enriched signals
-function emitForRecord(userId: number, recordId: number, record: any) {
+function emitForRecord(userId: number, recordId: number, record: any, recordType: string = "record") {
   try {
     const user = storage.getUserById(userId) as any;
     const lumenUserId = user?.lumen_user_id;
@@ -73,13 +73,16 @@ function emitForRecord(userId: number, recordId: number, record: any) {
 
     const now = new Date().toISOString();
     const ts = record.timestamp || now;
-    const description = record.label || record.title || record.description || record.content || "";
+    const description = record.label || record.title || record.description || record.content || record.feeling_text || record.decision_text || record.feeling || record.mood || record.context || "";
     const descSnippet = typeof description === "string" ? description.slice(0, 200) : "";
+
+    // Namespace sourceRecordId by type so checkin#1 and writing#1 don't collide
+    const nsRecordId = `${recordType}:${recordId}`;
 
     // 1. Always emit a base event so every record shows in Lumen's activity feed
     emitLumenEvent({
       userId: lumenUserId,
-      sourceRecordId: String(recordId),
+      sourceRecordId: nsRecordId,
       eventType: "belief_candidate",
       confidence: 0.5,
       salience: 0.5,
@@ -93,7 +96,7 @@ function emitForRecord(userId: number, recordId: number, record: any) {
     for (const signal of signals) {
       emitLumenEvent({
         userId: lumenUserId,
-        sourceRecordId: String(recordId) + ":" + signal.eventType,
+        sourceRecordId: nsRecordId + ":" + signal.eventType,
         eventType: signal.eventType,
         confidence: signal.confidence,
         salience: signal.salience,
@@ -1056,7 +1059,7 @@ Return ONLY valid JSON:
       });
 
       // Lumen epistemic emission (fire-and-forget)
-      if (userId) emitForRecord(userId, writing.id, { title, content, timestamp: writing.timestamp });
+      if (userId) emitForRecord(userId, writing.id, { title, content, timestamp: writing.timestamp }, "writing");
 
       // Return immediately
       res.json({ id: writing.id, status: "pending" });
@@ -1389,7 +1392,7 @@ Return ONLY valid JSON:
       }
 
       // Lumen epistemic emission (fire-and-forget)
-      if (userId) emitForRecord(userId, checkin.id, { ...body, timestamp: checkin.timestamp });
+      if (userId) emitForRecord(userId, checkin.id, { ...body, timestamp: checkin.timestamp }, "checkin");
 
       return res.json(checkin);
     } catch (err: any) {
@@ -1415,7 +1418,7 @@ Return ONLY valid JSON:
       const decision = storage.createDecision({ ...req.body, user_id: userId });
 
       // Lumen epistemic emission (fire-and-forget)
-      if (userId) emitForRecord(userId, decision.id, { ...req.body, timestamp: decision.timestamp });
+      if (userId) emitForRecord(userId, decision.id, { ...req.body, timestamp: decision.timestamp }, "decision");
 
       return res.json(decision);
     } catch (err: any) {
@@ -3848,12 +3851,12 @@ Return ONLY valid JSON:
         frequency: 2, // Liminal sessions always represent deliberate engagement (2+ implies recurrence signal)
         contextCount: outputKeys,
         ...(scaledNudges as any),
-      });
+      }, "liminal-checkin");
       emitForRecord(userId, writing.id, {
         title: `Liminal: ${toolSlug}`,
         content: inputText || "",
         timestamp,
-      });
+      }, "liminal-writing");
 
       // Clear relevant caches for this user
       storage.clearUserCache(userId, "discover");
