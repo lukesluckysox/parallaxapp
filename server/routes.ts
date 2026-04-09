@@ -64,24 +64,43 @@ function getUserId(req: Request): number | null {
   return null;
 }
 
-// Fire-and-forget: classify a record and emit Lumen events
+// Fire-and-forget: emit a base Lumen event for every record, plus enriched signals
 function emitForRecord(userId: number, recordId: number, record: any) {
   try {
     const user = storage.getUserById(userId) as any;
     const lumenUserId = user?.lumen_user_id;
     if (!lumenUserId) return;
+
+    const now = new Date().toISOString();
+    const ts = record.timestamp || now;
+    const description = record.label || record.title || record.description || record.content || "";
+    const descSnippet = typeof description === "string" ? description.slice(0, 200) : "";
+
+    // 1. Always emit a base event so every record shows in Lumen's activity feed
+    emitLumenEvent({
+      userId: lumenUserId,
+      sourceRecordId: String(recordId),
+      eventType: "belief_candidate",
+      confidence: 0.5,
+      salience: 0.5,
+      payload: { description: descSnippet, createdAt: ts, historical: false },
+      ingestionMode: "live",
+      createdAt: now,
+    }).catch(() => {});
+
+    // 2. Emit any enriched signals from classification (pattern, discrepancy, hypothesis)
     const signals = classifyParallaxRecord(record);
     for (const signal of signals) {
       emitLumenEvent({
         userId: lumenUserId,
-        sourceRecordId: String(recordId),
+        sourceRecordId: String(recordId) + ":" + signal.eventType,
         eventType: signal.eventType,
         confidence: signal.confidence,
         salience: signal.salience,
-        payload: { ...signal.payload, createdAt: record.timestamp || new Date().toISOString(), historical: false },
+        payload: { ...signal.payload, createdAt: ts, historical: false },
         ingestionMode: "live",
-        createdAt: new Date().toISOString(),
-      }).catch(() => {}); // swallow
+        createdAt: now,
+      }).catch(() => {});
     }
   } catch {
     // Never throw from emitter
