@@ -79,3 +79,4 @@ export function classifyParallaxRecord(record: any): Array<{ eventType: Emittabl
   // No confidence filter here — Lumen's processEvent applies user sensitivity thresholds
   return results;
 }
+// Railway deploy trigger: 20260409T225638Z
