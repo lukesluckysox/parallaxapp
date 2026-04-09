@@ -91,7 +91,7 @@ export default function TopBar() {
           <span className="tabular-nums text-muted-foreground/50">{timeStr}</span>
           {user && (
             <>
-              <span className="text-muted-foreground/30">{user.displayName || user.username}</span>
+              <a href="#/profile" className="text-muted-foreground/30 hover:text-muted-foreground/60 transition-colors">{user.displayName || user.username}</a>
               <a
                 href="#/about"
                 className="text-muted-foreground/20 hover:text-foreground transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
