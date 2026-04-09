@@ -224,7 +224,15 @@ function ConditionsContent() {
   }
 
   const conditions = data?.conditions || [];
-  if (conditions.length === 0) return null;
+  if (conditions.length === 0) {
+    return (
+      <div className="text-center py-3">
+        <p className="text-[10px] text-muted-foreground/30 font-mono">
+          environmental patterns will surface here as more context is gathered
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-2">
@@ -314,7 +322,15 @@ function RecoveryContent() {
   }
 
   const recovery = data?.recovery;
-  if (!recovery) return null;
+  if (!recovery) {
+    return (
+      <div className="text-center py-3">
+        <p className="text-[10px] text-muted-foreground/30 font-mono">
+          stability analysis is still forming — check back as your patterns develop
+        </p>
+      </div>
+    );
+  }
 
   const trend = TREND_COPY[recovery.trend] || TREND_COPY.stable;
   const stabilityPct = Math.round(recovery.stability * 100);

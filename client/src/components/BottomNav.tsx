@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 
 const NAV_ITEMS = [
   { href: "/", icon: Home, label: "Home" },
-  { href: "/snapshot", icon: Aperture, label: "Snapshot" },
+  { href: "/snapshot", icon: Aperture, label: "Reflection" },
   { href: "/mirrors", icon: Layers, label: "Mirrors" },
   { href: "/signals", icon: Radio, label: "Signals" },
   { href: "/motion", icon: TrendingUp, label: "Motion" },
@@ -24,9 +24,10 @@ export default function BottomNav() {
   return (
     <nav
       data-testid="nav-bottom"
-      className="fixed bottom-0 left-0 right-0 z-50 border-t border-border/50 bg-background/90 backdrop-blur-md"
+      className="fixed bottom-0 left-0 right-0 z-50 border-t border-border/50 bg-background/90 backdrop-blur-md md:hidden"
+      style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
     >
-      <div className="max-w-2xl mx-auto flex items-center justify-around px-2 py-2.5">
+      <div className="max-w-2xl mx-auto flex items-center justify-around px-2 py-1">
         {NAV_ITEMS.map(({ href, icon: Icon, label }) => {
           let isActive: boolean;
           if (href === "/") {
@@ -35,6 +36,8 @@ export default function BottomNav() {
             isActive = location === href || location.startsWith("/mirrors/");
           } else if (href === "/signals") {
             isActive = location === href || location.startsWith("/signals/");
+          } else if (href === "/motion") {
+            isActive = location === href || location.startsWith("/motion/");
           } else {
             isActive = location === href;
           }
@@ -43,14 +46,14 @@ export default function BottomNav() {
               key={href}
               href={href}
               data-testid={`nav-${label.toLowerCase()}`}
-              className={`relative flex flex-col items-center gap-0.5 px-3 py-2.5 rounded-lg transition-all ${
+              className={`relative flex flex-col items-center justify-center gap-0.5 px-3 rounded-lg transition-all min-h-[44px] ${
                 isActive
-                  ? "text-foreground"
+                  ? "text-violet-500"
                   : "text-muted-foreground/40 hover:text-muted-foreground"
               }`}
             >
               <Icon className="w-4.5 h-4.5" strokeWidth={isActive ? 2 : 1.5} />
-              <span className={`text-[8px] font-mono ${isActive ? "text-foreground/70" : "text-muted-foreground/30"}`}>
+              <span className={`text-[10px] font-mono ${isActive ? "text-violet-500/80" : "text-muted-foreground/30"}`}>
                 {label.toLowerCase()}
               </span>
               {label === "Signals" && hasActiveEcho && (

@@ -399,7 +399,7 @@ function AboutParallaxSection() {
           <div>
             <h3 className="text-xs font-semibold mb-2 text-foreground/70">Identity system</h3>
             <div className="space-y-1.5 text-[11px] text-muted-foreground/50 leading-relaxed">
-              <p><strong className="text-foreground/60">Variants:</strong> LLM-derived identity patterns like "The Night Cartographer" — limitless, synthesized from all your data.</p>
+              <p><strong className="text-foreground/60">Variants:</strong> Emergent identity patterns like "The Night Cartographer" — limitless, synthesized from all your data.</p>
               <p><strong className="text-foreground/60">Constellations:</strong> After 15+ check-ins, k-means clustering discovers recurring identity modes you cycle through.</p>
               <p><strong className="text-foreground/60">Echoes:</strong> Detected when current signals match a previous mode at 85%+ similarity. Reveals cyclical patterns.</p>
               <p><strong className="text-foreground/60">Mirror Line:</strong> A single shareable sentence distilled from your writing's most revealing moment.</p>

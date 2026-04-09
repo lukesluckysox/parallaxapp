@@ -331,7 +331,7 @@ function ReflectionHistory() {
                 )}
                 {topDim && (
                   <p className="text-[9px] font-mono text-muted-foreground/30 mt-1">
-                    top signal: {topDim[0]} ({topDim[1]})
+                    strongest dimension: {topDim[0]}
                   </p>
                 )}
               </div>
@@ -698,7 +698,7 @@ export default function CharacterApp() {
           <div className="text-center">
             <div className="flex items-center justify-center gap-2">
               <h1 className="text-xl font-display font-semibold tracking-tight text-foreground">Instant Reflection</h1>
-              <InfoTooltip text="Check in with how you're feeling. The LLM interprets your words into 8 identity dimensions, building your archetype profile over time. Save check-ins to track your patterns." />
+              <InfoTooltip text="Check in with how you're feeling. Your words are interpreted into 8 identity dimensions, building your archetype profile over time. Save check-ins to track your patterns." />
             </div>
             <p className="text-[10px] text-muted-foreground/40 font-mono mt-0.5">how are you feeling right now?</p>
           </div>

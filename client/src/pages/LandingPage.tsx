@@ -126,7 +126,7 @@ export default function LandingPage({ onShowAuth }: { onShowAuth: () => void }) 
               {
                 step: "02",
                 title: "Write something honest",
-                desc: "Submit a journal entry, poem, or raw thought. The system extracts emotions, mirror moments, and psychological patterns.",
+                desc: "Submit a journal entry, poem, or raw thought. Parallax reveals emotions, mirror moments, and psychological patterns within your words.",
               },
               {
                 step: "03",

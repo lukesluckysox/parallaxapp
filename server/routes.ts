@@ -826,7 +826,7 @@ Respond ONLY with valid JSON:
       const responseText = message.content[0].type === "text" ? message.content[0].text : "";
       const jsonMatch = responseText.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
-        return res.status(500).json({ error: "Could not parse LLM response" });
+        return res.status(500).json({ error: "Could not process the response. Please try again." });
       }
 
       const parsed = JSON.parse(jsonMatch[0]);
@@ -885,7 +885,7 @@ Respond ONLY with valid JSON:
       const responseText = message.content[0].type === "text" ? message.content[0].text : "";
       const jsonMatch = responseText.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
-        return res.status(500).json({ error: "Could not parse LLM response" });
+        return res.status(500).json({ error: "Could not process the response. Please try again." });
       }
 
       const parsed = JSON.parse(jsonMatch[0]);
@@ -957,7 +957,7 @@ Return ONLY valid JSON:
       const responseText = message.content[0].type === "text" ? message.content[0].text : "";
       const jsonMatch = responseText.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
-        return res.status(500).json({ error: "Could not parse LLM response" });
+        return res.status(500).json({ error: "Could not process the response. Please try again." });
       }
 
       const parsed = JSON.parse(jsonMatch[0]);
@@ -1018,7 +1018,7 @@ Return ONLY valid JSON:
       }
 
       if (!anthropic) {
-        return res.status(503).json({ error: "LLM service unavailable. Check ANTHROPIC_API_KEY." });
+        return res.status(503).json({ error: "Analysis is temporarily unavailable. Please try again later." });
       }
 
       const userId = getUserId(req);
@@ -1728,7 +1728,7 @@ Return ONLY a JSON array of 4 strings, each starting with "Should I...". Example
     const ctx = gatherUserContext(userId, tz);
     if (!ctx.hasData) return res.json({ variant: null, hasData: false });
 
-    if (!anthropic) return res.json({ variant: null, error: "LLM unavailable" });
+    if (!anthropic) return res.json({ variant: null, error: "Analysis is temporarily unavailable" });
 
     try {
       const message = await anthropic.messages.create({
@@ -2079,7 +2079,7 @@ Return ONLY valid JSON:
     const ctx = gatherUserContext(userId, tz);
     if (!ctx.hasData) return res.json({ insights: [], hasData: false });
 
-    if (!anthropic) return res.json({ insights: [], error: "LLM unavailable" });
+    if (!anthropic) return res.json({ insights: [], error: "Analysis is temporarily unavailable" });
 
     try {
       const message = await anthropic.messages.create({
@@ -2169,7 +2169,7 @@ Return ONLY valid JSON:
     const ctx = gatherUserContext(userId, tz);
     if (!ctx.hasData) return res.json({ forecast: null, hasData: false });
 
-    if (!anthropic) return res.json({ forecast: null, error: "LLM unavailable" });
+    if (!anthropic) return res.json({ forecast: null, error: "Analysis is temporarily unavailable" });
 
     try {
       const message = await anthropic.messages.create({
@@ -3064,7 +3064,7 @@ Return ONLY the single line, no quotes, no explanation.`
       return res.json({ reading: null, empty: true });
     }
 
-    if (!anthropic) return res.json({ reading: null, error: "LLM unavailable" });
+    if (!anthropic) return res.json({ reading: null, error: "Analysis is temporarily unavailable" });
 
     const checkinArchetypes = allCheckins.slice(0, 10).map(c => c.self_archetype).join(", ");
     const latestFeeling = allCheckins[0]?.feeling_text || "";

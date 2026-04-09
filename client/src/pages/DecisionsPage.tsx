@@ -247,11 +247,11 @@ export default function DecisionsPage() {
             data-testid="link-back-home"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            Snapshot
+            Reflection
           </Link>
           <div className="flex items-center gap-1.5">
             <h1 className="text-base font-bold" data-testid="text-page-title">Decision Lab</h1>
-            <InfoTooltip text="Evaluate decisions against your archetype profile. The LLM analyzes how a choice might shift your identity dimensions, and each archetype weighs in with its own verdict." />
+            <InfoTooltip text="Evaluate decisions against your archetype profile. Each choice is analyzed for how it might shift your identity dimensions, and each archetype weighs in with its own verdict." />
           </div>
           <div />
         </header>

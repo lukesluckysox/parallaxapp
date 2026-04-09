@@ -168,6 +168,13 @@
   }
 }
 
+/* Prevent iOS auto-zoom on input focus */
+@media screen and (max-width: 768px) {
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+}
+
 @layer utilities {
   input[type="search"]::-webkit-search-cancel-button {
     @apply hidden;

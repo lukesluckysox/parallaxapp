@@ -101,7 +101,16 @@ function IdentityTimeline() {
     );
   }
 
-  if (events.length === 0) return null;
+  if (events.length === 0) {
+    return (
+      <div className="p-4 rounded-[10px] border border-dashed border-border/30 bg-card/10 text-center">
+        <Clock className="w-4 h-4 text-muted-foreground/30 mx-auto mb-2" />
+        <p className="text-xs text-muted-foreground/40">
+          Your identity timeline will take shape as reflections accumulate over time.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div data-testid="card-identity-timeline">
@@ -163,7 +172,16 @@ function ConstellationSection({ data }: { data: ConstellationData | undefined })
     );
   }
 
-  if (data.modes.length === 0) return null;
+  if (data.modes.length === 0) {
+    return (
+      <div className="p-4 rounded-[10px] border border-dashed border-border/30 bg-card/10 text-center">
+        <Sparkles className="w-4 h-4 text-muted-foreground/30 mx-auto mb-2" />
+        <p className="text-xs text-muted-foreground/40">
+          Your identity constellations will emerge once enough modes are discovered.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div data-testid="card-constellation">
@@ -258,7 +276,16 @@ function ConstellationSection({ data }: { data: ConstellationData | undefined })
 function EchoArchive({ data }: { data: EchoData | undefined }) {
   const [open, setOpen] = useState(false);
 
-  if (!data?.history || data.history.length === 0) return null;
+  if (!data?.history || data.history.length === 0) {
+    return (
+      <div className="p-4 rounded-[10px] border border-dashed border-border/30 bg-card/10 text-center">
+        <Repeat className="w-4 h-4 text-muted-foreground/30 mx-auto mb-2" />
+        <p className="text-xs text-muted-foreground/40">
+          Identity echoes will appear here when your current patterns match previous modes.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div data-testid="card-echo-archive">
@@ -346,6 +373,43 @@ export default function SignalsPatternsPage() {
 
         {/* Identity Echoes archive */}
         <EchoArchive data={echoData} />
+
+        {/* Inter-App Navigation */}
+        <div className="space-y-2 pt-2">
+          <a
+            href="https://praxis-production-da89.up.railway.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-between p-3 rounded-[10px] border border-border/20 bg-card/10 hover:bg-card/20 transition-colors group"
+          >
+            <span className="text-xs text-muted-foreground/50 group-hover:text-muted-foreground/70 transition-colors">
+              Test a pattern with an experiment
+            </span>
+            <ArrowLeft className="w-3.5 h-3.5 text-muted-foreground/30 rotate-180" />
+          </a>
+          <a
+            href="https://liminal-app.up.railway.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-between p-3 rounded-[10px] border border-border/20 bg-card/10 hover:bg-card/20 transition-colors group"
+          >
+            <span className="text-xs text-muted-foreground/50 group-hover:text-muted-foreground/70 transition-colors">
+              Continue reflecting on these patterns
+            </span>
+            <ArrowLeft className="w-3.5 h-3.5 text-muted-foreground/30 rotate-180" />
+          </a>
+          <a
+            href="https://axiomtool-production.up.railway.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-between p-3 rounded-[10px] border border-border/20 bg-card/10 hover:bg-card/20 transition-colors group"
+          >
+            <span className="text-xs text-muted-foreground/50 group-hover:text-muted-foreground/70 transition-colors">
+              Examine this as a principle
+            </span>
+            <ArrowLeft className="w-3.5 h-3.5 text-muted-foreground/30 rotate-180" />
+          </a>
+        </div>
       </div>
     </div>
   );

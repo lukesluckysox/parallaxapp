@@ -137,6 +137,41 @@ export default function DiscoverPage() {
           </Link>
         </div>
 
+        {/* Inter-App Navigation */}
+        <div className="space-y-1.5 pt-1">
+          <p className="text-[9px] font-mono text-muted-foreground/20 uppercase tracking-widest text-center mb-1">Explore further</p>
+          <a
+            href="https://praxis-production-da89.up.railway.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-between p-3 rounded-[10px] border border-border/15 bg-card/5 hover:bg-card/15 transition-colors group"
+          >
+            <span className="text-[11px] text-muted-foreground/40 group-hover:text-muted-foreground/60 transition-colors">
+              Test a pattern with an experiment →
+            </span>
+          </a>
+          <a
+            href="https://liminal-app.up.railway.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-between p-3 rounded-[10px] border border-border/15 bg-card/5 hover:bg-card/15 transition-colors group"
+          >
+            <span className="text-[11px] text-muted-foreground/40 group-hover:text-muted-foreground/60 transition-colors">
+              Continue reflecting →
+            </span>
+          </a>
+          <a
+            href="https://axiomtool-production.up.railway.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-between p-3 rounded-[10px] border border-border/15 bg-card/5 hover:bg-card/15 transition-colors group"
+          >
+            <span className="text-[11px] text-muted-foreground/40 group-hover:text-muted-foreground/60 transition-colors">
+              Examine this as a principle →
+            </span>
+          </a>
+        </div>
+
         {/* Loop status — shown only when patterns are flowing */}
         {loopStatus?.patternsExported && loopStatus.lastExportedTo.length > 0 && (
           <div

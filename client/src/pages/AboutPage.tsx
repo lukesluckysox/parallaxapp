@@ -11,11 +11,11 @@ const ALL_FAQS = [
   },
   {
     q: "Does Parallax sell or share my data?",
-    a: "No. Parallax doesn't sell your data to advertisers or data brokers, and we don't run third-party ad trackers inside the app. The only services that ever see your data are the ones required to operate Parallax, like Anthropic (for AI analysis) and Spotify (if you choose to connect your listening data).",
+    a: "No. Parallax doesn't sell your data to advertisers or data brokers, and we don't run third-party ad trackers inside the app. The only services that ever see your data are the ones required to operate Parallax — the AI analysis engine and Spotify (if you choose to connect your listening data).",
   },
   {
     q: "Is my data used to train AI models?",
-    a: "When Parallax sends your text to Anthropic's Claude API for analysis, it's only to generate your personal insights in that moment. Anthropic's API terms state that customer API data is not used to train their public models. Parallax does not train its own models on your private entries without your explicit consent.",
+    a: "When Parallax analyzes your text, it's only to generate your personal insights in that moment. The AI provider's terms state that customer data is not used to train public models. Parallax does not train its own models on your private entries without your explicit consent.",
   },
   {
     q: "Can I delete everything?",
@@ -116,12 +116,12 @@ export default function AboutPage() {
                   desc: "Your identity dashboard — variant name, 8-dimension radar chart, archetype distribution, active identity echoes, and the Parallax Mirror one-liner. Ambient background shifts based on your dominant archetype. Visual signals fade when data goes stale.",
                 },
                 {
-                  name: "Snapshot (Instant Reflection)",
+                  name: "Reflection (Instant Reflection)",
                   desc: "Quick present-moment check-in. Type how you're feeling, get an AI interpretation mapped to 8 dimensions. Daily Reading combines your narrative arc with today's signal forecast. Dual bars show self-report vs data-driven archetype alignment. Check-in streak counter tracks consistency.",
                 },
                 {
                   name: "Mirrors (Data Collection)",
-                  desc: "Three mirrors feed the system. Sonic Mirror analyzes your Spotify listening — mood clustering radar, temporal patterns, discovery ratio. Inner Mirror analyzes your writing — emotional tone, mirror moments, MBTI, political compass, moral foundations. Body Mirror (coming soon) will add fitness data.",
+                  desc: "Three mirrors feed your identity profile. Sonic Mirror analyzes your Spotify listening — mood clustering radar, temporal patterns, discovery ratio. Inner Mirror analyzes your writing — emotional tone, mirror moments, MBTI, political compass, moral foundations. Body Mirror (coming soon) will add fitness data.",
                 },
                 {
                   name: "Signals (Pattern Detection)",
@@ -133,7 +133,7 @@ export default function AboutPage() {
                 },
                 {
                   name: "Decision Lab",
-                  desc: "Evaluate choices against your archetype profile. Per-archetype verdicts, predicted identity shifts, risk/gain analysis. Accessible from the Snapshot page.",
+                  desc: "Evaluate choices against your archetype profile. Per-archetype verdicts, predicted identity shifts, risk/gain analysis. Accessible from the Reflection page.",
                 },
               ].map((p) => (
                 <div key={p.name} className="p-3 rounded-[10px] bg-card/30 border border-border/30">
@@ -195,7 +195,7 @@ export default function AboutPage() {
               <div className="p-3 rounded-[10px] bg-card/30 border border-border/30">
                 <p className="font-semibold text-foreground text-xs mb-1">Variant Detection</p>
                 <p className="text-[11px] text-muted-foreground/60">
-                  The LLM synthesizes all your data into an emergent identity variant — a unique name
+                  Parallax synthesizes all your data into an emergent identity variant — a unique name
                   like "The Night Cartographer" or "The Quiet Architect." Variants are derived from the
                   5 base archetypes but are limitless. Each includes exploration channels, emergent traits,
                   and a description.
@@ -204,8 +204,8 @@ export default function AboutPage() {
               <div className="p-3 rounded-[10px] bg-card/30 border border-border/30">
                 <p className="font-semibold text-foreground text-xs mb-1">Identity Constellations</p>
                 <p className="text-[11px] text-muted-foreground/60">
-                  After 15+ check-ins over 2+ weeks, the system runs k-means clustering on your dimension
-                  vectors to discover recurring identity modes. Each mode gets an LLM-generated name and
+                  After 15+ check-ins over 2+ weeks, Parallax clusters your dimension
+                  vectors to discover recurring identity modes. Each mode gets an interpretive name and
                   represents a stable behavioral pattern you cycle through.
                 </p>
               </div>
@@ -246,7 +246,7 @@ export default function AboutPage() {
                 <p className="text-[11px] text-muted-foreground/60 mt-1">
                   Submit any writing for tiered analysis. Primary: mirror moment, narrative reading, emotional
                   tone. Secondary: dimension scores, archetype lean, quotes, book recommendations. Deep Layer:
-                  MBTI inference, political compass, moral foundations. Each tier is an independent LLM call —
+                  MBTI inference, political compass, moral foundations. Each tier is an independent analysis pass —
                   select only what you want.
                 </p>
               </div>
@@ -295,10 +295,10 @@ export default function AboutPage() {
           <section>
             <h2 className="text-lg font-display font-semibold mb-4">Daily Reading</h2>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              A single LLM call that combines narrative identity interpretation with practical signal
+              A single interpretive reading that combines narrative identity interpretation with practical signal
               forecasting. Produces an arc name, 2-3 sentence narrative, archetype signal levels
               (rising/elevated/stable/low/dormant), recommended conditions, and personal operating rules.
-              Cached for 30 minutes. Replaces the previous separate mythology and forecast systems.
+              Refreshed every 30 minutes to reflect your latest patterns.
             </p>
           </section>
 
@@ -307,7 +307,7 @@ export default function AboutPage() {
             <h2 className="text-lg font-display font-semibold mb-4">Your data</h2>
             <p className="text-sm text-muted-foreground leading-relaxed">
               All data stays on the server. Nothing is sent to third parties except Spotify (to read your
-              listening history) and Anthropic's Claude (to analyze your writing and generate insights — it
+              listening history) and the AI analysis engine (to interpret your writing and generate insights — it
               doesn't store your data). You can export all your data as JSON or delete your account entirely
               from the home page.
             </p>
@@ -332,7 +332,7 @@ export default function AboutPage() {
                 meaning in the patterns of a person's life."
               </blockquote>
               <blockquote className="border-l-2 border-primary/30 pl-4 italic text-sm text-muted-foreground/60">
-                "Identity is not static. It moves between recurring patterns. The system doesn't label
+                "Identity is not static. It moves between recurring patterns. Parallax doesn't label
                 you with a fixed type — it reveals the modes you cycle through and the conditions that
                 produce them."
               </blockquote>

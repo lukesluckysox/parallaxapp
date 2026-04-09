@@ -1,3 +1,8 @@
+// This component is unused — TopBar.tsx replaced it.
+// Commented out to prevent duplicate weather API calls from useClockAndWeather().
+// Original code preserved below for reference.
+
+/*
 import { useState, useEffect } from "react";
 import { LogOut } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
@@ -20,13 +25,11 @@ function useClockAndWeather() {
   }, []);
 
   useEffect(() => {
-    // Get location and weather
     if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
         async (pos) => {
           const { latitude, longitude } = pos.coords;
           try {
-            // Use Open-Meteo (free, no API key)
             const res = await fetch(
               `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code&temperature_unit=fahrenheit`
             );
@@ -42,7 +45,6 @@ function useClockAndWeather() {
                 location: "",
               });
             }
-            // Reverse geocode for location name
             try {
               const geoRes = await fetch(
                 `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
@@ -57,7 +59,7 @@ function useClockAndWeather() {
           }
         },
         () => {
-          // Geolocation denied — that's fine
+          // Geolocation denied
         },
         { timeout: 5000 }
       );
@@ -116,7 +118,6 @@ export default function Header() {
 
   return (
     <header className="pt-3 pb-2">
-      {/* Weather + Clock bar */}
       <div className="flex items-center justify-between mb-4 text-muted-foreground font-mono text-[11px]">
         <div className="flex items-center gap-2">
           {weather ? (
@@ -140,7 +141,6 @@ export default function Header() {
         </div>
       </div>
 
-      {/* Main header */}
       <div className="text-center mb-1">
         <h1 className="text-3xl font-display font-semibold tracking-tight text-foreground" data-testid="text-title">
           Parallax
@@ -170,4 +170,10 @@ export default function Header() {
       )}
     </header>
   );
+}
+*/
+
+// Export a no-op component so imports don't break
+export default function Header() {
+  return null;
 }

@@ -183,7 +183,15 @@ function TrajectoryPathContent({ checkins }: { checkins: Checkin[] }) {
     );
   }
 
-  if (!data || data.empty) return null;
+  if (!data || data.empty) {
+    return (
+      <div className="p-4 rounded-[10px] border border-dashed border-border/30 bg-card/10 text-center">
+        <p className="text-xs text-muted-foreground/40">
+          Your trajectory path will appear here once enough check-ins reveal a direction.
+        </p>
+      </div>
+    );
+  }
 
   const baseline = data.baseline_archetype ? ARCHETYPE_MAP[data.baseline_archetype] : null;
   const emerging = data.emerging_archetype ? ARCHETYPE_MAP[data.emerging_archetype] : null;
@@ -319,7 +327,15 @@ function BehavioralDriversContent({ checkins }: { checkins: Checkin[] }) {
     }).sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff));
   }, [checkins, window]);
 
-  if (!trends) return null;
+  if (!trends) {
+    return (
+      <div className="p-4 rounded-[10px] border border-dashed border-border/30 bg-card/10 text-center">
+        <p className="text-xs text-muted-foreground/40">
+          Dimension trends will emerge once you have a few check-ins to compare.
+        </p>
+      </div>
+    );
+  }
 
   const movers = trends.filter(t => t.direction !== "stable");
   const stable = trends.filter(t => t.direction === "stable");
@@ -396,7 +412,15 @@ function NarrativeProjectionContent({ checkinCount }: { checkinCount: number }) 
     queryKey: ["/api/mythology"],
   });
 
-  if (!mythology || mythology.empty) return null;
+  if (!mythology || mythology.empty) {
+    return (
+      <div className="p-4 rounded-[10px] border border-dashed border-border/30 bg-card/10 text-center">
+        <p className="text-xs text-muted-foreground/40">
+          Your narrative projection will form as your pattern deepens over time.
+        </p>
+      </div>
+    );
+  }
 
   const emerging = mythology.emerging_archetype ? ARCHETYPE_MAP[mythology.emerging_archetype] : null;
 
