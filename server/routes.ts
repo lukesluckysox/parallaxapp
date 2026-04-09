@@ -3466,6 +3466,40 @@ Return ONLY valid JSON:
     return true;
   }
 
+  // POST /api/internal/link-user — Lumen calls after login to set lumen_user_id
+  // Finds or creates a Parallax user by username, then links the Lumen userId.
+  app.post("/api/internal/link-user", async (req, res) => {
+    if (!requireInternalToken(req, res)) return;
+
+    const { username, lumenUserId } = req.body ?? {};
+    if (!username || !lumenUserId) {
+      return res.status(400).json({ error: "username and lumenUserId are required" });
+    }
+
+    try {
+      let user = storage.getUserByUsername(username);
+      if (!user) {
+        // Create a shadow account — SSO users don't need a real password
+        const { randomUUID } = await import("crypto");
+        const bcrypt = await import("bcryptjs");
+        const randomHash = await bcrypt.hash(randomUUID(), 10);
+        user = storage.createUser({
+          username,
+          password_hash: randomHash,
+          display_name: username,
+          created_at: new Date().toISOString(),
+        });
+      }
+
+      storage.setLumenUserId(user.id, String(lumenUserId));
+
+      return res.json({ ok: true, parallaxUserId: user.id, linked: true });
+    } catch (err) {
+      console.error("[internal/link-user]", err);
+      return res.status(500).json({ error: "Failed to link user" });
+    }
+  });
+
   // GET /api/internal/export-records — Lumen pulls all records
   app.get("/api/internal/export-records", async (req, res) => {
     if (!requireInternalToken(req, res)) return;
