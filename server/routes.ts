@@ -176,6 +176,19 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
 
+  // ===================== BUILD DIAGNOSTICS =====================
+  const BUILD_TIMESTAMP = new Date().toISOString();
+  app.get("/api/build-info", (_req, res) => {
+    res.json({
+      app: "Parallax",
+      version: "1.0.0-docker",
+      buildTimestamp: BUILD_TIMESTAMP,
+      nodeEnv: process.env.NODE_ENV,
+      port: process.env.PORT,
+      hasVolume: !!process.env.RAILWAY_VOLUME_MOUNT_PATH,
+    });
+  });
+
   // ===================== AUTH ROUTES =====================
 
   // POST /api/auth/register
