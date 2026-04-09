@@ -141,7 +141,7 @@ export default function DiscoverPage() {
         <div className="space-y-1.5 pt-1">
           <p className="text-[9px] font-mono text-muted-foreground/20 uppercase tracking-widest text-center mb-1">Explore further</p>
           <a
-            href="https://praxis-production-da89.up.railway.app"
+            href="https://praxis-app.up.railway.app"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center justify-between p-3 rounded-[10px] border border-border/15 bg-card/5 hover:bg-card/15 transition-colors group"

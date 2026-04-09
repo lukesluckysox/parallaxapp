@@ -377,7 +377,7 @@ export default function SignalsPatternsPage() {
         {/* Inter-App Navigation */}
         <div className="space-y-2 pt-2">
           <a
-            href="https://praxis-production-da89.up.railway.app"
+            href="https://praxis-app.up.railway.app"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center justify-between p-3 rounded-[10px] border border-border/20 bg-card/10 hover:bg-card/20 transition-colors group"
