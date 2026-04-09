@@ -14,10 +14,25 @@ import {
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import Database from "better-sqlite3";
 import { eq, desc, and, gte, sql, count } from "drizzle-orm";
+import path from "path";
+import fs from "fs";
 
 const dbPath = process.env.RAILWAY_VOLUME_MOUNT_PATH
   ? `${process.env.RAILWAY_VOLUME_MOUNT_PATH}/parallax.db`
-  : "data.db";
+  : path.resolve(process.cwd(), "data.db");
+
+fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+
+const volumeSet = !!process.env.RAILWAY_VOLUME_MOUNT_PATH;
+console.log(`[parallax/db] SQLite path: ${dbPath}`);
+console.log(`[parallax/db] RAILWAY_VOLUME_MOUNT_PATH: ${process.env.RAILWAY_VOLUME_MOUNT_PATH ?? '(NOT SET)'}`);
+console.log(`[parallax/db] Persistent volume: ${volumeSet ? 'YES' : 'NO \u2014 data will be lost on redeploy'}`);
+if (!volumeSet) {
+  console.warn('[parallax/db] \u26a0\ufe0f  Set RAILWAY_VOLUME_MOUNT_PATH in Railway Variables to persist data across deploys.');
+}
+const dbExists = fs.existsSync(dbPath);
+console.log(`[parallax/db] DB file exists: ${dbExists}${dbExists ? ` (${(fs.statSync(dbPath).size / 1024).toFixed(1)} KB)` : ' \u2014 will create fresh'}`);
+
 export const sqlite = new Database(dbPath);
 sqlite.pragma("journal_mode = WAL");
 
