@@ -63,6 +63,14 @@ export default function TopBar() {
     <div className="sticky top-0 z-40 bg-background/90 backdrop-blur-md border-b border-border/30">
       <div className="max-w-2xl mx-auto flex items-center justify-between px-4 py-1.5 text-[10px] font-mono text-muted-foreground/40">
         <div className="flex items-center gap-2">
+          <a
+            href="https://lumen-os.up.railway.app"
+            className="text-muted-foreground/30 hover:text-muted-foreground/60 transition-colors"
+            style={{ letterSpacing: '0.05em' }}
+          >
+            ◁ Lumen
+          </a>
+          <span className="text-muted-foreground/15">|</span>
           {weather ? (
             <>
               <span className="tabular-nums text-muted-foreground/50">{weather.temp}°</span>

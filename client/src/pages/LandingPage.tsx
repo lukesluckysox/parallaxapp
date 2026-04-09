@@ -78,6 +78,17 @@ export default function LandingPage({ onShowAuth }: { onShowAuth: () => void }) 
         >
           Start free
         </button>
+
+        <p className="text-[10px] text-white/15 mt-6 relative z-10">
+          Part of{" "}
+          <a
+            href="https://lumen-os.up.railway.app"
+            className="text-white/25 hover:text-white/45 underline underline-offset-2 transition-colors"
+          >
+            Lumen
+          </a>
+          {" "}— an operating system for the examined life.
+        </p>
       </section>
 
       {/* ── Archetypes ───────────────────────────────────────── */}
