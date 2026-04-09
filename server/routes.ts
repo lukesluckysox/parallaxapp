@@ -3617,8 +3617,8 @@ Return ONLY valid JSON:
           byUser.get(luid)!.push({
             id: `archetype-pattern-${arch}-${luid}`,
             type: "checkin-pattern",
-            label: `Identifies as "${arch}"`,
-            description: `Consistent self-archetype "${arch}" across ${group.length} check-ins over ${uniqueDays} days.` +
+            label: `Identifies as ${arch}`,
+            description: `Consistent ${arch} orientation across ${group.length} sessions over ${uniqueDays} days.` +
               (highDims.length ? ` Consistently high: ${highDims.join(", ")}.` : "") +
               (lowDims.length  ? ` Consistently low: ${lowDims.join(", ")}.`  : ""),
             frequency: group.length,
@@ -3928,7 +3928,7 @@ Return ONLY valid JSON:
             const confidence = Math.min(0.9, 0.4 + maxStreak * 0.1);
             patternSignals.push({
               type: "dimension_trend",
-              description: `${dim} consistently ${direction} over ${maxStreak + 1} check-ins`,
+              description: `${dim} consistently ${direction} over ${maxStreak + 1} consecutive sessions`,
               confidence,
               firstSeen: parsedVecs[maxStreakStart > 0 ? maxStreakStart - 1 : 0]?.ts || allCheckins[0].timestamp,
               lastSeen: parsedVecs[maxStreakEnd]?.ts || allCheckins[allCheckins.length - 1].timestamp,
@@ -3996,7 +3996,7 @@ Return ONLY valid JSON:
             const dominantSlotArch = Object.entries(archCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "";
             patternSignals.push({
               type: "time_of_day_correlation",
-              description: `${slot} check-ins show ${dir} ${topDim} (avg ${Math.round(topVal)})${dominantSlotArch ? `, often as ${dominantSlotArch}` : ""}`,
+              description: `${slot} sessions show ${dir} ${topDim} (avg ${Math.round(topVal)})${dominantSlotArch ? `, often as ${dominantSlotArch}` : ""}`,
               confidence: Math.min(0.8, 0.3 + vecs.length * 0.08),
               firstSeen: chronCheckins.find((c: any) => {
                 const h = new Date(c.timestamp).getUTCHours();
