@@ -34,7 +34,8 @@ export async function emitLumenEvent(event: ParallaxLumenEvent): Promise<void> {
 type EmittableEventType = "pattern_candidate" | "identity_discrepancy" | "hypothesis_candidate" | "belief_candidate";
 
 // Pattern signal classifier — enriches records with higher-signal event types.
-// Returns additional classified events beyond the base emission.
+// All sensitivity gating happens on Lumen's side (processEvent / epistemicPromotion).
+// This classifier just tags what the record looks like; Lumen decides what to promote.
 export function classifyParallaxRecord(record: any): Array<{ eventType: EmittableEventType; confidence: number; salience: number; payload: any }> {
   const results: Array<{ eventType: EmittableEventType; confidence: number; salience: number; payload: any }> = [];
 
@@ -75,5 +76,6 @@ export function classifyParallaxRecord(record: any): Array<{ eventType: Emittabl
     });
   }
 
-  return results.filter(r => r.confidence >= 0.4);
+  // No confidence filter here — Lumen's processEvent applies user sensitivity thresholds
+  return results;
 }
