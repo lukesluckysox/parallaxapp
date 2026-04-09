@@ -366,6 +366,7 @@ export async function registerRoutes(
       const payload = jwt.verify(token, JWT_SECRET) as {
         userId: number;
         username: string;
+        email?: string;
         sso: boolean;
       };
 
@@ -373,7 +374,7 @@ export async function registerRoutes(
         return res.status(400).send("Invalid SSO token");
       }
 
-      // Find or create Parallax user matching the Lumen username
+      // Find existing Parallax user — try username first, then email
       let user = storage.getUserByUsername(payload.username);
       if (!user) {
         // Create a shadow account — no real password needed for SSO users
@@ -3164,13 +3165,18 @@ Return ONLY valid JSON:
   });
 
   // ===================== ADMIN (oracle only) =====================
+  // Users with admin-level access to the oracle dashboard
+  const ORACLE_USERNAMES = ["oracle", "lukesluckysox"];  
+  function isOracle(username: string | undefined | null): boolean {
+    return !!username && ORACLE_USERNAMES.includes(username);
+  }
 
   app.get("/api/admin/stats", async (req, res) => {
     const userId = getUserId(req);
     if (!userId) return res.status(401).json({ error: "Not authenticated" });
 
     const user = storage.getUserById(userId);
-    if (!user || user.username !== "oracle") {
+    if (!user || !isOracle(user.username)) {
       return res.status(403).json({ error: "Forbidden" });
     }
 
@@ -3380,7 +3386,7 @@ Return ONLY valid JSON:
     if (!userId) return res.status(401).json({ error: "Not authenticated" });
 
     const user = storage.getUserById(userId);
-    if (!user || user.username !== "oracle") {
+    if (!user || !isOracle(user.username)) {
       return res.status(403).json({ error: "Forbidden" });
     }
 
@@ -3394,7 +3400,7 @@ Return ONLY valid JSON:
     if (!userId) return res.status(401).json({ error: "Not authenticated" });
 
     const user = storage.getUserById(userId);
-    if (!user || user.username !== "oracle") {
+    if (!user || !isOracle(user.username)) {
       return res.status(403).json({ error: "Forbidden" });
     }
 
@@ -3415,7 +3421,7 @@ Return ONLY valid JSON:
     if (!userId) return res.status(401).json({ error: "Not authenticated" });
 
     const user = storage.getUserById(userId);
-    if (!user || user.username !== "oracle") {
+    if (!user || !isOracle(user.username)) {
       return res.status(403).json({ error: "Forbidden" });
     }
 
@@ -3436,7 +3442,7 @@ Return ONLY valid JSON:
     if (!userId) return res.status(401).json({ error: "Not authenticated" });
 
     const user = storage.getUserById(userId);
-    if (!user || user.username !== "oracle") {
+    if (!user || !isOracle(user.username)) {
       return res.status(403).json({ error: "Forbidden" });
     }
 

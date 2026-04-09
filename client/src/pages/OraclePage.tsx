@@ -5,6 +5,8 @@ import { useAuth } from "@/lib/auth-context";
 import { Link } from "wouter";
 import { ArrowLeft, ChevronRight, Trash2, Copy, CheckCircle } from "lucide-react";
 
+const ORACLE_USERNAMES = ["oracle", "lukesluckysox"];
+
 interface UserStat {
   id: number;
   username: string;
@@ -219,7 +221,7 @@ export default function OraclePage() {
   const { data, isLoading } = useQuery<AdminStats>({
     queryKey: ["/api/admin/stats"],
     staleTime: 60 * 1000,
-    enabled: !!user && user.username === "oracle",
+    enabled: !!user && ORACLE_USERNAMES.includes(user.username),
   });
 
   const deleteUserMutation = useMutation({
@@ -249,7 +251,7 @@ export default function OraclePage() {
   });
 
   // Guard: only oracle can see this
-  if (!user || user.username !== "oracle") {
+  if (!user || !ORACLE_USERNAMES.includes(user.username)) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <p className="text-sm text-muted-foreground/40">Nothing here.</p>
@@ -366,7 +368,7 @@ export default function OraclePage() {
                       </td>
                       <td className="px-3 py-2 font-mono text-muted-foreground/50">{lastDate}</td>
                       <td className="px-2 py-2 text-center">
-                        {u.username !== "oracle" && (
+                        {!ORACLE_USERNAMES.includes(u.username) && (
                           <button
                             onClick={() => handleDeleteUser(u.id, u.username)}
                             className="p-1 rounded text-muted-foreground/20 hover:text-destructive hover:bg-destructive/10 transition-colors"
