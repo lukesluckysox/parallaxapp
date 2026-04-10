@@ -4197,6 +4197,8 @@ Return ONLY valid JSON:
       tokenReceived: !!token,
       tokenLength: token.length,
       expectedLength: expected.length,
+      expectedFirst4: expected.slice(0, 4),
+      expectedLast4: expected.slice(-4),
       match: token === expected,
       source: process.env.LUMEN_INTERNAL_TOKEN ? 'LUMEN_INTERNAL_TOKEN' : process.env.JWT_SECRET ? 'JWT_SECRET' : 'none',
     });
