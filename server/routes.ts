@@ -4184,6 +4184,8 @@ Return ONLY valid JSON:
       return res.json({
         users: allUsers.map((u: any) => ({
           username:   u.username,
+          email:      u.email || null,
+          plan:       u.pro ? 'pro' : 'free',
           createdAt:  u.created_at,
         })),
       });
