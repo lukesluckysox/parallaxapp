@@ -282,6 +282,7 @@ export class DatabaseStorage implements IStorage {
       sqlite.exec("ALTER TABLE users ADD COLUMN calibrated INTEGER DEFAULT 0");
       sqlite.exec("UPDATE users SET calibrated = 1 WHERE calibrated = 0 AND id IN (SELECT DISTINCT user_id FROM checkins)");
     } catch { /* already exists */ }
+    try { sqlite.exec("ALTER TABLE users ADD COLUMN email TEXT"); } catch { /* already exists */ }
     try { sqlite.exec("ALTER TABLE users ADD COLUMN pro INTEGER DEFAULT 0"); } catch { /* already exists */ }
     try { sqlite.exec("ALTER TABLE users ADD COLUMN lumen_user_id TEXT"); } catch { /* already exists */ }
   }

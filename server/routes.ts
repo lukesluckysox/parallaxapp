@@ -255,7 +255,7 @@ export async function registerRoutes(
   // POST /api/auth/register
   app.post("/api/auth/register", async (req, res) => {
     try {
-      const { username, password, displayName, age, gender, location } = req.body;
+      const { username, password, displayName, email, age, gender, location } = req.body;
 
       // Validate username: 3+ chars, alphanumeric + underscore
       if (!username || typeof username !== "string" || username.length < 3 || !/^[a-zA-Z0-9_]+$/.test(username)) {
@@ -286,6 +286,7 @@ export async function registerRoutes(
         username,
         password_hash,
         display_name: displayName || null,
+        email: email || null,
         created_at: new Date().toISOString(),
         age: age || null,
         gender: gender || null,
@@ -3567,7 +3568,7 @@ Return ONLY valid JSON:
   app.post("/api/internal/link-user", async (req, res) => {
     if (!requireInternalToken(req, res)) return;
 
-    const { username, lumenUserId, plan } = req.body ?? {};
+    const { username, lumenUserId, plan, email } = req.body ?? {};
     if (!username || !lumenUserId) {
       return res.status(400).json({ error: "username and lumenUserId are required" });
     }
@@ -3583,11 +3584,17 @@ Return ONLY valid JSON:
           username,
           password_hash: randomHash,
           display_name: username,
+          email: email || null,
           created_at: new Date().toISOString(),
         });
       }
 
       storage.setLumenUserId(user.id, String(lumenUserId));
+
+      // Sync email from Lumen if we have it and Parallax doesn't
+      if (email && !user.email) {
+        sqlite.prepare("UPDATE users SET email = ? WHERE id = ?").run(email, user.id);
+      }
 
       // Sync plan from Lumen: free → pro=0, pro/founder → pro=1
       if (plan && ['free', 'pro', 'founder'].includes(plan)) {
