@@ -9,7 +9,7 @@ import { getAuthUrl, exchangeCode, refreshAccessToken, spotifyApi } from "./spot
 import jwt from "jsonwebtoken";
 import { randomUUID } from "crypto";
 import type { InsertIdentityMode } from "@shared/schema";
-import { emitLumenEvent, classifyParallaxRecord } from "./lumenEmitter";
+import { emitLumenEvent, classifyParallaxRecord, emitToPraxis } from "./lumenEmitter";
 import { decisions as decisionsTable, checkins as checkinsTable, users as usersTable } from "@shared/schema";
 import { computeMixture, topArchetype } from "@shared/archetype-math";
 import { eq, and } from "drizzle-orm";
@@ -105,6 +105,9 @@ function emitForRecord(userId: number, recordId: number, record: any, recordType
         createdAt: now,
       }).catch(() => {});
     }
+
+    // 3. Direct push: hypothesis_candidates go straight to Praxis (in addition to Lumen pipeline)
+    emitToPraxis(lumenUserId, record, signals);
   } catch {
     // Never throw from emitter
   }
