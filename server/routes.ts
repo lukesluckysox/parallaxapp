@@ -4296,5 +4296,25 @@ Return ONLY valid JSON:
     }
   });
 
+  // GET /api/loop/recent-inbound — recent Liminal sessions ingested in last hour
+  app.get("/api/loop/recent-inbound", async (req, res) => {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ events: [] });
+
+    try {
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      const sessions = storage.getLiminalSessions(userId, 50);
+      const recent = sessions.filter((s: any) => s.created_at >= oneHourAgo);
+
+      const events = recent.length > 0
+        ? [{ source: "liminal", type: "session", count: recent.length, latestAt: recent[0].created_at }]
+        : [];
+
+      return res.json({ events });
+    } catch (err: any) {
+      return res.status(500).json({ events: [] });
+    }
+  });
+
   return httpServer;
 }

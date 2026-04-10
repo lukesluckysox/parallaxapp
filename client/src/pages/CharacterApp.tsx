@@ -558,20 +558,24 @@ export default function CharacterApp() {
         const res = await apiRequest("GET", "/api/checkins");
         const checkins = await res.json();
         if (Array.isArray(checkins) && checkins.length > 0) {
-          // ── Liminal loop toast (once per session) ──
-          const toastKey = "parallax_liminal_toast_shown";
+          // ── Loop toast: recent inbound from Liminal (once per session) ──
+          const toastKey = "parallax_loop_toast_shown";
           if (!sessionStorage.getItem(toastKey)) {
-            const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-            const liminalToday = checkins.filter((c: any) =>
-              c.feeling_text?.startsWith("[Liminal:") && c.timestamp >= oneDayAgo
-            );
-            if (liminalToday.length > 0) {
-              sessionStorage.setItem(toastKey, "1");
-              toast({
-                title: "Liminal → Parallax",
-                description: `Liminal sent ${liminalToday.length} session${liminalToday.length === 1 ? "" : "s"} to your timeline today.`,
-              });
-            }
+            try {
+              const loopRes = await apiRequest("GET", "/api/loop/recent-inbound");
+              const loopData = await loopRes.json();
+              if (loopData.events?.length > 0) {
+                const evt = loopData.events[0];
+                sessionStorage.setItem(toastKey, "1");
+                toast({
+                  title: "Liminal \u2192 Parallax",
+                  description: evt.count === 1
+                    ? "A new pattern was recognized from your Liminal session."
+                    : `${evt.count} new patterns arrived from Liminal.`,
+                  duration: 4000,
+                });
+              }
+            } catch { /* non-critical */ }
           }
           // "You Say" = most recent check-in only (micro)
           const latest = checkins[checkins.length - 1];
