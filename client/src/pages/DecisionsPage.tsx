@@ -57,7 +57,7 @@ function DecisionHistory() {
         </h2>
         <div className="p-4 rounded-[10px] border border-dashed border-border bg-card/50 text-center">
           <p className="text-xs text-muted-foreground">
-            No decisions evaluated yet. Use the engine above to analyze your first decision.
+            No decisions evaluated yet. Run a decision through the engine above — it weighs my current archetype balance and returns a perspective I wouldn’t have found alone.
           </p>
         </div>
       </div>

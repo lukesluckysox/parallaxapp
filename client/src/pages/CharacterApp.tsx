@@ -184,7 +184,7 @@ function InsightFeed() {
         className="p-3 rounded-[10px] border border-dashed border-border bg-card/50 text-center"
       >
         <p className="text-xs text-muted-foreground">
-          Connect data sources and save check-ins to unlock insights
+          No insights yet. Connect Spotify or save a few check-ins — Parallax reads behavioral signals and surfaces what I might not see on my own.
         </p>
       </div>
     );

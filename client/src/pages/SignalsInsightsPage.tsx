@@ -105,7 +105,7 @@ export default function SignalsInsightsPage() {
         ) : (
           <div className="p-6 rounded-[10px] border border-dashed border-border/30 text-center">
             <p className="text-sm text-muted-foreground/40">
-              {data?.error || "Not enough data for insights yet."}
+              {data?.error || "Not enough data for insights yet. Check in a few times and connect data sources — patterns emerge once there’s enough signal."}
             </p>
           </div>
         )}

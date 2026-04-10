@@ -60,7 +60,7 @@ export default function HistorySection() {
           {isLoading ? (
             <p className="text-xs text-muted-foreground py-2">Loading...</p>
           ) : checkins.length === 0 ? (
-            <p className="text-xs text-muted-foreground py-2">No check-ins yet. Save one below.</p>
+            <p className="text-xs text-muted-foreground py-2">No check-ins yet. Each check-in captures how I’m showing up right now — over time, the pattern tells a story.</p>
           ) : (
             <div className="space-y-2">
               {checkins.map((c) => {

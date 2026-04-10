@@ -75,7 +75,7 @@ export default function IdentityHelix({ history, fullPage }: IdentityHelixProps)
     return (
       <div className="text-center py-6">
         <p className="text-xs text-muted-foreground/40 font-mono">
-          no variant history yet — check in to generate your first variant
+          no variant history yet — each check-in generates a new identity variant, and the helix maps how I shift over time
         </p>
       </div>
     );
