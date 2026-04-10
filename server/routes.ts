@@ -3551,7 +3551,7 @@ Return ONLY valid JSON:
 
   // ===================== LUMEN INTERNAL ENDPOINTS =====================
 
-  const LUMEN_INTERNAL_TOKEN = process.env.LUMEN_INTERNAL_TOKEN;
+  const LUMEN_INTERNAL_TOKEN = process.env.LUMEN_INTERNAL_TOKEN || process.env.JWT_SECRET || '';
 
   function requireInternalToken(req: any, res: any): boolean {
     const token = req.headers["x-lumen-internal-token"];
