@@ -4170,6 +4170,22 @@ Return ONLY valid JSON:
     }
   });
 
+  // GET /api/internal/users — Oracle: list all registered users
+  app.get("/api/internal/users", (req, res) => {
+    if (!requireInternalToken(req, res)) return;
+    try {
+      const allUsers = storage.getAllUsers();
+      return res.json({
+        users: allUsers.map((u: any) => ({
+          username:   u.username,
+          createdAt:  u.created_at,
+        })),
+      });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
   // GET /api/loop-status — authenticated user: loop activity summary
   app.get("/api/loop-status", async (req, res) => {
     const userId = getUserId(req);
