@@ -4189,21 +4189,6 @@ Return ONLY valid JSON:
     }
   });
 
-  // GET /api/internal/token-check — debug: verify token config
-  app.get("/api/internal/token-check", (req, res) => {
-    const token = req.headers["x-lumen-internal-token"] as string || '';
-    const expected = LUMEN_INTERNAL_TOKEN;
-    return res.json({
-      tokenReceived: !!token,
-      tokenLength: token.length,
-      expectedLength: expected.length,
-      expectedFirst4: expected.slice(0, 4),
-      expectedLast4: expected.slice(-4),
-      match: token === expected,
-      source: process.env.LUMEN_INTERNAL_TOKEN ? 'LUMEN_INTERNAL_TOKEN' : process.env.JWT_SECRET ? 'JWT_SECRET' : 'none',
-    });
-  });
-
   // GET /api/internal/users — Oracle: list all registered users
   app.get("/api/internal/users", (req, res) => {
     if (!requireInternalToken(req, res)) return;
