@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { ArrowLeft } from "lucide-react";
 import IdentityHelix from "@/components/IdentityHelix";
+import { SkeletonCard } from "@/components/Skeleton";
 
 export default function HelixPage() {
   const { data, isLoading } = useQuery<{ history: any[] }>({
@@ -41,9 +42,9 @@ export default function HelixPage() {
 
         {/* Loading */}
         {isLoading && (
-          <div className="flex flex-col items-center py-20">
-            <div className="w-8 h-8 border-2 border-primary/20 border-t-primary/60 rounded-full animate-spin" />
-            <p className="text-[10px] text-muted-foreground/30 font-mono mt-4">loading helix</p>
+          <div className="space-y-4 py-8">
+            <SkeletonCard />
+            <SkeletonCard />
           </div>
         )}
 

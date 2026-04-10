@@ -4,6 +4,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth-context";
 import { Link } from "wouter";
 import { ArrowLeft, ChevronRight, Trash2, Copy, CheckCircle } from "lucide-react";
+import { SkeletonCard } from "@/components/Skeleton";
 
 const ORACLE_USERNAMES = ["oracle", "lukesluckysox"];
 
@@ -262,10 +263,10 @@ export default function OraclePage() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background noise-overlay pb-20">
-        <div className="max-w-3xl mx-auto px-4 py-6">
-          <div className="text-center py-20">
-            <p className="text-sm text-muted-foreground/40 font-display animate-pulse">Loading oracle data...</p>
-          </div>
+        <div className="max-w-3xl mx-auto px-4 py-6 space-y-4">
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
         </div>
       </div>
     );

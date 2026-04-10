@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { ARCHETYPE_MAP } from "@shared/archetypes";
+import { SkeletonCard } from "@/components/Skeleton";
 
 interface WrappedData {
   ready: boolean;
@@ -232,8 +233,12 @@ export default function WrappedPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#0a0c10] flex items-center justify-center">
-        <p className="text-xs text-white/20 font-mono animate-pulse">assembling your wrapped...</p>
+      <div className="min-h-screen bg-[#0a0c10] flex flex-col items-center justify-center px-4">
+        <div className="w-full max-w-md space-y-4">
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
+        </div>
       </div>
     );
   }

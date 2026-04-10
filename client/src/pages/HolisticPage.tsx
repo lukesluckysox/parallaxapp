@@ -6,6 +6,7 @@ import type { DimensionVec } from "@shared/archetypes";
 import { ChevronRight, ChevronDown, Download, Share2, Lock, Sparkles } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import InfoTooltip from "@/components/InfoTooltip";
+import { SkeletonCard } from "@/components/Skeleton";
 import ProGate from "@/components/ProGate";
 import SignalStrength from "@/components/SignalStrength";
 
@@ -943,10 +944,13 @@ export default function HolisticPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background noise-overlay flex flex-col items-center justify-center">
-        <h1 className="text-4xl font-display font-semibold tracking-tight text-foreground/80 mb-4">Parallax</h1>
-        <div className="w-16 h-px bg-primary/30 mb-4 animate-pulse" />
-        <p className="text-xs text-muted-foreground/30 font-mono animate-pulse">assembling your signal</p>
+      <div className="min-h-screen bg-background noise-overlay flex flex-col items-center justify-center px-4">
+        <h1 className="text-4xl font-display font-semibold tracking-tight text-foreground/80 mb-6">Parallax</h1>
+        <div className="w-full max-w-md space-y-4">
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
+        </div>
       </div>
     );
   }

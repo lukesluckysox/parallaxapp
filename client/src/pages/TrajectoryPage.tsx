@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { ArrowLeft, ArrowUp, ArrowDown, Minus, Compass, ChevronRight, ChevronDown, Dna } from "lucide-react";
 import FutureSelf from "@/components/FutureSelf";
+import { SkeletonCard, SkeletonLine } from "@/components/Skeleton";
 import InfoTooltip from "@/components/InfoTooltip";
 import ArchetypeBrowser from "@/components/ArchetypeBrowser";
 import TimeCapsule from "@/components/TimeCapsule";
@@ -174,11 +175,11 @@ function TrajectoryPathContent({ checkins }: { checkins: Checkin[] }) {
     return (
       <div className="space-y-2">
         <h2 className="text-sm font-bold">Trajectory Path</h2>
-        <div className="animate-pulse space-y-3 p-4 rounded-[10px] border border-border bg-card">
-          <div className="h-10 bg-muted rounded w-2/3" />
-          <div className="h-10 bg-muted rounded w-2/3" />
-          <div className="h-10 bg-muted rounded w-2/3" />
-        </div>
+        <SkeletonCard>
+          <SkeletonLine className="w-2/3 h-10" />
+          <SkeletonLine className="w-2/3 h-10" />
+          <SkeletonLine className="w-2/3 h-10" />
+        </SkeletonCard>
       </div>
     );
   }

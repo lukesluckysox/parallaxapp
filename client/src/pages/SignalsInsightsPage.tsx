@@ -4,6 +4,7 @@ import { Link } from "wouter";
 import { ArrowLeft, Eye, AlertTriangle, Sparkles, TrendingUp, Zap, Activity, ArrowRightLeft, RefreshCw } from "lucide-react";
 import { queryClient } from "@/lib/queryClient";
 import InfoTooltip from "@/components/InfoTooltip";
+import { SkeletonCard } from "@/components/Skeleton";
 
 type InsightType = "observation" | "blind_spot" | "creative_signal" | "trajectory" | "emotional_anomaly" | "creative_surge" | "state_transition";
 
@@ -54,13 +55,9 @@ export default function SignalsInsightsPage() {
 
         {isLoading ? (
           <div className="space-y-5">
-            {[0, 1, 2].map(i => (
-              <div key={i} className="p-5 rounded-[10px] bg-card/30 animate-pulse">
-                <div className="h-3 w-28 bg-muted rounded mb-3" />
-                <div className="h-4 w-48 bg-muted rounded mb-3" />
-                <div className="h-3 w-full bg-muted rounded" />
-              </div>
-            ))}
+            <SkeletonCard />
+            <SkeletonCard />
+            <SkeletonCard />
           </div>
         ) : insights.length > 0 ? (
           <div className="space-y-4">

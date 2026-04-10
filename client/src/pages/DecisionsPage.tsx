@@ -4,6 +4,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Link } from "wouter";
 import { ArrowLeft, ChevronDown, Clock, Check, X, Minus, Trash2, Sparkles } from "lucide-react";
 import DecisionEngine from "@/components/DecisionEngine";
+import { SkeletonCard } from "@/components/Skeleton";
 import InfoTooltip from "@/components/InfoTooltip";
 import ProGate from "@/components/ProGate";
 import { ARCHETYPE_MAP, DIMENSIONS, type DimensionVec } from "@shared/archetypes";
@@ -40,9 +41,9 @@ function DecisionHistory() {
           <Clock className="w-3.5 h-3.5 text-muted-foreground" />
           Decision History
         </h2>
-        <div className="animate-pulse space-y-2">
-          <div className="h-12 bg-muted rounded-[10px]" />
-          <div className="h-12 bg-muted rounded-[10px]" />
+        <div className="space-y-2">
+          <SkeletonCard />
+          <SkeletonCard />
         </div>
       </div>
     );

@@ -6,6 +6,7 @@ import {
   Music, PenLine, Repeat, TrendingUp, Eye, ChevronRight
 } from "lucide-react";
 import { ARCHETYPE_MAP } from "@shared/archetypes";
+import { SkeletonCard } from "@/components/Skeleton";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -86,16 +87,10 @@ function IdentityTimeline() {
           <Clock className="w-3.5 h-3.5 text-muted-foreground" />
           <span className="text-[10px] font-semibold tracking-wider uppercase text-muted-foreground">Identity Timeline</span>
         </div>
-        <div className="animate-pulse space-y-4">
-          {[0, 1, 2].map(i => (
-            <div key={i} className="flex gap-3">
-              <div className="w-1.5 h-1.5 rounded-full bg-muted mt-1.5" />
-              <div className="flex-1">
-                <div className="h-3 w-20 bg-muted rounded mb-1" />
-                <div className="h-4 w-40 bg-muted rounded" />
-              </div>
-            </div>
-          ))}
+        <div className="space-y-4">
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
         </div>
       </div>
     );
