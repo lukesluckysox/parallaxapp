@@ -3602,9 +3602,9 @@ Return ONLY valid JSON:
         sqlite.prepare("UPDATE users SET email = ? WHERE id = ?").run(email, user.id);
       }
 
-      // Sync plan from Lumen: free → pro=0, pro/founder → pro=1
-      if (plan && ['free', 'pro', 'founder'].includes(plan)) {
-        const newPro = plan === 'free' ? 0 : 1;
+      // Sync plan from Lumen: aspirant/free → pro=0, fellow/pro/founder → pro=1
+      if (plan && ['free', 'pro', 'founder', 'aspirant', 'fellow'].includes(plan)) {
+        const newPro = (plan === 'aspirant' || plan === 'free') ? 0 : 1;
         sqlite.prepare("UPDATE users SET pro = ? WHERE id = ?").run(newPro, user.id);
       }
 
@@ -4198,7 +4198,7 @@ Return ONLY valid JSON:
         users: allUsers.map((u: any) => ({
           username:   u.username,
           email:      u.email || null,
-          plan:       u.pro ? 'pro' : 'free',
+          plan:       u.pro ? 'fellow' : 'aspirant',
           createdAt:  u.created_at,
         })),
       });
@@ -4208,12 +4208,12 @@ Return ONLY valid JSON:
   });
 
   // POST /api/internal/sync-plan — Lumen Oracle: sync plan change
-  // Maps Lumen canonical plan → Parallax pro field: free → 0, pro/founder → 1
+  // Maps Lumen canonical plan → Parallax pro field: aspirant/free → 0, fellow/pro/founder → 1
   app.post("/api/internal/sync-plan", (req, res) => {
     if (!requireInternalToken(req, res)) return;
     try {
       const { username, email, plan } = req.body ?? {};
-      if (!plan || !['free', 'pro', 'founder'].includes(plan)) {
+      if (!plan || !['free', 'pro', 'founder', 'aspirant', 'fellow'].includes(plan)) {
         return res.status(400).json({ error: "Invalid plan" });
       }
       if (!username && !email) {
@@ -4230,7 +4230,7 @@ Return ONLY valid JSON:
         return res.status(404).json({ ok: false, reason: "User not found in Parallax" });
       }
 
-      const newPro = plan === 'free' ? 0 : 1;
+      const newPro = (plan === 'aspirant' || plan === 'free') ? 0 : 1;
       sqlite.prepare("UPDATE users SET pro = ? WHERE id = ?").run(newPro, user.id);
 
       console.log(`[sync-plan] Updated Parallax user ${user.username} to pro=${newPro} (from Lumen plan=${plan})`);

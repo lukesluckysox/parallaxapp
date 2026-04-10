@@ -178,7 +178,7 @@ export default function DecisionEngine({ selfVec, dataVec, prefill }: DecisionEn
           </button>
         ) : (
           <div className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-[10px] border border-border/30 bg-card/50 text-xs text-muted-foreground/30">
-            <Lock className="w-3 h-3" /> Analyze (Pro)
+            <Lock className="w-3 h-3" /> Analyze (Fellow)
           </div>
         )}
         <button

@@ -782,7 +782,7 @@ export default function WritingPage() {
             </button>
           ) : (
             <div className="w-full py-3 rounded-[10px] border border-border/30 bg-card/50 text-sm text-muted-foreground/30 inline-flex items-center justify-center gap-2">
-              <Lock className="w-3.5 h-3.5" /> Writing Analysis (Pro)
+              <Lock className="w-3.5 h-3.5" /> Writing Analysis (Fellow)
             </div>
           )}
         </div>

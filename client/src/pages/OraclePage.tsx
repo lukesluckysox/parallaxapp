@@ -363,7 +363,7 @@ export default function OraclePage() {
                           }`}
                           data-testid={`button-toggle-pro-${u.id}`}
                         >
-                          {u.pro ? "PRO" : "free"}
+                          {u.pro ? "Fellow" : "Aspirant"}
                         </button>
                       </td>
                       <td className="px-3 py-2 font-mono text-muted-foreground/50">{lastDate}</td>

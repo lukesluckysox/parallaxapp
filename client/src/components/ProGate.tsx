@@ -22,7 +22,7 @@ export default function ProGate({ children, feature, inline }: ProGateProps) {
         onClick={() => {/* future: open upgrade modal */}}
       >
         <Lock className="w-3 h-3" />
-        <span>Pro</span>
+        <span>Fellow</span>
       </button>
     );
   }
@@ -35,17 +35,17 @@ export default function ProGate({ children, feature, inline }: ProGateProps) {
       <div className="flex items-center justify-center gap-2 mb-2">
         <Lock className="w-3.5 h-3.5 text-muted-foreground/25" />
         <span className="text-[10px] font-mono text-muted-foreground/30 uppercase tracking-widest">
-          {feature || "Pro Feature"}
+          {feature || "Fellow Feature"}
         </span>
       </div>
       <p className="text-[11px] text-muted-foreground/25 mb-3">
-        Unlock AI-powered insights with Parallax Pro
+        Unlock deeper self-examination with Fellow access
       </p>
       <button
         className="px-4 py-1.5 rounded-lg bg-primary/10 text-primary/60 text-[11px] font-medium hover:bg-primary/20 transition-colors"
         onClick={() => {/* future: open Stripe checkout */}}
       >
-        Coming soon
+        Fellow · $15/mo · Coming soon
       </button>
     </div>
   );

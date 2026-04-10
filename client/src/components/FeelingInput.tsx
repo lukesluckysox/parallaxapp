@@ -40,7 +40,7 @@ export default function FeelingInput({ value, onChange, onInterpret, isLoading, 
         ) : (
           <div className="absolute bottom-2.5 right-2.5 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] text-muted-foreground/30 bg-card border border-border/30">
             <Lock className="w-3 h-3" />
-            Pro
+            Fellow
           </div>
         )}
       </div>
