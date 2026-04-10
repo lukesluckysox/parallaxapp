@@ -317,7 +317,7 @@ export async function registerRoutes(
   // POST /api/auth/login
   app.post("/api/auth/login", async (req, res) => {
     try {
-      const { username, password } = req.body;
+      const { username, password, email } = req.body;
 
       if (!username || !password) {
         return res.status(400).json({ error: "Username and password are required" });
@@ -333,6 +333,11 @@ export async function registerRoutes(
         return res.status(401).json({ error: "Invalid username or password" });
       }
 
+      // If email provided and user doesn't have one yet, associate it
+      if (email && !(user as any).email) {
+        sqlite.prepare("UPDATE users SET email = ? WHERE id = ?").run(email.trim().toLowerCase(), user.id);
+      }
+
       const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "30d" });
       res.cookie("parallax_token", token, {
         httpOnly: true,
@@ -345,6 +350,7 @@ export async function registerRoutes(
         id: user.id,
         username: user.username,
         displayName: user.display_name,
+        email: (user as any).email || email || null,
         pro: !!(user as any).pro,
         token,
       });
@@ -4181,6 +4187,19 @@ Return ONLY valid JSON:
       console.error("[patterns-for-lumen] Error:", err);
       return res.status(500).json({ error: err.message });
     }
+  });
+
+  // GET /api/internal/token-check — debug: verify token config
+  app.get("/api/internal/token-check", (req, res) => {
+    const token = req.headers["x-lumen-internal-token"] as string || '';
+    const expected = LUMEN_INTERNAL_TOKEN;
+    return res.json({
+      tokenReceived: !!token,
+      tokenLength: token.length,
+      expectedLength: expected.length,
+      match: token === expected,
+      source: process.env.LUMEN_INTERNAL_TOKEN ? 'LUMEN_INTERNAL_TOKEN' : process.env.JWT_SECRET ? 'JWT_SECRET' : 'none',
+    });
   });
 
   // GET /api/internal/users — Oracle: list all registered users
