@@ -186,7 +186,65 @@ export async function registerRoutes(
       nodeEnv: process.env.NODE_ENV,
       port: process.env.PORT,
       hasVolume: !!process.env.RAILWAY_VOLUME_MOUNT_PATH,
+      lumenApiUrl: process.env.LUMEN_API_URL ? process.env.LUMEN_API_URL.replace(/\/\/(.{3}).*@/, '//$1***@') : null,
+      hasLumenToken: !!process.env.LUMEN_INTERNAL_TOKEN,
+      lumenTokenLen: process.env.LUMEN_INTERNAL_TOKEN?.length ?? 0,
     });
+  });
+
+  // Diagnostic: test the Lumen emitter pipeline end-to-end
+  app.get("/api/diag/lumen-emit", async (_req, res) => {
+    const LUMEN_API_URL = process.env.LUMEN_API_URL;
+    const LUMEN_INTERNAL_TOKEN = process.env.LUMEN_INTERNAL_TOKEN;
+
+    const diag: any = {
+      step1_env: {
+        LUMEN_API_URL: LUMEN_API_URL || "NOT SET",
+        LUMEN_INTERNAL_TOKEN_set: !!LUMEN_INTERNAL_TOKEN,
+        LUMEN_INTERNAL_TOKEN_len: LUMEN_INTERNAL_TOKEN?.length ?? 0,
+      },
+      step2_would_emit: !!(LUMEN_API_URL && LUMEN_INTERNAL_TOKEN),
+    };
+
+    if (LUMEN_API_URL && LUMEN_INTERNAL_TOKEN) {
+      // Actually try a test POST
+      const testBody = {
+        userId: "diag-test",
+        sourceApp: "parallax",
+        sourceRecordId: `diag:${Date.now()}`,
+        eventType: "belief_candidate",
+        confidence: 0.1,
+        salience: 0.1,
+        payload: { title: "[DIAGNOSTIC] Pipeline test event" },
+        ingestionMode: "live",
+      };
+      try {
+        const url = `${LUMEN_API_URL}/api/epistemic/events`;
+        diag.step3_target_url = url;
+        const resp = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-lumen-internal-token": LUMEN_INTERNAL_TOKEN,
+          },
+          body: JSON.stringify(testBody),
+        });
+        const text = await resp.text();
+        diag.step4_response = { status: resp.status, body: text.slice(0, 500) };
+      } catch (e: any) {
+        diag.step4_response = { error: e.message };
+      }
+    }
+
+    // Also check a real user's lumen_user_id
+    try {
+      const firstUser = sqlite.prepare("SELECT id, username, lumen_user_id FROM users LIMIT 5").all();
+      diag.step5_sample_users = firstUser;
+    } catch (e: any) {
+      diag.step5_sample_users = { error: e.message };
+    }
+
+    res.json(diag);
   });
 
   // ===================== AUTH ROUTES =====================
