@@ -3567,7 +3567,7 @@ Return ONLY valid JSON:
   app.post("/api/internal/link-user", async (req, res) => {
     if (!requireInternalToken(req, res)) return;
 
-    const { username, lumenUserId } = req.body ?? {};
+    const { username, lumenUserId, plan } = req.body ?? {};
     if (!username || !lumenUserId) {
       return res.status(400).json({ error: "username and lumenUserId are required" });
     }
@@ -3588,6 +3588,12 @@ Return ONLY valid JSON:
       }
 
       storage.setLumenUserId(user.id, String(lumenUserId));
+
+      // Sync plan from Lumen: free → pro=0, pro/founder → pro=1
+      if (plan && ['free', 'pro', 'founder'].includes(plan)) {
+        const newPro = plan === 'free' ? 0 : 1;
+        sqlite.prepare("UPDATE users SET pro = ? WHERE id = ?").run(newPro, user.id);
+      }
 
       return res.json({ ok: true, parallaxUserId: user.id, linked: true });
     } catch (err) {
@@ -4182,6 +4188,65 @@ Return ONLY valid JSON:
         })),
       });
     } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  // POST /api/internal/sync-plan — Lumen Oracle: sync plan change
+  // Maps Lumen canonical plan → Parallax pro field: free → 0, pro/founder → 1
+  app.post("/api/internal/sync-plan", (req, res) => {
+    if (!requireInternalToken(req, res)) return;
+    try {
+      const { username, email, plan } = req.body ?? {};
+      if (!plan || !['free', 'pro', 'founder'].includes(plan)) {
+        return res.status(400).json({ error: "Invalid plan" });
+      }
+      if (!username && !email) {
+        return res.status(400).json({ error: "username or email required" });
+      }
+
+      // Find user by username (primary key in Parallax)
+      let user: any = null;
+      if (username) user = storage.getUserByUsername(username);
+      // Fallback: search all users by lumen_user_id is not straightforward,
+      // so username is the canonical lookup for Parallax
+
+      if (!user) {
+        return res.status(404).json({ ok: false, reason: "User not found in Parallax" });
+      }
+
+      const newPro = plan === 'free' ? 0 : 1;
+      sqlite.prepare("UPDATE users SET pro = ? WHERE id = ?").run(newPro, user.id);
+
+      console.log(`[sync-plan] Updated Parallax user ${user.username} to pro=${newPro} (from Lumen plan=${plan})`);
+      return res.json({ ok: true, pro: !!newPro });
+    } catch (err: any) {
+      console.error("[sync-plan]", err);
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  // POST /api/internal/delete-user — Lumen Oracle: delete user cascade
+  app.post("/api/internal/delete-user", (req, res) => {
+    if (!requireInternalToken(req, res)) return;
+    try {
+      const { username, email } = req.body ?? {};
+      if (!username && !email) {
+        return res.status(400).json({ error: "username or email required" });
+      }
+
+      let user: any = null;
+      if (username) user = storage.getUserByUsername(username);
+
+      if (!user) {
+        return res.status(404).json({ ok: false, reason: "User not found in Parallax" });
+      }
+
+      storage.deleteUserAndData(user.id);
+      console.log(`[delete-user] Deleted Parallax user ${user.username} (id=${user.id})`);
+      return res.json({ ok: true });
+    } catch (err: any) {
+      console.error("[delete-user]", err);
       return res.status(500).json({ error: err.message });
     }
   });
