@@ -194,7 +194,7 @@ export async function registerRoutes(
 
   // Diagnostic: test the Lumen emitter pipeline end-to-end
   app.get("/api/diag/lumen-emit", async (_req, res) => {
-    const LUMEN_API_URL = process.env.LUMEN_API_URL;
+    const LUMEN_API_URL = (process.env.LUMEN_API_URL || '').replace(/\/+$/, '');
     const LUMEN_INTERNAL_TOKEN = process.env.LUMEN_INTERNAL_TOKEN;
 
     const diag: any = {
