@@ -10,6 +10,7 @@ import {
   type IdentityEcho, type InsertIdentityEcho, identityEchoes,
   type SpotifyWhitelist, type InsertSpotifyWhitelist, spotifyWhitelistQueue,
   type LiminalSession, type InsertLiminalSession, liminalSessions,
+  type RecommendationFeedback, type InsertRecommendationFeedback, recommendationFeedback,
 } from "@shared/schema";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import Database from "better-sqlite3";
@@ -227,6 +228,14 @@ export class DatabaseStorage implements IStorage {
         dimension_nudges TEXT,
         checkin_id INTEGER,
         writing_id INTEGER,
+        created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS recommendation_feedback (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        section TEXT NOT NULL,
+        item_id TEXT NOT NULL,
+        feedback_type TEXT NOT NULL,
         created_at TEXT NOT NULL
       );
     `);
@@ -723,6 +732,19 @@ export class DatabaseStorage implements IStorage {
       .run(checkinId, writingId, id);
   }
 
+  // ---- Recommendation Feedback ----
+  logRecommendationFeedback(data: InsertRecommendationFeedback): RecommendationFeedback {
+    return db.insert(recommendationFeedback).values(data).returning().get();
+  }
+
+  getRecommendationFeedback(userId: number): RecommendationFeedback[] {
+    return db.select().from(recommendationFeedback)
+      .where(eq(recommendationFeedback.user_id, userId))
+      .orderBy(desc(recommendationFeedback.created_at))
+      .limit(100)
+      .all();
+  }
+
   // ---- Account Deletion ----
   deleteUserAndData(userId: number): void {
     sqlite.exec(`DELETE FROM checkins WHERE user_id = ${userId}`);
@@ -735,6 +757,7 @@ export class DatabaseStorage implements IStorage {
     sqlite.exec(`DELETE FROM identity_echoes WHERE user_id = ${userId}`);
     sqlite.exec(`DELETE FROM variant_history WHERE user_id = ${userId}`);
     sqlite.exec(`DELETE FROM liminal_sessions WHERE user_id = ${userId}`);
+    sqlite.exec(`DELETE FROM recommendation_feedback WHERE user_id = ${userId}`);
     sqlite.exec(`DELETE FROM users WHERE id = ${userId}`);
   }
 }

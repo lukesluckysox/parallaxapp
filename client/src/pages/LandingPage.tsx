@@ -224,7 +224,7 @@ export default function LandingPage({ onShowAuth }: { onShowAuth: () => void }) 
             {[
               "People who journal or reflect regularly.",
               "People who care about self-observation and pattern recognition.",
-              "People who want more than mood logging.",
+              "People who want more than surface-level tracking.",
               "People curious how music, writing, routine, and decisions shape who they become.",
             ].map((line) => (
               <p key={line} className="text-xs text-white/25 leading-relaxed">
