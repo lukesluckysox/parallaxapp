@@ -1,4 +1,4 @@
-import { Home, Aperture, Layers, Radio, TrendingUp } from "lucide-react";
+import { Home, Aperture, Layers, Radio, TrendingUp, CircleDot } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 
@@ -9,6 +9,8 @@ const NAV_ITEMS = [
   { href: "/signals", icon: Radio, label: "Signals" },
   { href: "/motion", icon: TrendingUp, label: "Motion" },
 ];
+
+const LUMEN_HUB_URL = "https://lumen-os.up.railway.app";
 
 export default function BottomNav() {
   const [location] = useLocation();
@@ -24,10 +26,18 @@ export default function BottomNav() {
   return (
     <nav
       data-testid="nav-bottom"
-      className="fixed bottom-0 left-0 right-0 z-50 border-t border-border/50 bg-background/90 backdrop-blur-md"
+      className="fixed bottom-0 left-0 right-0 z-50 border-t border-border/50 bg-background/90 backdrop-blur-md md:hidden"
       style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
     >
       <div className="max-w-2xl mx-auto flex items-center justify-around px-2 py-1">
+        <a
+          href={LUMEN_HUB_URL}
+          data-testid="nav-lumen"
+          className="relative flex flex-col items-center justify-center gap-0.5 px-2 rounded-lg transition-all min-h-[44px] text-muted-foreground/40 hover:text-muted-foreground"
+        >
+          <CircleDot className="w-4.5 h-4.5" strokeWidth={1.5} />
+          <span className="text-[10px] font-mono text-muted-foreground/30">lumen</span>
+        </a>
         {NAV_ITEMS.map(({ href, icon: Icon, label }) => {
           let isActive: boolean;
           if (href === "/") {
@@ -46,7 +56,7 @@ export default function BottomNav() {
               key={href}
               href={href}
               data-testid={`nav-${label.toLowerCase()}`}
-              className={`relative flex flex-col items-center justify-center gap-0.5 px-3 rounded-lg transition-all min-h-[44px] ${
+              className={`relative flex flex-col items-center justify-center gap-0.5 px-2 rounded-lg transition-all min-h-[44px] ${
                 isActive
                   ? "text-violet-500"
                   : "text-muted-foreground/40 hover:text-muted-foreground"
