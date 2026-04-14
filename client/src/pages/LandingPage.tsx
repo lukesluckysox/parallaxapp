@@ -26,7 +26,7 @@ function FaqItem({ q, a }: { q: string; a: string }) {
 const LANDING_FAQS = [
   {
     q: "What is Parallax actually doing with my data?",
-    a: "Parallax stores what you choose to give it — your writing, check-ins, and any connected signals — in its own database so it can show you Mirrors, Motion, Trajectory, Helix, Refractions, and other views of your pattern. Your data exists to reflect you back to yourself, not to power an ad network or some hidden third party.",
+    a: "Parallax stores what you choose to give it — your writing, check-ins, and any connected signals — in its own database so it can show you Mirrors, Motion, Trajectory, Helix, and other views of your pattern. Your data exists to reflect you back to yourself, not to power an ad network or some hidden third party.",
   },
   {
     q: "Does Parallax sell or share my data?",
@@ -190,8 +190,8 @@ export default function LandingPage({ onShowAuth }: { onShowAuth: () => void }) 
               },
               {
                 title: "Refractions",
-                subhead: "How your pattern changes under conditions.",
-                body: "Run experiments, observe what strengthens or weakens certain patterns, and understand how recovery actually happens for you.",
+                subhead: "How your pattern responds when tested.",
+                body: "Experiments, conditions, and recovery analysis — now part of Praxis, the laboratory side of the Lumen ecosystem. Your Parallax data feeds directly into it.",
                 color: "#c17b6e",
               },
             ].map((f) => (
@@ -246,7 +246,7 @@ export default function LandingPage({ onShowAuth }: { onShowAuth: () => void }) 
               <span className="text-white/40 font-medium">Free</span> — calibration, basic snapshot, and early signal reading.
             </p>
             <p className="text-xs text-white/25 leading-relaxed">
-              <span className="text-white/40 font-medium">Parallax Pro</span> — deep mirrors, Motion layers, Decision Lab, Refractions, Helix, Time Capsule, and future exports like Wrapped and Mirror Drop.
+              <span className="text-white/40 font-medium">Parallax Pro</span> — deep mirrors, Motion layers, Decision Lab, Helix, Time Capsule, and future exports like Wrapped and Mirror Drop.
             </p>
           </div>
         </div>

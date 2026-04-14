@@ -1,7 +1,6 @@
 import { Link } from "wouter";
-import { Music, PenLine, Heart, ArrowRight, ArrowLeft } from "lucide-react";
+import { Music, PenLine, Heart, ArrowRight, ArrowLeft, ExternalLink } from "lucide-react";
 import InfoTooltip from "@/components/InfoTooltip";
-import Refractions from "@/components/Refractions";
 
 const MIRRORS = [
   {
@@ -84,8 +83,23 @@ export default function MirrorsPage() {
           })}
         </div>
 
-        {/* Refractions — deep layer */}
-        <Refractions />
+        {/* Refractions — moved to Praxis */}
+        <div className="p-4 rounded-[10px] border border-border/30 bg-card/10">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-foreground/60">Refractions</p>
+              <p className="text-[10px] text-muted-foreground/30">
+                Experiments, conditions, and recovery have moved to Praxis.
+              </p>
+            </div>
+            <a
+              href="https://praxis-app.up.railway.app/#/refractions"
+              className="flex items-center gap-1.5 text-xs text-primary/70 hover:text-primary transition-colors whitespace-nowrap"
+            >
+              Open in Praxis <ExternalLink className="w-3 h-3" />
+            </a>
+          </div>
+        </div>
       </div>
     </div>
   );
