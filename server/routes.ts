@@ -750,7 +750,7 @@ export async function registerRoutes(
           summaryParts.push(`${todayTracks.length} tracks today`);
           if (avgEnergy > 0.7) summaryParts.push("high energy");
           else if (avgEnergy < 0.3) summaryParts.push("low energy");
-          if (avgValence > 0.7) summaryParts.push("upbeat mood");
+          if (avgValence > 0.7) summaryParts.push("warm tones");
           else if (avgValence < 0.3) summaryParts.push("darker tones");
           if (avgInstrumental > 0.4) summaryParts.push("instrumental focus");
           if (avgAcoustic > 0.6) summaryParts.push("acoustic");
@@ -2746,7 +2746,7 @@ Return ONLY the single line, no quotes, no explanation.`
     });
   });
 
-  // GET /api/spotify/patterns — mood clusters, temporal patterns, discovery ratio
+  // GET /api/spotify/patterns — sonic clusters, temporal patterns, discovery ratio
   app.get("/api/spotify/patterns", async (req, res) => {
     const userId = getUserId(req);
     if (!userId) return res.json({ hasData: false });
@@ -2756,7 +2756,7 @@ Return ONLY the single line, no quotes, no explanation.`
 
     const tz = getUserTimezone(req);
 
-    // Mood clustering (improved: recency-weighted, percentage-of-total normalization)
+    // Sonic clustering (recency-weighted, percentage-of-total normalization)
     const clusters: Record<string, number> = {
       ambient: 0,
       energetic: 0,
@@ -2805,11 +2805,11 @@ Return ONLY the single line, no quotes, no explanation.`
     }
 
     // Normalize to percentages of total (not relative to max)
-    const moodClusters: Record<string, number> = {};
+    const sonicClusters: Record<string, number> = {};
     if (weightTotal > 0) {
       const totalScore = Object.values(clusters).reduce((s, v) => s + v, 0);
       for (const [key, val] of Object.entries(clusters)) {
-        moodClusters[key] = totalScore > 0 ? Math.round((val / totalScore) * 100) : 0;
+        sonicClusters[key] = totalScore > 0 ? Math.round((val / totalScore) * 100) : 0;
       }
     }
 
@@ -2855,7 +2855,7 @@ Return ONLY the single line, no quotes, no explanation.`
 
     return res.json({
       hasData: true,
-      moodClusters,
+      sonicClusters,
       hourlyPatterns,
       discoveryRatio,
       uniqueTracks,
@@ -2870,6 +2870,266 @@ Return ONLY the single line, no quotes, no explanation.`
         valenceDelta: Math.round(recentAvgValence - overallAvgValence),
       },
     });
+  });
+
+  // ===================== MUSIC EXPLORATION (Sonic Expansion, Taste Paths, Weekly Crate) =====================
+
+  // GET /api/spotify/exploration — generates all three music exploration sections
+  app.get("/api/spotify/exploration", async (req, res) => {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Not authenticated" });
+
+    // Check cache first (60 min TTL)
+    const cached = storage.getCachedResponse(userId, "music-exploration", 60);
+    if (cached && req.query.force !== "true") {
+      try { return res.json(JSON.parse(cached)); } catch {}
+    }
+
+    const listens = storage.getSpotifyListens(userId, 500);
+    if (listens.length < 5) {
+      return res.json({ ready: false, reason: "Need more listening data to generate recommendations" });
+    }
+
+    // Gather listening profile
+    const artistCounts: Record<string, number> = {};
+    const genreSignals: Record<string, number> = {};
+    let totalEnergy = 0, totalValence = 0, totalDance = 0, totalAcoustic = 0;
+    let count = 0;
+
+    for (const t of listens) {
+      artistCounts[t.artist_name] = (artistCounts[t.artist_name] || 0) + 1;
+      totalEnergy += (t.energy || 50);
+      totalValence += (t.valence || 50);
+      totalDance += (t.danceability || 50);
+      totalAcoustic += (t.acousticness || 50);
+      count++;
+    }
+
+    const avgEnergy = Math.round(totalEnergy / count);
+    const avgValence = Math.round(totalValence / count);
+    const avgDance = Math.round(totalDance / count);
+    const avgAcoustic = Math.round(totalAcoustic / count);
+
+    const topArtists = Object.entries(artistCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([name, count]) => ({ name, count }));
+
+    // Recent vs overall comparison for drift detection
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const recentListens = listens.filter(t => t.timestamp >= sevenDaysAgo);
+    const recentArtists = Array.from(new Set(recentListens.map(t => t.artist_name))).slice(0, 5);
+    const recentAvgEnergy = recentListens.length > 0
+      ? Math.round(recentListens.reduce((s, t) => s + (t.energy || 50), 0) / recentListens.length)
+      : avgEnergy;
+    const recentAvgValence = recentListens.length > 0
+      ? Math.round(recentListens.reduce((s, t) => s + (t.valence || 50), 0) / recentListens.length)
+      : avgValence;
+
+    // Repetition patterns
+    const trackCounts: Record<string, { name: string; artist: string; count: number }> = {};
+    for (const t of listens) {
+      if (!trackCounts[t.track_id]) trackCounts[t.track_id] = { name: t.track_name, artist: t.artist_name, count: 0 };
+      trackCounts[t.track_id].count++;
+    }
+    const repeatedTracks = Object.values(trackCounts).filter(t => t.count >= 3).sort((a, b) => b.count - a.count).slice(0, 5);
+
+    // Discovery ratio
+    const uniqueTracks = new Set(listens.map(t => t.track_id)).size;
+    const discoveryRatio = Math.round((uniqueTracks / listens.length) * 100);
+
+    // Sonic pattern descriptors (used for the optional pattern card)
+    const sonicPattern = {
+      familiarVsExploratory: discoveryRatio > 60 ? "exploratory" : discoveryRatio < 30 ? "familiar" : "balanced",
+      lyricalVsAtmospheric: avgAcoustic > 55 ? "atmospheric" : "lyrical",
+      polishedVsRaw: avgEnergy > 60 && avgValence < 45 ? "raw" : avgEnergy < 40 ? "polished" : "balanced",
+      repetitiveVsVaried: discoveryRatio > 50 ? "varied" : "repetitive",
+    };
+
+    // Build the listening profile summary for LLM
+    const listeningProfile = {
+      topArtists: topArtists.map(a => a.name),
+      recentArtists,
+      avgEnergy, avgValence, avgDance, avgAcoustic,
+      recentAvgEnergy, recentAvgValence,
+      repeatedTracks: repeatedTracks.map(t => `${t.name} by ${t.artist} (${t.count}x)`),
+      discoveryRatio,
+      totalTracksLogged: listens.length,
+      sonicPattern,
+    };
+
+    // If LLM is available, generate editorial recommendations
+    if (anthropic) {
+      try {
+        const systemPrompt = `You are a perceptive music curator for a reflective self-understanding app called Parallax. You generate music exploration recommendations based on listening data.
+
+CRITICAL RULES:
+- NEVER frame anything as mood detection or emotional certainty
+- NEVER use language like "you are feeling", "your mood is", "this matches your soul"
+- Treat music as a lens on taste, drift, movement, and possible selves
+- Use calm, reflective, editorial copy — like a perceptive record store curator
+- Always explain WHY each recommendation fits the listener's patterns
+- Good copy: "Your recent listening leans rhythmic, warm, and replayable" / "Same pull, less polish" / "A plausible stretch from your melodic center"
+- Bad copy: "You are feeling melancholic" / "Your mood is rebellious" / "This song matches your energy"
+
+You MUST respond with ONLY valid JSON. No markdown, no code fences, no explanation outside the JSON.`;
+
+        const userPrompt = `Based on this listener's profile, generate three music exploration sections.
+
+LISTENER PROFILE:
+${JSON.stringify(listeningProfile, null, 2)}
+
+Generate this exact JSON structure:
+{
+  "sonicExpansion": [
+    {
+      "id": "se-1",
+      "trackOrArtist": "Artist - Track Name",
+      "reason": "One-line editorial reason connecting to their listening patterns",
+      "tag": "safe-adjacent"
+    },
+    {
+      "id": "se-2",
+      "trackOrArtist": "Artist - Track Name",
+      "reason": "...",
+      "tag": "safe-adjacent"
+    },
+    {
+      "id": "se-3",
+      "trackOrArtist": "Artist - Track Name",
+      "reason": "...",
+      "tag": "stretch"
+    }
+  ],
+  "tastePaths": [
+    {
+      "id": "tp-1",
+      "title": "Short path title",
+      "steps": ["Familiar genre/artist", "Step 2", "Step 3", "Destination genre/artist"],
+      "startingFrom": "A familiar artist they listen to",
+      "movingToward": "Adjacent territory",
+      "thread": "One-line explanation of the connecting thread"
+    },
+    {
+      "id": "tp-2",
+      "title": "Short path title",
+      "steps": ["Familiar genre/artist", "Step 2", "Step 3"],
+      "startingFrom": "...",
+      "movingToward": "...",
+      "thread": "..."
+    }
+  ],
+  "weeklyCrate": [
+    {
+      "id": "wc-1",
+      "trackOrArtist": "Artist - Track Name",
+      "reason": "Brief editorial reason",
+      "tag": "familiar"
+    },
+    {
+      "id": "wc-2",
+      "trackOrArtist": "Artist - Track Name",
+      "reason": "...",
+      "tag": "adjacent"
+    },
+    {
+      "id": "wc-3",
+      "trackOrArtist": "Artist - Track Name",
+      "reason": "...",
+      "tag": "adjacent"
+    },
+    {
+      "id": "wc-4",
+      "trackOrArtist": "Artist - Track Name",
+      "reason": "...",
+      "tag": "stretch"
+    },
+    {
+      "id": "wc-5",
+      "trackOrArtist": "Artist - Track Name",
+      "reason": "...",
+      "tag": "familiar"
+    }
+  ],
+  "introLine": "A one-line summary of their current sonic shape, e.g. 'Your recent listening leans rhythmic, warm, and replayable. These picks widen that shape without breaking it.'"
+}
+
+IMPORTANT:
+- Sonic Expansion: 2 safe-adjacent + 1 stretch
+- Taste Paths: 2-3 paths, each starting from an artist/genre they actually listen to
+- Weekly Crate: 5 items labeled familiar/adjacent/stretch, should feel like a curated record store recommendation
+- All reasons must explain the connection to their actual listening data
+- Use real artists and tracks that plausibly match the described sonic patterns
+- introLine must describe their sonic shape WITHOUT mood language`;
+
+        const result = await callAndParseJSON(systemPrompt, userPrompt, 2500);
+
+        if (result) {
+          const response = {
+            ready: true,
+            sonicExpansion: result.sonicExpansion || [],
+            tastePaths: result.tastePaths || [],
+            weeklyCrate: result.weeklyCrate || [],
+            introLine: result.introLine || "",
+            sonicPattern,
+            listeningProfile: {
+              topArtists: topArtists.slice(0, 5),
+              avgEnergy, avgValence, avgDance, avgAcoustic,
+              discoveryRatio,
+              totalTracksLogged: listens.length,
+            },
+          };
+
+          storage.setCachedResponse(userId, "music-exploration", JSON.stringify(response));
+          return res.json(response);
+        }
+      } catch (e) {
+        console.error("Music exploration LLM error:", e);
+      }
+    }
+
+    // Fallback: generate basic recommendations without LLM
+    const fallbackResponse = {
+      ready: true,
+      sonicExpansion: [],
+      tastePaths: [],
+      weeklyCrate: [],
+      introLine: "",
+      sonicPattern,
+      listeningProfile: {
+        topArtists: topArtists.slice(0, 5),
+        avgEnergy, avgValence, avgDance, avgAcoustic,
+        discoveryRatio,
+        totalTracksLogged: listens.length,
+      },
+    };
+
+    storage.setCachedResponse(userId, "music-exploration", JSON.stringify(fallbackResponse));
+    return res.json(fallbackResponse);
+  });
+
+  // POST /api/spotify/exploration/feedback — store feedback on a recommendation
+  app.post("/api/spotify/exploration/feedback", async (req, res) => {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Not authenticated" });
+
+    const { section, itemId, feedbackType } = req.body;
+    const validSections = ["sonic_expansion", "taste_paths", "weekly_crate"];
+    const validFeedback = ["more_like_this", "deeper_cut", "less_familiar", "outside_my_lane"];
+
+    if (!validSections.includes(section) || !validFeedback.includes(feedbackType) || !itemId) {
+      return res.status(400).json({ error: "Invalid feedback data" });
+    }
+
+    const feedback = storage.logRecommendationFeedback({
+      user_id: userId,
+      section,
+      item_id: itemId,
+      feedback_type: feedbackType,
+      created_at: new Date().toISOString(),
+    });
+
+    return res.json({ ok: true, id: feedback.id });
   });
 
   // ===================== IDENTITY CONSTELLATIONS =====================
@@ -3365,9 +3625,9 @@ Return ONLY valid JSON:
       }
     }
 
-    // 3. Sonic identity — top artist during high-creativity check-ins
+    // 3. Sonic identity — top artist and sonic shape
     let topSonicArtist = "";
-    let sonicMoodProfile: Record<string, number> = {};
+    let sonicShape: Record<string, number> = {};
     if (listens.length > 0) {
       // Find artist most played overall
       const artistCounts: Record<string, number> = {};
@@ -3376,7 +3636,7 @@ Return ONLY valid JSON:
       }
       topSonicArtist = Object.entries(artistCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "";
 
-      // Mood profile of listening
+      // Sonic shape of listening — descriptive dimensions, not mood
       let totalE = 0, totalV = 0, totalD = 0, totalA = 0, count = 0;
       for (const l of listens) {
         totalE += (l.energy || 50);
@@ -3386,11 +3646,11 @@ Return ONLY valid JSON:
         count++;
       }
       if (count > 0) {
-        sonicMoodProfile = {
-          energetic: Math.round(totalE / count),
-          melancholic: Math.round(100 - totalV / count),
-          rhythmic: Math.round(totalD / count),
-          introspective: Math.round(totalA / count),
+        sonicShape = {
+          intensity: Math.round(totalE / count),
+          warmth: Math.round(totalV / count),
+          rhythm: Math.round(totalD / count),
+          texture: Math.round(totalA / count),
         };
       }
     }
@@ -3427,7 +3687,7 @@ Return ONLY valid JSON:
       volatile: mostVolatile,
       sonic: {
         topArtist: topSonicArtist,
-        moodProfile: sonicMoodProfile,
+        sonicShape,
         totalTracks,
       },
       mirrorLine,

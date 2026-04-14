@@ -375,7 +375,7 @@ function AboutParallaxSection() {
         <div className="px-4 pb-5 pt-3 space-y-6 bg-card/10">
           {/* Overview */}
           <p className="text-[11px] text-muted-foreground/60 leading-relaxed">
-            Parallax synthesizes signals from your writing, music, mood, and self-reports to reveal
+            Parallax synthesizes signals from your writing, music, reflections, and self-reports to reveal
             recurring identity patterns. Identity is treated as dynamic, cyclical, and multi-signal.
           </p>
 
@@ -411,7 +411,7 @@ function AboutParallaxSection() {
           <div>
             <h3 className="text-xs font-semibold mb-2 text-foreground/70">Data sources</h3>
             <div className="space-y-1.5 text-[11px] text-muted-foreground/50 leading-relaxed">
-              <p><strong className="text-foreground/60">Sonic Mirror:</strong> Spotify listening — mood clustering radar, temporal patterns, passive import on app open.</p>
+              <p><strong className="text-foreground/60">Sonic Mirror:</strong> Spotify listening — music exploration recommendations, sonic pattern analysis, temporal trends, passive import on app open.</p>
               <p><strong className="text-foreground/60">Inner Mirror:</strong> Writing analysis in 3 tiers — primary (mirror moment, narrative, emotions), secondary (dimensions, quotes, books), deep (MBTI, compass, moral foundations).</p>
               <p><strong className="text-foreground/60">Check-ins:</strong> Self-reported feelings → 8-dimension scores. Cumulative weighted average, recent entries count 3x.</p>
               <p><strong className="text-foreground/60">Body Mirror:</strong> Coming soon — fitness data.</p>

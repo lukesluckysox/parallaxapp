@@ -71,7 +71,7 @@ interface HistoryData {
 
 interface PatternsData {
   hasData: boolean;
-  moodClusters: Record<string, number>;
+  sonicClusters: Record<string, number>;
   hourlyPatterns: { hour: number; count: number; avgEnergy: number; avgValence: number }[];
   discoveryRatio: number;
   uniqueTracks: number;
@@ -84,6 +84,46 @@ interface PatternsData {
     overallValence: number;
     energyDelta: number;
     valenceDelta: number;
+  };
+}
+
+interface ExplorationItem {
+  id: string;
+  trackOrArtist: string;
+  reason: string;
+  tag: string;
+}
+
+interface TastePathData {
+  id: string;
+  title: string;
+  steps: string[];
+  startingFrom: string;
+  movingToward: string;
+  thread: string;
+}
+
+interface ExplorationData {
+  ready: boolean;
+  reason?: string;
+  sonicExpansion: ExplorationItem[];
+  tastePaths: TastePathData[];
+  weeklyCrate: ExplorationItem[];
+  introLine: string;
+  sonicPattern: {
+    familiarVsExploratory: string;
+    lyricalVsAtmospheric: string;
+    polishedVsRaw: string;
+    repetitiveVsVaried: string;
+  };
+  listeningProfile?: {
+    topArtists: { name: string; count: number }[];
+    avgEnergy: number;
+    avgValence: number;
+    avgDance: number;
+    avgAcoustic: number;
+    discoveryRatio: number;
+    totalTracksLogged: number;
   };
 }
 
@@ -130,7 +170,7 @@ function FeatureBar({ label, value, color }: { label: string; value: number; col
 }
 
 /** Colored dot indicator for energy/valence */
-function MoodDot({ value, type }: { value: number | null; type: "energy" | "valence" }) {
+function FeatureDot({ value, type }: { value: number | null; type: "energy" | "valence" }) {
   if (value === null || value === undefined) return null;
   let color: string;
   if (type === "energy") {
@@ -174,87 +214,186 @@ function CollapsibleSection({ title, defaultOpen = false, children }: { title: s
   );
 }
 
-/** Mood Radar SVG chart */
-function MoodRadar({ clusters }: { clusters: Record<string, number> }) {
-  const size = 280;
-  const cx = size / 2;
-  const cy = size / 2;
-  const maxR = size * 0.36;
-  const labels = ["ambient", "energetic", "melancholic", "rhythmic", "introspective", "uplifting"];
-  const displayLabels: Record<string, string> = {
-    ambient: "Ambient",
-    energetic: "Energetic",
-    melancholic: "Melancholic",
-    rhythmic: "Rhythmic",
-    introspective: "Introspective",
-    uplifting: "Uplifting",
+/** Tag badge for recommendation items */
+function TagBadge({ tag }: { tag: string }) {
+  const colors: Record<string, string> = {
+    "safe-adjacent": "bg-emerald-500/10 text-emerald-500/70 border-emerald-500/20",
+    "stretch": "bg-amber-500/10 text-amber-500/70 border-amber-500/20",
+    "familiar": "bg-blue-500/10 text-blue-500/70 border-blue-500/20",
+    "adjacent": "bg-emerald-500/10 text-emerald-500/70 border-emerald-500/20",
   };
-  const angleStep = (2 * Math.PI) / labels.length;
+  return (
+    <span className={`px-1.5 py-0.5 rounded text-[9px] font-mono uppercase tracking-wider border ${colors[tag] || "bg-muted text-muted-foreground border-border"}`}>
+      {tag.replace("-", " ")}
+    </span>
+  );
+}
 
-  const points = labels.map((label, i) => {
-    const val = (clusters[label] || 0) / 100;
-    const angle = -Math.PI / 2 + i * angleStep;
-    return { x: cx + maxR * val * Math.cos(angle), y: cy + maxR * val * Math.sin(angle) };
+/** Feedback chips for a recommendation */
+function FeedbackChips({ section, itemId }: { section: string; itemId: string }) {
+  const [sent, setSent] = useState<string | null>(null);
+  const mutation = useMutation({
+    mutationFn: async (feedbackType: string) => {
+      const res = await apiRequest("POST", "/api/spotify/exploration/feedback", {
+        section,
+        itemId,
+        feedbackType,
+      });
+      return res.json();
+    },
+    onSuccess: (_, feedbackType) => setSent(feedbackType as string),
   });
 
-  const rings = [0.25, 0.5, 0.75, 1.0];
+  const chips = [
+    { key: "more_like_this", label: "more like this" },
+    { key: "deeper_cut", label: "deeper cut" },
+    { key: "less_familiar", label: "less familiar" },
+    { key: "outside_my_lane", label: "outside my lane" },
+  ];
 
   return (
-    <div className="flex justify-center">
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-        {/* Grid */}
-        {rings.map(r => (
-          <polygon
-            key={r}
-            points={labels.map((_, i) => {
-              const angle = -Math.PI / 2 + i * angleStep;
-              return `${cx + maxR * r * Math.cos(angle)},${cy + maxR * r * Math.sin(angle)}`;
-            }).join(" ")}
-            fill="none"
-            stroke="hsl(var(--border))"
-            strokeWidth={r === 1 ? 0.8 : 0.4}
-            opacity={r === 1 ? 0.4 : 0.15}
-          />
+    <div className="flex flex-wrap gap-1 mt-1.5">
+      {chips.map(chip => (
+        <button
+          key={chip.key}
+          onClick={() => !sent && mutation.mutate(chip.key)}
+          disabled={!!sent}
+          className={`px-2 py-0.5 rounded-full text-[9px] transition-colors border ${
+            sent === chip.key
+              ? "bg-primary/10 text-primary border-primary/20"
+              : sent
+                ? "opacity-30 border-border/20 text-muted-foreground/30"
+                : "border-border/30 text-muted-foreground/50 hover:text-foreground/70 hover:bg-accent/40 hover:border-border/50"
+          }`}
+        >
+          {chip.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Sonic Expansion — 3 recommended next listens */
+function SonicExpansionCard({ items }: { items: ExplorationItem[] }) {
+  if (items.length === 0) return null;
+  return (
+    <div className="p-3 rounded-[10px] bg-card border border-border" data-testid="card-sonic-expansion">
+      <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-3">
+        Sonic Expansion
+      </p>
+      <div className="space-y-3">
+        {items.map(item => (
+          <div key={item.id} className="space-y-1">
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-sm font-semibold">{item.trackOrArtist}</p>
+              <TagBadge tag={item.tag} />
+            </div>
+            <p className="text-[11px] text-muted-foreground/60 leading-relaxed">{item.reason}</p>
+            <FeedbackChips section="sonic_expansion" itemId={item.id} />
+          </div>
         ))}
-        {/* Axes */}
-        {labels.map((_, i) => {
-          const angle = -Math.PI / 2 + i * angleStep;
-          return (
-            <line key={i} x1={cx} y1={cy} x2={cx + maxR * Math.cos(angle)} y2={cy + maxR * Math.sin(angle)} stroke="hsl(var(--border))" strokeWidth={0.4} opacity={0.2} />
-          );
-        })}
-        {/* Shape */}
-        <polygon
-          points={points.map(p => `${p.x},${p.y}`).join(" ")}
-          fill="hsl(var(--primary))"
-          fillOpacity={0.1}
-          stroke="hsl(var(--primary))"
-          strokeWidth={1.5}
-          strokeOpacity={0.6}
-          strokeLinejoin="round"
-        />
-        {/* Dots */}
-        {points.map((p, i) => (
-          <circle key={i} cx={p.x} cy={p.y} r={3} fill="hsl(var(--primary))" opacity={0.7} />
+      </div>
+    </div>
+  );
+}
+
+/** Taste Paths — guided exploration paths */
+function TastePathsCard({ paths }: { paths: TastePathData[] }) {
+  if (paths.length === 0) return null;
+  return (
+    <div className="p-3 rounded-[10px] bg-card border border-border" data-testid="card-taste-paths">
+      <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-3">
+        Taste Paths
+      </p>
+      <div className="space-y-4">
+        {paths.map(path => (
+          <div key={path.id} className="space-y-2">
+            <p className="text-xs font-semibold">{path.title}</p>
+            <div className="flex items-center gap-1 flex-wrap">
+              {path.steps.map((step, i) => (
+                <span key={i} className="flex items-center gap-1">
+                  <span className="text-[10px] text-foreground/70 font-medium">{step}</span>
+                  {i < path.steps.length - 1 && (
+                    <span className="text-muted-foreground/30 text-[10px]">→</span>
+                  )}
+                </span>
+              ))}
+            </div>
+            <p className="text-[10px] text-muted-foreground/50 leading-relaxed">{path.thread}</p>
+            <FeedbackChips section="taste_paths" itemId={path.id} />
+          </div>
         ))}
-        {/* Labels */}
-        {labels.map((label, i) => {
-          const angle = -Math.PI / 2 + i * angleStep;
-          const labelR = maxR + 20;
-          const lx = cx + labelR * Math.cos(angle);
-          const ly = cy + labelR * Math.sin(angle);
-          return (
-            <g key={label}>
-              <text x={lx} y={ly - 4} textAnchor="middle" dominantBaseline="middle" fontSize={9} fill="hsl(var(--muted-foreground))" fontFamily="var(--font-sans)" fontWeight={500} opacity={0.6}>
-                {displayLabels[label]}
-              </text>
-              <text x={lx} y={ly + 8} textAnchor="middle" dominantBaseline="middle" fontSize={10} fill="hsl(var(--foreground))" fontFamily="var(--font-mono)" fontWeight={500} opacity={0.4}>
-                {clusters[label] || 0}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
+      </div>
+    </div>
+  );
+}
+
+/** Weekly Crate — 5 editorial-feeling recommendations */
+function WeeklyCrateCard({ items }: { items: ExplorationItem[] }) {
+  if (items.length === 0) return null;
+  return (
+    <div className="p-3 rounded-[10px] bg-card border border-border" data-testid="card-weekly-crate">
+      <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-3">
+        Weekly Crate
+      </p>
+      <div className="space-y-3">
+        {items.map((item, i) => (
+          <div key={item.id} className="space-y-1">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-mono text-muted-foreground/30 w-4">{i + 1}.</span>
+                <p className="text-sm font-semibold">{item.trackOrArtist}</p>
+              </div>
+              <TagBadge tag={item.tag} />
+            </div>
+            <p className="text-[11px] text-muted-foreground/60 leading-relaxed pl-6">{item.reason}</p>
+            <div className="pl-6">
+              <FeedbackChips section="weekly_crate" itemId={item.id} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Current Sonic Pattern — soft descriptors, not mood */
+function SonicPatternCard({ pattern }: { pattern: ExplorationData["sonicPattern"] }) {
+  const dimensions = [
+    { label: "familiar ↔ exploratory", value: pattern.familiarVsExploratory },
+    { label: "lyrical ↔ atmospheric", value: pattern.lyricalVsAtmospheric },
+    { label: "polished ↔ raw", value: pattern.polishedVsRaw },
+    { label: "repetitive ↔ varied", value: pattern.repetitiveVsVaried },
+  ];
+
+  const positionMap: Record<string, number> = {
+    familiar: 20, exploratory: 80, balanced: 50,
+    lyrical: 25, atmospheric: 75,
+    polished: 20, raw: 80,
+    repetitive: 25, varied: 75,
+  };
+
+  return (
+    <div className="p-3 rounded-[10px] bg-card/50 border border-border/40" data-testid="card-sonic-pattern">
+      <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/50 mb-3">
+        Current Sonic Pattern
+      </p>
+      <div className="space-y-2.5">
+        {dimensions.map(dim => (
+          <div key={dim.label} className="space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-[9px] text-muted-foreground/40 font-mono">{dim.label}</span>
+              <span className="text-[9px] text-foreground/40 font-mono">{dim.value}</span>
+            </div>
+            <div className="h-1 rounded-full bg-muted/30 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-primary/30 transition-all duration-700"
+                style={{ width: `${positionMap[dim.value] || 50}%` }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -422,6 +561,13 @@ export default function SpotifyPage() {
     enabled: isConnected,
   });
 
+  // Fetch music exploration recommendations (only if connected)
+  const { data: exploration, refetch: refetchExploration } = useQuery<ExplorationData>({
+    queryKey: ["/api/spotify/exploration"],
+    staleTime: 60 * 60 * 1000,
+    enabled: isConnected,
+  });
+
   // Listen for postMessage from the Spotify auth popup
   useEffect(() => {
     const handler = async (event: MessageEvent) => {
@@ -502,7 +648,7 @@ export default function SpotifyPage() {
               <h1 className="text-lg font-bold tracking-tight" data-testid="text-sonic-mirror-title">
                 Sonic Mirror
               </h1>
-              <InfoTooltip text="Tracks your Spotify listening to reveal how music shapes your identity. Mood clustering, energy patterns, and a sonic reading of your psychological state." />
+              <InfoTooltip text="Tracks your Spotify listening to surface patterns in taste, drift, and discovery. Music exploration recommendations, sonic pattern analysis, and temporal listening trends." />
             </div>
             <div />
           </div>
@@ -671,13 +817,41 @@ export default function SpotifyPage() {
               </div>
             )}
 
-            {/* Mood Clustering Radar */}
-            {patterns?.hasData && patterns.moodClusters && (
-              <div className="p-3 rounded-[10px] bg-card border border-border" data-testid="card-mood-radar">
-                <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-3">
-                  Mood Profile
-                </p>
-                <MoodRadar clusters={patterns.moodClusters} />
+            {/* Music Exploration Sections */}
+            {exploration?.ready && (
+              <div className="space-y-3">
+                {/* Intro line */}
+                {exploration.introLine && (
+                  <div className="px-1">
+                    <p className="text-[11px] text-muted-foreground/50 leading-relaxed italic">
+                      {exploration.introLine}
+                    </p>
+                  </div>
+                )}
+
+                {/* Sonic Expansion */}
+                <SonicExpansionCard items={exploration.sonicExpansion} />
+
+                {/* Taste Paths */}
+                <TastePathsCard paths={exploration.tastePaths} />
+
+                {/* Weekly Crate */}
+                <WeeklyCrateCard items={exploration.weeklyCrate} />
+
+                {/* Current Sonic Pattern */}
+                {exploration.sonicPattern && (
+                  <SonicPatternCard pattern={exploration.sonicPattern} />
+                )}
+
+                {/* Refresh recommendations */}
+                <div className="flex justify-center">
+                  <button
+                    onClick={() => refetchExploration()}
+                    className="text-[10px] text-muted-foreground/30 hover:text-muted-foreground/60 transition-colors"
+                  >
+                    refresh recommendations
+                  </button>
+                </div>
               </div>
             )}
 
@@ -785,8 +959,8 @@ export default function SpotifyPage() {
                           <span className="text-[9px] font-mono text-muted-foreground/30 w-14 text-right">
                             {new Date(track.timestamp).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}
                           </span>
-                          <MoodDot value={track.energy} type="energy" />
-                          <MoodDot value={track.valence} type="valence" />
+                          <FeatureDot value={track.energy} type="energy" />
+                          <FeatureDot value={track.valence} type="valence" />
                         </div>
                       </div>
                     ))}
