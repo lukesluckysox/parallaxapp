@@ -7,7 +7,7 @@ import { ARCHETYPES } from "@shared/archetypes";
 const ALL_FAQS = [
   {
     q: "What is Parallax actually doing with my data?",
-    a: "Parallax stores what you choose to give it — your writing, check-ins, and any connected signals — in its own database so it can show you Mirrors, Motion, Trajectory, Helix, Refractions, and other views of your pattern. Your data exists to reflect you back to yourself, not to power an ad network or some hidden third party.",
+    a: "Parallax stores what you choose to give it — your writing, check-ins, and any connected signals — in its own database so it can show you Mirrors, Motion, Trajectory, Helix, and other views of your pattern. Your data exists to reflect you back to yourself, not to power an ad network or some hidden third party.",
   },
   {
     q: "Does Parallax sell or share my data?",

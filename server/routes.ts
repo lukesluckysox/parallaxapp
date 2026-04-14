@@ -2165,6 +2165,253 @@ Return ONLY valid JSON:
     }
   });
 
+  // ===================== REFRACTIONS INTERNAL (for Praxis) =====================
+
+  // These endpoints let Praxis fetch refractions data using the internal token
+  // and lumen user ID, without needing a Parallax JWT cookie.
+
+  app.get("/api/internal/refractions/experiments", (req, res) => {
+    const token = req.headers["x-lumen-internal-token"];
+    const expectedToken = process.env.LUMEN_INTERNAL_TOKEN || process.env.JWT_SECRET || '';
+    if (!expectedToken || token !== expectedToken) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const lumenUserId = req.query.userId as string;
+    if (!lumenUserId) return res.json({ experiments: [] });
+
+    try {
+      const allUsers = storage.getAllUsers();
+      const user = allUsers.find((u: any) => u.lumen_user_id === lumenUserId);
+      if (!user) return res.json({ experiments: [] });
+
+      const checkins = sqlite.prepare(
+        "SELECT self_vec FROM checkins WHERE user_id = ? ORDER BY timestamp DESC LIMIT 5"
+      ).all(user.id) as any[];
+
+      if (checkins.length === 0) return res.json({ experiments: [] });
+
+      // Replicate experiment suggestion logic from the client
+      const EXPERIMENT_POOL: Record<string, any[]> = {
+        observer: [
+          { title: "Silent morning — no input for the first hour", duration: "5 days", watching: "focus stability, calm baseline shift", target: "observer" },
+          { title: "Log one pattern you notice daily that nobody asked about", duration: "7 days", watching: "observer signal strength, writing depth", target: "observer" },
+        ],
+        builder: [
+          { title: "Ship one small thing every day before noon", duration: "5 days", watching: "drive trend, agency signal", target: "builder" },
+          { title: "Time-block 2 hours of deep work with no context switching", duration: "3 days", watching: "focus consistency, builder emergence", target: "builder" },
+        ],
+        explorer: [
+          { title: "Take a route you've never taken — physically or mentally", duration: "3 days", watching: "exploration score, creativity uptick", target: "explorer" },
+          { title: "Listen to a genre you'd normally skip for a full day", duration: "1 day", watching: "sonic mirror shift, openness signal", target: "explorer" },
+        ],
+        dissenter: [
+          { title: "Disagree with one consensus opinion you usually go along with", duration: "3 days", watching: "autonomy signal, dissenter emergence", target: "dissenter" },
+          { title: "Remove one default from your routine — something you do because everyone does", duration: "5 days", watching: "independence trend, pattern break", target: "dissenter" },
+        ],
+        seeker: [
+          { title: "Write about what you're moving toward, not away from", duration: "3 days", watching: "meaning signal, seeker trajectory", target: "seeker" },
+          { title: "Sit with discomfort for 10 minutes without fixing it", duration: "5 days", watching: "calm under uncertainty, transformation readiness", target: "seeker" },
+        ],
+      };
+
+      const dimTotals: Record<string, number> = {};
+      let count = 0;
+      for (const c of checkins) {
+        try {
+          const vec = JSON.parse(c.self_vec);
+          for (const [k, v] of Object.entries(vec)) {
+            dimTotals[k] = (dimTotals[k] || 0) + (v as number);
+          }
+          count++;
+        } catch { /* skip */ }
+      }
+
+      if (count === 0) return res.json({ experiments: [] });
+
+      const scores: Record<string, number> = {
+        observer: ((dimTotals["focus"] || 0) + (dimTotals["calm"] || 0)) / count,
+        builder: ((dimTotals["agency"] || 0) + (dimTotals["drive"] || 0)) / count,
+        explorer: ((dimTotals["creativity"] || 0) + (dimTotals["exploration"] || 0)) / count,
+        dissenter: ((dimTotals["agency"] || 0) + (dimTotals["exploration"] || 0) - (dimTotals["calm"] || 0) / 2) / count,
+        seeker: ((dimTotals["exploration"] || 0) + (dimTotals["calm"] || 0)) / count,
+      };
+
+      const sorted = Object.entries(scores).sort((a, b) => a[1] - b[1]);
+      const weakest = sorted[0][0];
+      const secondWeakest = sorted[1][0];
+
+      const experiments: any[] = [];
+      if (EXPERIMENT_POOL[weakest]?.[0]) experiments.push(EXPERIMENT_POOL[weakest][0]);
+      if (EXPERIMENT_POOL[secondWeakest]?.[0]) experiments.push(EXPERIMENT_POOL[secondWeakest][0]);
+      const third = sorted[Math.floor(Math.random() * sorted.length)][0];
+      if (EXPERIMENT_POOL[third]?.[1]) experiments.push(EXPERIMENT_POOL[third][1]);
+
+      return res.json({ experiments: experiments.slice(0, 3) });
+    } catch (err: any) {
+      console.error("Internal refractions experiments error:", err);
+      return res.json({ experiments: [] });
+    }
+  });
+
+  app.get("/api/internal/refractions/conditions", async (req, res) => {
+    const token = req.headers["x-lumen-internal-token"];
+    const expectedToken = process.env.LUMEN_INTERNAL_TOKEN || process.env.JWT_SECRET || '';
+    if (!expectedToken || token !== expectedToken) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const lumenUserId = req.query.userId as string;
+    if (!lumenUserId) return res.json({ conditions: [] });
+
+    try {
+      const allUsers = storage.getAllUsers();
+      const user = allUsers.find((u: any) => u.lumen_user_id === lumenUserId);
+      if (!user) return res.json({ conditions: [] });
+      const userId = user.id;
+
+      const cached = storage.getCachedResponse(userId, "refractions_conditions", 120);
+      if (cached) {
+        try { return res.json(JSON.parse(cached)); } catch {}
+      }
+
+      const tz = (req.query.tz as string) || "America/New_York";
+      const ctx = gatherUserContext(userId, tz);
+      if (!ctx.hasData) return res.json({ conditions: [] });
+
+      const variantHistory = storage.getVariantHistory(userId);
+      const variantSummary = variantHistory.slice(0, 10).map((v: any) =>
+        `${v.started_at.slice(0,10)}: "${v.variant_name}" (${v.primary_archetype}/${v.secondary_archetype || "none"})`
+      ).join("\n") || "No variant history yet.";
+
+      const message = await anthropic.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1024,
+        messages: [{
+          role: "user",
+          content: `You are the Parallax identity system's conditions analyst. Based on the user's behavioral signals, identify what environments, behaviors, or contexts tend to bring out certain archetypal expressions.
+
+IMPORTANT FRAMING:
+- Use soft probabilistic language: "tends to", "often coincides with", "appears stronger when", "may emerge under"
+- Never use definitive claims like "you are" or "this causes"
+- Ground observations in the user's actual data patterns
+- Each condition should name a specific archetype it amplifies
+
+User's check-in history:
+${ctx.checkinSummary}
+
+Writing themes:
+${ctx.writingSummary || "No writings yet."}
+
+Music profile:
+${ctx.musicSummary}
+
+Variant history:
+${variantSummary}
+
+The 5 archetypes: observer, builder, explorer, dissenter, seeker.
+
+Generate 3-4 condition observations. Each must have:
+- "condition": A short phrase describing the context/behavior (e.g. "solitary mornings with acoustic music")
+- "amplifies": Which archetype this tends to strengthen (one of the 5)
+- "observation": 1 sentence explaining the pattern using soft language
+
+Return ONLY valid JSON:
+{"conditions":[{"condition":"...","amplifies":"...","observation":"..."}]}`
+        }],
+      });
+
+      const responseText = message.content[0].type === "text" ? message.content[0].text : "";
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) return res.json({ conditions: [] });
+
+      const parsed = JSON.parse(jsonMatch[0]);
+      storage.setCachedResponse(userId, "refractions_conditions", JSON.stringify(parsed));
+      return res.json(parsed);
+    } catch (err: any) {
+      console.error("Internal refractions conditions error:", err);
+      return res.json({ conditions: [] });
+    }
+  });
+
+  app.get("/api/internal/refractions/recovery", (req, res) => {
+    const token = req.headers["x-lumen-internal-token"];
+    const expectedToken = process.env.LUMEN_INTERNAL_TOKEN || process.env.JWT_SECRET || '';
+    if (!expectedToken || token !== expectedToken) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const lumenUserId = req.query.userId as string;
+    if (!lumenUserId) return res.json({ recovery: null });
+
+    try {
+      const allUsers = storage.getAllUsers();
+      const user = allUsers.find((u: any) => u.lumen_user_id === lumenUserId);
+      if (!user) return res.json({ recovery: null });
+      const userId = user.id;
+
+      const cached = storage.getCachedResponse(userId, "refractions_recovery", 60);
+      if (cached) {
+        try { return res.json(JSON.parse(cached)); } catch {}
+      }
+
+      const checkins = sqlite.prepare(
+        "SELECT self_vec, timestamp FROM checkins WHERE user_id = ? ORDER BY timestamp ASC"
+      ).all(userId) as any[];
+
+      if (checkins.length < 8) return res.json({ recovery: null });
+
+      const vecs = checkins.map((c: any) => {
+        try { return { vec: JSON.parse(c.self_vec), date: c.timestamp }; }
+        catch { return null; }
+      }).filter(Boolean) as { vec: Record<string, number>; date: string }[];
+
+      if (vecs.length < 8) return res.json({ recovery: null });
+
+      const dims = DIMENSIONS as unknown as string[];
+      const windowSize = 4;
+      const windows: number[] = [];
+      for (let i = 0; i <= vecs.length - windowSize; i++) {
+        const windowVecs = vecs.slice(i, i + windowSize);
+        let totalVar = 0;
+        for (const dim of dims) {
+          const vals = windowVecs.map(v => v.vec[dim] || 50);
+          const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
+          const variance = vals.reduce((a, v) => a + Math.pow(v - mean, 2), 0) / vals.length;
+          totalVar += variance;
+        }
+        windows.push(Math.sqrt(totalVar / dims.length));
+      }
+
+      const recentVol = windows.length >= 2 ? windows.slice(-2).reduce((a, b) => a + b, 0) / 2 : windows[windows.length - 1];
+      const historicalVol = windows.reduce((a, b) => a + b, 0) / windows.length;
+      const maxVol = Math.max(...windows);
+
+      const stability = Math.max(0, Math.min(1, 1 - (recentVol / (maxVol || 1))));
+
+      let trend: "stabilizing" | "drifting" | "stable" | "volatile" = "stable";
+      if (recentVol < historicalVol * 0.7) trend = "stabilizing";
+      else if (recentVol > historicalVol * 1.3) trend = "drifting";
+      else if (recentVol > 15) trend = "volatile";
+
+      const result = {
+        recovery: {
+          stability: Math.round(stability * 100) / 100,
+          trend,
+          recent_volatility: Math.round(recentVol * 10) / 10,
+          historical_volatility: Math.round(historicalVol * 10) / 10,
+          data_points: vecs.length,
+        }
+      };
+
+      storage.setCachedResponse(userId, "refractions_recovery", JSON.stringify(result));
+      return res.json(result);
+    } catch (err: any) {
+      console.error("Internal refractions recovery error:", err);
+      return res.json({ recovery: null });
+    }
+  });
+
   // ===================== DISCOVER (INSIGHT ENGINE) =====================
 
   app.get("/api/discover", async (req, res) => {
