@@ -7,7 +7,7 @@ import { ARCHETYPES } from "@shared/archetypes";
 const ALL_FAQS = [
   {
     q: "What is Parallax actually doing with my data?",
-    a: "Parallax stores what you choose to give it — your writing, check-ins, and any connected signals — in its own database so it can show you Mirrors, Motion, Trajectory, Helix, Refractions, and other views of your pattern. Your data exists to reflect you back to yourself, not to power an ad network or some hidden third party.",
+    a: "Parallax stores what you choose to give it — your writing, check-ins, and any connected signals — in its own database so it can show you Mirrors, Motion, Trajectory, Helix, and other views of your pattern. Your data exists to reflect you back to yourself, not to power an ad network or some hidden third party.",
   },
   {
     q: "Does Parallax sell or share my data?",
@@ -100,7 +100,7 @@ export default function AboutPage() {
               a personal pattern recognition engine
             </p>
             <p className="text-sm text-muted-foreground leading-relaxed max-w-md mx-auto">
-              Parallax synthesizes signals from your writing, music, mood, and self-reports to reveal
+              Parallax synthesizes signals from your writing, music, reflections, and self-reports to reveal
               recurring identity patterns. It treats identity as dynamic, cyclical, and multi-signal —
               not a fixed type.
             </p>
@@ -121,7 +121,7 @@ export default function AboutPage() {
                 },
                 {
                   name: "Mirrors (Data Collection)",
-                  desc: "Three mirrors feed your identity profile. Sonic Mirror analyzes your Spotify listening — mood clustering radar, temporal patterns, discovery ratio. Inner Mirror analyzes your writing — emotional tone, mirror moments, MBTI, political compass, moral foundations. Body Mirror (coming soon) will add fitness data.",
+                  desc: "Three mirrors feed your identity profile. Sonic Mirror analyzes your Spotify listening — music exploration recommendations, sonic pattern analysis, temporal trends, discovery ratio. Inner Mirror analyzes your writing — emotional tone, mirror moments, MBTI, political compass, moral foundations. Body Mirror (coming soon) will add fitness data.",
                 },
                 {
                   name: "Signals (Pattern Detection)",
@@ -236,8 +236,8 @@ export default function AboutPage() {
                 <p className="font-semibold text-foreground text-xs">Sonic Mirror (Music)</p>
                 <p className="text-[11px] text-muted-foreground/60 mt-1">
                   Spotify OAuth connection. Tracks are imported passively when you open the app. Audio features
-                  (energy, valence, danceability, acousticness, instrumentalness, tempo) are analyzed and clustered
-                  into 6 mood profiles: Ambient, Energetic, Melancholic, Rhythmic, Acoustic, Experimental.
+                  (energy, valence, danceability, acousticness, instrumentalness, tempo) are analyzed to generate
+                  music exploration recommendations — Sonic Expansion, Taste Paths, and Weekly Crate.
                   Temporal patterns show when and how you listen.
                 </p>
               </div>

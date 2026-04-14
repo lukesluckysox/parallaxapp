@@ -6,7 +6,7 @@ Parallax is not a tracker. It is a personal pattern recognition engine for the p
 
 ## Core Principle
 
-The system synthesizes signals from creative writing, music listening, fitness data, mood self-reports, and behavioral patterns into insights that help users understand:
+The system synthesizes signals from creative writing, music listening, fitness data, self-reports, and behavioral patterns into insights that help users understand:
 
 - Hidden behavioral patterns
 - Identity shifts

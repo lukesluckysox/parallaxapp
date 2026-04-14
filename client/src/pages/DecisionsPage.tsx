@@ -1,6 +1,3 @@
-import { useState, useEffect } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Link } from "wouter";
 import { ArrowLeft, ChevronDown, Clock, Check, X, Minus, Trash2, Sparkles } from "lucide-react";
 import DecisionEngine from "@/components/DecisionEngine";
@@ -210,33 +207,9 @@ function DecisionSuggestions({ onSelect }: { onSelect: (text: string) => void })
     </div>
   );
 }
+import { ArrowLeft, ArrowRight, FlaskConical } from "lucide-react";
 
 export default function DecisionsPage() {
-  const [selfVec, setSelfVec] = useState<DimensionVec>(defaultVec());
-  const [dataVec, setDataVec] = useState<DimensionVec | null>(null);
-  const [prefillDecision, setPrefillDecision] = useState("");
-
-  // Fetch latest check-in to derive selfVec and dataVec
-  const { data: checkins = [] } = useQuery<Checkin[]>({
-    queryKey: ["/api/checkins"],
-  });
-
-  useEffect(() => {
-    if (checkins.length > 0) {
-      const latest = checkins[0];
-      try {
-        const parsedSelf = JSON.parse(latest.self_vec);
-        setSelfVec(parsedSelf);
-      } catch { /* keep defaults */ }
-      if (latest.data_vec) {
-        try {
-          const parsedData = JSON.parse(latest.data_vec);
-          setDataVec(parsedData);
-        } catch { /* keep null */ }
-      }
-    }
-  }, [checkins]);
-
   return (
     <div className="min-h-screen bg-background pb-20 noise-overlay">
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
@@ -245,28 +218,43 @@ export default function DecisionsPage() {
           <Link
             href="/snapshot"
             className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-            data-testid="link-back-home"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             Reflection
           </Link>
-          <div className="flex items-center gap-1.5">
-            <h1 className="text-base font-bold" data-testid="text-page-title">Decision Lab</h1>
-            <InfoTooltip text="Evaluate decisions against your archetype profile. Each choice is analyzed for how it might shift your identity dimensions, and each archetype weighs in with its own verdict." />
-          </div>
+          <h1 className="text-base font-bold">Decision Lab</h1>
           <div />
         </header>
 
-        {/* Decision Suggestions (Pro) */}
-        <ProGate feature="Decision Suggestions">
-          <DecisionSuggestions onSelect={(text) => setPrefillDecision(text)} />
-        </ProGate>
+        {/* Migration card */}
+        <div className="p-6 rounded-[10px] border border-border/30 bg-card/20 space-y-4">
+          <div className="flex items-center gap-3">
+            <div
+              className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
+              style={{ backgroundColor: "rgba(255,209,102,0.1)" }}
+            >
+              <FlaskConical className="w-5 h-5" style={{ color: "#c4943e" }} />
+            </div>
+            <div>
+              <h2 className="text-sm font-semibold text-foreground">Decision experiments have moved to Praxis</h2>
+              <p className="text-[11px] text-muted-foreground/60 mt-0.5">
+                Decisions are experiments, not observations — they belong in the laboratory.
+              </p>
+            </div>
+          </div>
 
-        {/* Decision Engine */}
-        <DecisionEngine selfVec={selfVec} dataVec={dataVec} prefill={prefillDecision} />
-
-        {/* Decision History */}
-        <DecisionHistory />
+          <a
+            href="https://praxis-app.up.railway.app/#/decision-experiments"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-between p-3 rounded-[10px] border border-border/20 bg-card/10 hover:bg-card/30 transition-colors group"
+          >
+            <span className="text-xs text-muted-foreground/50 group-hover:text-muted-foreground/70 transition-colors">
+              Open Decision Experiments in Praxis
+            </span>
+            <ArrowRight className="w-3.5 h-3.5 text-muted-foreground/30 group-hover:text-muted-foreground/50 transition-colors" />
+          </a>
+        </div>
       </div>
     </div>
   );
