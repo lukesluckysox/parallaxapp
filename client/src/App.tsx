@@ -27,6 +27,7 @@ import PortraitGallery from "./pages/PortraitGallery";
 import LandingPage from "./pages/LandingPage";
 import NotFound from "./pages/not-found";
 import BottomNav from "./components/BottomNav";
+import AppSidebar from "./components/AppSidebar";
 import Onboarding from "./components/Onboarding";
 import TopBar from "./components/TopBar";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -75,28 +76,37 @@ function AppContent() {
 
   return (
     <Router hook={useHashLocation}>
-      <TopBar />
-      <Switch>
-        <Route path="/" component={HolisticPage} />
-        <Route path="/snapshot" component={CharacterApp} />
-        <Route path="/mirrors" component={MirrorsPage} />
-        <Route path="/mirrors/sonic" component={SpotifyPage} />
-        <Route path="/mirrors/inner" component={WritingPage} />
-        <Route path="/mirrors/body" component={HealthPage} />
-        <Route path="/signals" component={DiscoverPage} />
-        <Route path="/signals/insights" component={SignalsInsightsPage} />
-        <Route path="/signals/patterns" component={SignalsPatternsPage} />
-        <Route path="/motion" component={TrajectoryPage} />
-        <Route path="/motion/helix" component={HelixPage} />
-        <Route path="/decisions" component={DecisionsPage} />
-        <Route path="/about" component={AboutPage} />
-        <Route path="/oracle" component={OraclePage} />
-        <Route path="/portraits" component={PortraitGallery} />
-        <Route path="/wrapped" component={WrappedPage} />
-        <Route path="/profile" component={ProfilePage} />
-        <Route component={NotFound} />
-      </Switch>
-      <BottomNav />
+      <div className="flex h-screen bg-background overflow-hidden">
+        <div className="hidden md:block">
+          <AppSidebar />
+        </div>
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <TopBar />
+          <main className="flex-1 overflow-y-auto pb-24 md:pb-0">
+            <Switch>
+              <Route path="/" component={HolisticPage} />
+              <Route path="/snapshot" component={CharacterApp} />
+              <Route path="/mirrors" component={MirrorsPage} />
+              <Route path="/mirrors/sonic" component={SpotifyPage} />
+              <Route path="/mirrors/inner" component={WritingPage} />
+              <Route path="/mirrors/body" component={HealthPage} />
+              <Route path="/signals" component={DiscoverPage} />
+              <Route path="/signals/insights" component={SignalsInsightsPage} />
+              <Route path="/signals/patterns" component={SignalsPatternsPage} />
+              <Route path="/motion" component={TrajectoryPage} />
+              <Route path="/motion/helix" component={HelixPage} />
+              <Route path="/decisions" component={DecisionsPage} />
+              <Route path="/about" component={AboutPage} />
+              <Route path="/oracle" component={OraclePage} />
+              <Route path="/portraits" component={PortraitGallery} />
+              <Route path="/wrapped" component={WrappedPage} />
+              <Route path="/profile" component={ProfilePage} />
+              <Route component={NotFound} />
+            </Switch>
+          </main>
+          <BottomNav />
+        </div>
+      </div>
     </Router>
   );
 }
