@@ -4971,6 +4971,8 @@ Return ONLY valid JSON:
       let imageUrl = "";
       if (process.env.REPLICATE_API_TOKEN) {
         try {
+          console.log("[Portrait] Attempting Replicate Imagen 4 generation...");
+          console.log("[Portrait] Prompt:", result.imagePrompt.slice(0, 200));
           const replicate = new Replicate();
           const output = await replicate.run("google/imagen-4", {
             input: {
@@ -4978,12 +4980,28 @@ Return ONLY valid JSON:
               aspect_ratio: "16:9",
             },
           });
+          console.log("[Portrait] Replicate output type:", typeof output, Array.isArray(output) ? "array" : "");
+          // Replicate returns FileOutput objects for image models.
+          // FileOutput has a .url() method; it can also be in an array.
           if (typeof output === "string") {
             imageUrl = output;
+          } else if (output && typeof output === "object" && typeof (output as any).url === "function") {
+            imageUrl = (output as any).url().toString();
+          } else if (Array.isArray(output) && output.length > 0) {
+            const first = output[0];
+            if (typeof first === "string") {
+              imageUrl = first;
+            } else if (first && typeof first === "object" && typeof (first as any).url === "function") {
+              imageUrl = (first as any).url().toString();
+            }
           }
+          console.log("[Portrait] Resolved image URL:", imageUrl ? imageUrl.slice(0, 100) : "(empty)");
         } catch (imgErr: any) {
-          console.error("Replicate Imagen 4 generation failed:", imgErr.message);
+          console.error("[Portrait] Replicate Imagen 4 generation failed:", imgErr.message);
+          console.error("[Portrait] Full error:", imgErr);
         }
+      } else {
+        console.log("[Portrait] No REPLICATE_API_TOKEN set, skipping image generation");
       }
 
       // Compare to previous portrait
