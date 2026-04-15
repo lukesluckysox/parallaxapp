@@ -229,10 +229,15 @@ function ExpandedPortrait({
 
 export default function PortraitGallery() {
   const [expanded, setExpanded] = useState<Portrait | null>(null);
+  const [promptExpanded, setPromptExpanded] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: portraits = [], isLoading } = useQuery<Portrait[]>({
     queryKey: ["/api/portraits"],
+  });
+
+  const { data: promptPreview } = useQuery<{ prompt: string; variantName: string }>({
+    queryKey: ["/api/portraits/preview-prompt"],
   });
 
   const generateMutation = useMutation({
@@ -242,6 +247,7 @@ export default function PortraitGallery() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/portraits"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/portraits/preview-prompt"] });
     },
   });
 
@@ -254,6 +260,31 @@ export default function PortraitGallery() {
           </Link>
           <h1 className="text-lg font-display text-[#FFD166]">portraits</h1>
         </div>
+
+        {/* Prompt preview */}
+        {promptPreview && promptPreview.prompt && (
+          <div className="mb-4 border border-border/20 rounded-lg p-3 bg-[#0d1117]/50">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[10px] font-mono text-[#FFD166]/60 uppercase tracking-wider">current prompt</span>
+              {promptPreview.variantName && promptPreview.variantName !== "\u2014" && (
+                <span className="text-[10px] font-mono text-[#FFD166]/40">{promptPreview.variantName} variant</span>
+              )}
+            </div>
+            <p
+              className={`text-xs font-mono text-muted-foreground/50 italic leading-relaxed ${!promptExpanded ? "line-clamp-3" : ""}`}
+            >
+              {promptPreview.prompt}
+            </p>
+            {promptPreview.prompt.length > 200 && (
+              <button
+                onClick={() => setPromptExpanded(!promptExpanded)}
+                className="text-[10px] font-mono text-[#FFD166]/40 hover:text-[#FFD166]/70 mt-1 transition-colors"
+              >
+                {promptExpanded ? "show less" : "show more"}
+              </button>
+            )}
+          </div>
+        )}
 
         <button
           onClick={() => generateMutation.mutate()}
@@ -315,8 +346,13 @@ export default function PortraitGallery() {
                     </div>
                   )}
                   <div className="px-3 pb-3 pt-2">
-                    <p className="text-xs font-mono text-[#FFD166]/70 capitalize">
+                    <p className="text-sm font-display text-[#FFD166] capitalize">
                       {p.dominant_archetype}
+                      {p.secondary_archetype && (
+                        <span className="text-muted-foreground/40 text-xs ml-1">
+                          / {p.secondary_archetype}
+                        </span>
+                      )}
                     </p>
                     <p className="text-[10px] text-muted-foreground/30 font-mono">
                       {formatDate(p.generated_at)}

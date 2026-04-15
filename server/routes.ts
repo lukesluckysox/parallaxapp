@@ -15,6 +15,8 @@ import Replicate from "replicate";
 import { decisions as decisionsTable, checkins as checkinsTable, users as usersTable } from "@shared/schema";
 import { computeMixture, topArchetype } from "@shared/archetype-math";
 import { eq, and } from "drizzle-orm";
+import fs from "fs";
+import path from "path";
 
 const JWT_SECRET = process.env.JWT_SECRET || "parallax-dev-secret-change-in-production";
 
@@ -4901,6 +4903,65 @@ Return ONLY valid JSON:
 
   // ==================== PORTRAITS ====================
 
+  // GET /api/portraits/preview-prompt — Preview the current prompt without generating
+  app.get("/api/portraits/preview-prompt", async (req, res) => {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+    try {
+      const checkins = storage.getCheckins(userId);
+      if (checkins.length === 0) {
+        return res.json({ prompt: "Complete a check-in first to see your portrait prompt.", variantName: "—" });
+      }
+      const latest = checkins[0];
+      const dimensionVec = JSON.parse(latest.self_vec);
+      const modes = storage.getIdentityModes(userId);
+      const activeModeNames = modes.slice(0, 5).map((m: any) => m.mode_name);
+      const dominantArchetype = latest.self_archetype || "observer";
+      let secondaryArchetype: string | null = null;
+      if (modes.length > 0) {
+        const otherMode = modes.find((m: any) => m.dominant_archetype.toLowerCase() !== dominantArchetype.toLowerCase());
+        if (otherMode) secondaryArchetype = otherMode.dominant_archetype.toLowerCase();
+      }
+      const recentTensions: string[] = [];
+      if (checkins.length >= 2) {
+        const prevVec = JSON.parse(checkins[1].self_vec);
+        const dims = ["focus", "calm", "agency", "vitality", "social", "creativity", "exploration", "drive"] as const;
+        for (const dim of dims) {
+          const delta = Math.abs((dimensionVec[dim] || 50) - (prevVec[dim] || 50));
+          if (delta > 20) recentTensions.push(dim);
+        }
+      }
+      const motifKeywords: string[] = [];
+      if (latest.feeling_text) {
+        const words = latest.feeling_text.toLowerCase().split(/\s+/).filter((w: string) => w.length > 4);
+        motifKeywords.push(...words.slice(0, 5));
+      }
+      let spotifyEnergyProfile: { energy: number; valence: number } | undefined;
+      try {
+        const listens = storage.getSpotifyListens(userId, 20);
+        if (listens.length > 0) {
+          const avgEnergy = listens.reduce((s: number, l: any) => s + (l.energy || 50), 0) / listens.length;
+          const avgValence = listens.reduce((s: number, l: any) => s + (l.valence || 50), 0) / listens.length;
+          spotifyEnergyProfile = { energy: Math.round(avgEnergy), valence: Math.round(avgValence) };
+        }
+      } catch {}
+      let previousReflection: string | undefined;
+      const allPortraits = storage.getPortraits(userId);
+      const reflectedPortrait = allPortraits.find((p: any) => p.user_reflection && p.user_reflection.trim().length > 0);
+      if (reflectedPortrait) previousReflection = reflectedPortrait.user_reflection;
+
+      const result = renderPortrait({
+        dimensionVec, dominantArchetype, secondaryArchetype,
+        activeModes: activeModeNames, recentTensions, motifKeywords,
+        spotifyEnergyProfile, previousReflection,
+      });
+      const variantName = dominantArchetype.charAt(0).toUpperCase() + dominantArchetype.slice(1);
+      return res.json({ prompt: result.imagePrompt, variantName });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
   // POST /api/portraits/generate — Generate a new portrait from latest state
   app.post("/api/portraits/generate", async (req, res) => {
     const userId = getUserId(req);
@@ -5005,6 +5066,28 @@ Return ONLY valid JSON:
             }
           }
           console.log("[Portrait] Resolved image URL:", imageUrl ? imageUrl.slice(0, 100) : "(empty)");
+
+          // Download image and save locally to persist beyond Replicate's temporary URLs
+          if (imageUrl) {
+            try {
+              const portraitsDir = path.resolve(process.cwd(), "public", "portraits");
+              fs.mkdirSync(portraitsDir, { recursive: true });
+              const imgResponse = await fetch(imageUrl);
+              if (imgResponse.ok) {
+                const buffer = Buffer.from(await imgResponse.arrayBuffer());
+                const ext = imgResponse.headers.get("content-type")?.includes("webp") ? "webp" : "png";
+                const filename = `portrait-${Date.now()}.${ext}`;
+                const filePath = path.join(portraitsDir, filename);
+                fs.writeFileSync(filePath, buffer);
+                imageUrl = `/portraits/${filename}`;
+                console.log("[Portrait] Saved image locally:", imageUrl);
+              } else {
+                console.error("[Portrait] Failed to download image:", imgResponse.status);
+              }
+            } catch (dlErr: any) {
+              console.error("[Portrait] Failed to save image locally:", dlErr.message);
+            }
+          }
         } catch (imgErr: any) {
           console.error("[Portrait] Replicate Imagen 4 generation failed:", imgErr.message);
           console.error("[Portrait] Full error:", imgErr);
