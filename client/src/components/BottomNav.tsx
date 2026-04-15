@@ -1,14 +1,13 @@
-import { Home, CircleDot, FlaskConical, Zap, Ghost, Compass } from "lucide-react";
+import { Home, Aperture, Layers, Radio, TrendingUp, CircleDot } from "lucide-react";
 import { Link, useLocation } from "wouter";
 
 const LUMEN_HUB_URL = "https://lumen-os.up.railway.app";
-const CURRENT_APP = "parallax";
 
-const APP_NAV = [
-  { key: "parallax", href: "https://parallaxapp.up.railway.app/", icon: Compass, label: "Parallax" },
-  { key: "praxis", href: "https://praxis-app.up.railway.app/", icon: FlaskConical, label: "Praxis" },
-  { key: "axiom", href: "https://axiomtool-production.up.railway.app/#/", icon: Zap, label: "Axiom" },
-  { key: "liminal", href: "https://liminal-app.up.railway.app/", icon: Ghost, label: "Liminal" },
+const NAV_ITEMS = [
+  { href: "/snapshot", icon: Aperture, label: "Snapshot" },
+  { href: "/mirrors", icon: Layers, label: "Mirrors" },
+  { href: "/signals", icon: Radio, label: "Signals" },
+  { href: "/motion", icon: TrendingUp, label: "Motion" },
 ];
 
 export default function BottomNav() {
@@ -43,27 +42,28 @@ export default function BottomNav() {
         </Link>
       </div>
 
-      {/* Bottom row: 4 sub-apps */}
+      {/* Bottom row: 4 internal pages */}
       <div className="flex items-center justify-around px-2 py-1">
-        {APP_NAV.map(({ key, href, icon: Icon, label }) => {
-          const isSelf = key === CURRENT_APP;
+        {NAV_ITEMS.map(({ href, icon: Icon, label }) => {
+          const isActive = href === "/"
+            ? location === "/" || location === ""
+            : location === href || location.startsWith(href + "/");
           return (
-            <a
-              key={key}
-              href={isSelf ? "/" : href}
-              data-testid={`nav-app-${key}`}
+            <Link
+              key={href}
+              href={href}
+              data-testid={`nav-${label.toLowerCase()}`}
               className={`relative flex flex-col items-center justify-center gap-0.5 px-2 rounded-lg transition-all min-h-[44px] ${
-                isSelf
-                  ? "text-violet-500"
+                isActive
+                  ? "text-[#d4a03a]"
                   : "text-muted-foreground/40 hover:text-muted-foreground"
               }`}
-              {...(!isSelf ? { target: "_self" } : {})}
             >
-              <Icon className="w-4.5 h-4.5" strokeWidth={isSelf ? 2 : 1.5} />
-              <span className={`text-[10px] font-mono ${isSelf ? "text-violet-500/80" : "text-muted-foreground/30"}`}>
+              <Icon className="w-4.5 h-4.5" strokeWidth={isActive ? 2 : 1.5} />
+              <span className={`text-[10px] font-mono ${isActive ? "text-[#d4a03a]/80" : "text-muted-foreground/30"}`}>
                 {label.toLowerCase()}
               </span>
-            </a>
+            </Link>
           );
         })}
       </div>
