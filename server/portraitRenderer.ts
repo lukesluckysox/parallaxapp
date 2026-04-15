@@ -276,7 +276,7 @@ function generateImagePrompt(input: RendererInput): string {
     remainingAtmosphere ? `${remainingAtmosphere}.` : "",
     motifStr,
     reflectionStr,
-    "Painterly style, contemplative, no human figures, cinematic composition, 16:9 aspect ratio.",
+    "Painterly style, contemplative, no human figures, cinematic composition, 16:9 aspect ratio. Color palette constrained to deep navy (#0d1117), warm gold (#FFD166), muted teal, charcoal, amber, and desaturated earth tones. The overall image should feel dark and warm, as if lit by low golden light against a deep indigo sky. Avoid bright whites, vivid blues, or saturated greens. The mood is intimate and nocturnal.",
   ];
 
   return parts.filter(Boolean).join(" ").replace(/\.\./g, ".").replace(/\s+/g, " ").trim();

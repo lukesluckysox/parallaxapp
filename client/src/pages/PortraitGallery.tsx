@@ -116,11 +116,16 @@ function ExpandedPortrait({
         </div>
 
         {hasImage ? (
-          <div className="w-full mb-6 rounded-lg overflow-hidden">
+          <div className="w-full mb-6 rounded-lg overflow-hidden relative">
             <img
               src={portrait.image_url}
               alt={portrait.symbolic_description}
               className="w-full aspect-video object-cover"
+              style={{ filter: "saturate(0.75) sepia(0.12) brightness(0.85)" }}
+            />
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{ background: "radial-gradient(ellipse at center, transparent 40%, rgba(13, 17, 23, 0.5) 100%)" }}
             />
           </div>
         ) : (
@@ -292,11 +297,16 @@ export default function PortraitGallery() {
                   className="group text-left bg-[#0d1117] border border-border/20 rounded-xl overflow-hidden hover:border-[#FFD166]/30 transition-all"
                 >
                   {hasImage ? (
-                    <div className="aspect-video">
+                    <div className="aspect-video relative">
                       <img
                         src={p.image_url}
                         alt={p.symbolic_description}
                         className="w-full h-full object-cover"
+                        style={{ filter: "saturate(0.75) sepia(0.12) brightness(0.85)" }}
+                      />
+                      <div
+                        className="absolute inset-0 pointer-events-none"
+                        style={{ background: "radial-gradient(ellipse at center, transparent 40%, rgba(13, 17, 23, 0.5) 100%)" }}
                       />
                     </div>
                   ) : (
