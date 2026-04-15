@@ -80,7 +80,7 @@ export default function AppSidebar() {
 
   return (
     <aside
-      className="flex flex-col bg-sidebar border-r border-sidebar-border"
+      className="flex flex-col h-full bg-sidebar border-r border-sidebar-border"
       style={{ width: 220, minWidth: 220 }}
       data-testid="app-sidebar"
     >

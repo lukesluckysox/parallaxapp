@@ -77,7 +77,7 @@ function AppContent() {
   return (
     <Router hook={useHashLocation}>
       <div className="flex h-screen bg-background overflow-hidden">
-        <div className="hidden md:block">
+        <div className="hidden md:flex">
           <AppSidebar />
         </div>
         <div className="flex-1 flex flex-col overflow-hidden">
