@@ -314,6 +314,7 @@ export class DatabaseStorage implements IStorage {
     try { sqlite.exec("ALTER TABLE users ADD COLUMN email TEXT"); } catch { /* already exists */ }
     try { sqlite.exec("ALTER TABLE users ADD COLUMN pro INTEGER DEFAULT 0"); } catch { /* already exists */ }
     try { sqlite.exec("ALTER TABLE users ADD COLUMN lumen_user_id TEXT"); } catch { /* already exists */ }
+    try { sqlite.exec("ALTER TABLE portraits ADD COLUMN style_name TEXT DEFAULT ''"); } catch { /* already exists */ }
   }
 
   // ---- User methods ----

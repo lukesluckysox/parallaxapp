@@ -23,6 +23,7 @@ interface Portrait {
   glyph_composition: string;
   comparison_note: string;
   user_reflection: string;
+  style_name: string;
 }
 
 function formatDate(iso: string) {
@@ -357,9 +358,16 @@ export default function PortraitGallery() {
                         </span>
                       )}
                     </p>
-                    <p className="text-[10px] text-muted-foreground/30 font-mono">
-                      {formatDate(p.generated_at)}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-muted-foreground/30 font-mono">
+                        {formatDate(p.generated_at)}
+                      </span>
+                      {p.style_name && (
+                        <span className="text-[10px] text-muted-foreground/20 font-mono capitalize">
+                          · {p.style_name}
+                        </span>
+                      )}
+                    </div>
                     <p className="text-[10px] text-muted-foreground/50 mt-1 line-clamp-2">
                       {p.symbolic_description}
                     </p>

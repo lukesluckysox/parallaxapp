@@ -44,11 +44,11 @@ const ARCHETYPE_SHAPES: Record<string, GlyphElement["type"]> = {
 };
 
 const ARCHETYPE_TERRAIN: Record<string, string> = {
-  observer: "elevated plateau overlooking a still lake, with wide vantage points across a quiet valley",
-  builder: "terraced hillside with stone walls, cultivated fields, and distant structures",
-  explorer: "vast desert frontier meeting an ocean edge, with unmapped territory stretching to the horizon",
-  dissenter: "volcanic terrain with fractured landscape, exposed geology, and distant storm systems",
-  seeker: "twilight forest bordering a winding river, a threshold between two distinct zones",
+  observer: "A high ridge above a lake, looking out across a valley with no roads",
+  builder: "Terraced hillside — old stone walls, a few cultivated rows, a shed in the middle distance",
+  explorer: "Where the desert runs into the ocean. Sand, salt, and a coastline bending out of sight",
+  dissenter: "Volcanic ground, cracked basalt, steam venting from fissures. Storm building on the horizon",
+  seeker: "A forest thinning near a river bend. The light is different on the other side",
 };
 
 function seededRandom(seed: number): () => number {
@@ -249,44 +249,82 @@ function getTensionFeature(tensions: string[]): string {
   return features;
 }
 
-// Style rotation: cycles through different aesthetic approaches roughly once per day
-const STYLE_ROTATION: { name: string; prompt: string }[] = [
+// ── Style bank: randomized per generation, not predictable ──
+// Each style references real photographic/artistic traditions to avoid the AI look.
+const STYLE_BANK: { name: string; prompt: string }[] = [
   {
-    name: "cinematic",
-    prompt: "Cinematic landscape photography style, contemplative, no human figures, wide 16:9 composition with shallow depth of field. Color palette constrained to deep navy (#0d1117), warm gold (#FFD166), muted teal, charcoal, amber, and desaturated earth tones. The overall image should feel dark and warm, as if lit by low golden light against a deep indigo sky. Avoid bright whites, vivid blues, or saturated greens. The mood is intimate and nocturnal.",
+    name: "35mm night",
+    prompt: "Shot on 35mm Kodak Portra 800 pushed two stops, handheld at night. Natural grain, slight motion in foliage. Warm tungsten color cast. No digital sharpening. The image has the quality of a photograph found in a used bookstore — slightly faded, deeply human. No text, no watermarks, no human figures. 16:9 landscape format.",
   },
   {
-    name: "painterly",
-    prompt: "Oil painting style with visible brushstrokes and rich texture, contemplative, no human figures, 16:9 composition. Palette: deep navy (#0d1117), warm gold (#FFD166), burnt sienna, raw umber, and desaturated earth tones. The feeling is of a late Romantic landscape — dramatic but introspective. Avoid bright whites or saturated primaries. Warm and nocturnal mood.",
+    name: "large format dawn",
+    prompt: "4x5 large format film photograph, tripod-mounted at dawn. Ektar 100 color negative. Extreme depth of field, tack-sharp foreground to infinity. Colors are dense and saturated but natural — no HDR, no glow. Light film grain visible at full resolution. The stillness of a scene nobody else was awake to see. No text, no figures. 16:9 crop from large format.",
   },
   {
-    name: "ethereal",
-    prompt: "Soft ethereal style with dreamlike atmospheric perspective, contemplative, no human figures, 16:9 composition. Layered fog and light halos. Palette: deep indigo (#0d1117), warm gold (#FFD166), muted amber, dusty rose, cool slate. The image feels like a half-remembered place seen through gauze. Avoid hard edges or bright colors. Quiet and nocturnal.",
+    name: "polaroid transfer",
+    prompt: "Polaroid emulsion transfer on watercolor paper. Colors bleed at edges, soft and imperfect. The image looks handmade — slightly wrinkled paper texture, pigment pooling in recesses. Warm amber and teal dominant. Not a filter or simulation — an actual chemical transfer with all its beautiful accidents. No text, no figures. 16:9 landscape.",
   },
   {
-    name: "woodblock",
-    prompt: "Japanese woodblock print inspired style (ukiyo-e), contemplative, no human figures, 16:9 composition. Bold linework with flat color fields. Palette constrained to deep navy (#0d1117), warm gold (#FFD166), muted teal, charcoal, and desaturated earth tones. The image should feel like an antique print illuminated by lantern light. Avoid photorealism. Serene and nocturnal.",
+    name: "tintype",
+    prompt: "Wet plate collodion tintype photograph. Silver and dark iron tones. Shallow depth of field with swirly bokeh from a Petzval-style lens. Edges darken naturally where the collodion pooled unevenly. The look of something made by hand in a darkroom, not by software. Haunting and still. No text, no figures. 16:9 landscape crop.",
   },
   {
-    name: "aerial",
-    prompt: "Overhead aerial view, satellite-like perspective looking straight down at the terrain, contemplative, no human figures, 16:9 composition. The landscape reads like an abstract map. Palette: deep navy (#0d1117), warm gold (#FFD166), muted teal, charcoal, amber. The image feels like observing the earth from orbit at twilight. Avoid bright whites. Nocturnal and expansive.",
+    name: "cyanotype",
+    prompt: "Cyanotype print on rough cotton rag paper. Prussian blue and white only. Visible paper fiber texture and uneven coating at borders. Contact-printed from a large negative — sharp center, soft falloff. The quality of a 19th-century botanical survey plate, but depicting landscape. No text, no figures. 16:9 landscape.",
+  },
+  {
+    name: "medium format overcast",
+    prompt: "Mamiya 7 medium format, Fuji Pro 400H film. Overcast diffused light, no harsh shadows. Colors are pastel and lifted — greens go sage, blues go powder. Gentle grain structure. The feeling of a quiet Tuesday afternoon in a place you once lived. Shot at f/8, everything in gentle focus. No text, no figures. 16:9 crop.",
+  },
+  {
+    name: "infrared",
+    prompt: "Kodak Aerochrome infrared film photograph. Foliage renders in deep crimson and magenta. Sky goes dark indigo. Surreal but photographic — this is a real film stock producing real colors from invisible light. Moderate grain, slight halation around bright edges. Dreamlike but grounded in chemistry. No text, no figures. 16:9 landscape.",
+  },
+  {
+    name: "oil study",
+    prompt: "A small oil study on toned linen panel, approximately 8x14 inches. Painted alla prima in one session — visible knife work and loaded brush marks. The colors are mixed from a limited earth-tone palette: raw umber, yellow ochre, ivory black, titanium white, and one warm cadmium. Not illustration — a working painter's field study, imperfect and alive. No text, no figures. 16:9 landscape format.",
+  },
+  {
+    name: "mezzotint",
+    prompt: "Mezzotint print on cream laid paper. Velvety blacks achieved through burnished copper plate. Tonal range from pure black to warm paper white with no outlines — only gradations of dark and light. The quality of a print you'd find in a museum cabinet drawer. Rich, tactile, and handmade. No text, no figures. 16:9 landscape.",
+  },
+  {
+    name: "dusk Velvia",
+    prompt: "Fuji Velvia 50 slide film, tripod at dusk with a long exposure. Hyper-saturated but natural — Velvia's characteristic punch in reds and greens. Silky water from the slow shutter. Deep shadow detail, no blown highlights. Shot by someone who hiked an hour to get to this spot. No text, no figures. 16:9 landscape.",
+  },
+  {
+    name: "daguerreotype",
+    prompt: "Daguerreotype on polished silver plate. The image shifts as you tilt it — positive becomes negative at certain angles. Mirror-like surface with extraordinary fine detail. Slight tarnishing at edges, housed in a velvet-lined case. The oldest form of photography, impossibly detailed and strange. Monochrome silver. No text, no figures. 16:9 landscape crop.",
+  },
+  {
+    name: "gouache study",
+    prompt: "Gouache painting on toned gray paper. Opaque matte pigment with visible brushwork — chalky highlights, transparent darks. The kind of study a concept artist makes on a train, working from memory. Limited palette: two warm tones, two cool tones, white. Paper texture shows through thin passages. No text, no figures. 16:9 landscape.",
   },
 ];
 
-function getCurrentStyle(): { name: string; prompt: string } {
-  // Rotates daily based on the date
-  const daysSinceEpoch = Math.floor(Date.now() / (1000 * 60 * 60 * 24));
-  return STYLE_ROTATION[daysSinceEpoch % STYLE_ROTATION.length];
+function getRandomStyle(): { name: string; prompt: string } {
+  // Use a combination of timestamp and a counter to get unpredictable rotation
+  // Math.random ensures true randomness per generation
+  const idx = Math.floor(Math.random() * STYLE_BANK.length);
+  return STYLE_BANK[idx];
 }
 
+// Anti-AI prompt engineering: describe scenes the way a photographer or painter would,
+// not the way an AI prompt engineer would.
+const ANTI_AI_SUFFIX = "CRITICAL: This must look indistinguishable from the specified medium. No AI artifacts — no plastic skin on water, no impossible lighting, no over-rendered detail, no symmetrical compositions, no stock-photo cleanliness. Imperfections are essential: dust, grain, uneven coating, natural vignetting, slight color shifts. If it looks like it was made by a computer, it has failed.";
+
+// Overload: no-arg version for preview (picks random style)
 function generateImagePrompt(input: RendererInput): string {
+  return generateImagePromptWithStyle(input, getRandomStyle());
+}
+
+function generateImagePromptWithStyle(input: RendererInput, style: { name: string; prompt: string }): string {
   const { dimensionVec: vec, dominantArchetype, recentTensions, motifKeywords, spotifyEnergyProfile, previousReflection } = input;
 
   const terrain = ARCHETYPE_TERRAIN[dominantArchetype.toLowerCase()] || ARCHETYPE_TERRAIN.observer;
   const timeOfDay = getTimeOfDay(vec, spotifyEnergyProfile);
-  const style = getCurrentStyle();
 
-  // Pick top 3 dimension descriptions
+  // Pick top 3 dimension descriptions — but write them as observation notes, not prompt-speak
   const atmosphere = getDimensionAtmosphere(vec);
   const topAtmosphere = atmosphere.slice(0, 3).join(". ");
   const remainingAtmosphere = atmosphere.slice(3).join(". ");
@@ -301,17 +339,22 @@ function generateImagePrompt(input: RendererInput): string {
     ? `The viewer recently noted: '${previousReflection.slice(0, 200)}'. Let this observation subtly influence the atmosphere and composition.`
     : "";
 
+  // Palette constraint — adapted per style but always dark/warm
+  const paletteConstraint = "Color temperature leans warm. Dominant tones: deep indigo shadows, muted gold highlights, earth and amber midtones. No neon, no candy colors, no bright white.";
+
   const parts = [
-    `A vast ${terrain} at ${timeOfDay}.`,
+    `${terrain}, ${timeOfDay}.`,
     topAtmosphere ? `${topAtmosphere}.` : "",
     tensionFeature ? `${tensionFeature}.` : "",
     remainingAtmosphere ? `${remainingAtmosphere}.` : "",
     motifStr,
     reflectionStr,
     style.prompt,
+    paletteConstraint,
+    ANTI_AI_SUFFIX,
   ];
 
-  return parts.filter(Boolean).join(" ").replace(/\.\./, ".").replace(/\s+/g, " ").trim();
+  return parts.filter(Boolean).join(" ").replace(/\.\./g, ".").replace(/\s+/g, " ").trim();
 }
 
 function generateDescription(input: RendererInput): string {
@@ -376,8 +419,9 @@ export function renderPortrait(input: RendererInput): RendererOutput {
 
   const glyphComposition: GlyphComposition = { background, elements };
   const symbolicDescription = generateDescription(input);
-  const imagePrompt = generateImagePrompt(input);
-  const styleName = getCurrentStyle().name;
+  const chosenStyle = getRandomStyle();
+  const imagePrompt = generateImagePromptWithStyle(input, chosenStyle);
+  const styleName = chosenStyle.name;
 
   const promptUsed = `portrait:${input.dominantArchetype}/${input.secondaryArchetype || "none"}:dims[${Object.values(input.dimensionVec).join(",")}]:modes[${input.activeModes.join(",")}]:tensions[${input.recentTensions.join(",")}]`;
 

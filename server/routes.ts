@@ -5121,6 +5121,7 @@ Return ONLY valid JSON:
         palette: JSON.stringify(result.palette),
         glyph_composition: JSON.stringify(result.glyphComposition),
         comparison_note: comparisonNote,
+        style_name: result.styleName,
       });
 
       return res.json(portrait);

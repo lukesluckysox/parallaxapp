@@ -165,6 +165,7 @@ export const portraits = sqliteTable("portraits", {
   glyph_composition: text("glyph_composition").default("{}"), // JSON for SVG renderer
   comparison_note: text("comparison_note").default(""),
   user_reflection: text("user_reflection").default(""),
+  style_name: text("style_name").default(""),
 });
 
 export const insertPortraitSchema = createInsertSchema(portraits).omit({ id: true });
