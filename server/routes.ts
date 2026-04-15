@@ -10,6 +10,7 @@ import jwt from "jsonwebtoken";
 import { randomUUID } from "crypto";
 import type { InsertIdentityMode } from "@shared/schema";
 import { emitLumenEvent, classifyParallaxRecord, emitToPraxis } from "./lumenEmitter";
+import { renderPortrait } from "./portraitRenderer";
 import { decisions as decisionsTable, checkins as checkinsTable, users as usersTable } from "@shared/schema";
 import { computeMixture, topArchetype } from "@shared/archetype-math";
 import { eq, and } from "drizzle-orm";
@@ -4894,6 +4895,200 @@ Return ONLY valid JSON:
       return res.json({ events });
     } catch (err: any) {
       return res.status(500).json({ events: [] });
+    }
+  });
+
+  // ==================== PORTRAITS ====================
+
+  // POST /api/portraits/generate — Generate a new portrait from latest state
+  app.post("/api/portraits/generate", async (req, res) => {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+    try {
+      // Get latest checkin for dimension vector
+      const checkins = storage.getCheckins(userId);
+      if (checkins.length === 0) {
+        return res.status(400).json({ error: "No check-ins found. Complete a check-in first to generate a portrait." });
+      }
+      const latest = checkins[0];
+      const dimensionVec = JSON.parse(latest.self_vec);
+
+      // Get identity modes
+      const modes = storage.getIdentityModes(userId);
+      const activeModeNames = modes.slice(0, 5).map((m: any) => m.mode_name);
+
+      // Determine dominant/secondary archetypes
+      const dominantArchetype = latest.self_archetype || "observer";
+      let secondaryArchetype: string | null = null;
+      if (modes.length > 0) {
+        const otherMode = modes.find((m: any) => m.dominant_archetype.toLowerCase() !== dominantArchetype.toLowerCase());
+        if (otherMode) secondaryArchetype = otherMode.dominant_archetype.toLowerCase();
+      }
+
+      // Recent tensions: look at recent checkins for dimension swings
+      const recentTensions: string[] = [];
+      if (checkins.length >= 2) {
+        const prevVec = JSON.parse(checkins[1].self_vec);
+        const dims = ["focus", "calm", "agency", "vitality", "social", "creativity", "exploration", "drive"] as const;
+        for (const dim of dims) {
+          const delta = Math.abs((dimensionVec[dim] || 50) - (prevVec[dim] || 50));
+          if (delta > 20) recentTensions.push(dim);
+        }
+      }
+
+      // Motif keywords from feeling text
+      const motifKeywords: string[] = [];
+      if (latest.feeling_text) {
+        const words = latest.feeling_text.toLowerCase().split(/\s+/).filter((w: string) => w.length > 4);
+        motifKeywords.push(...words.slice(0, 5));
+      }
+
+      // Spotify energy profile
+      let spotifyEnergyProfile: Record<string, number> = {};
+      try {
+        const listens = storage.getSpotifyListens(userId, 20);
+        if (listens.length > 0) {
+          const avgEnergy = listens.reduce((s: number, l: any) => s + (l.energy || 50), 0) / listens.length;
+          const avgValence = listens.reduce((s: number, l: any) => s + (l.valence || 50), 0) / listens.length;
+          spotifyEnergyProfile = { energy: Math.round(avgEnergy), valence: Math.round(avgValence) };
+        }
+      } catch {}
+
+      // Run renderer
+      const result = renderPortrait({
+        dimensionVec,
+        dominantArchetype,
+        secondaryArchetype,
+        activeModes: activeModeNames,
+        recentTensions,
+        motifKeywords,
+      });
+
+      // Compare to previous portrait
+      let comparisonNote = "";
+      const prev = storage.getLatestPortrait(userId);
+      if (prev) {
+        const prevDom = prev.dominant_archetype;
+        if (prevDom !== dominantArchetype) {
+          comparisonNote = `Shifted from ${prevDom} to ${dominantArchetype} since last portrait.`;
+        } else {
+          comparisonNote = `Continued ${dominantArchetype} presence, with evolving dimensional texture.`;
+        }
+      }
+
+      // Save
+      const portrait = storage.createPortrait({
+        user_id: userId,
+        generated_at: new Date().toISOString(),
+        dimension_vec: JSON.stringify(dimensionVec),
+        dominant_archetype: dominantArchetype,
+        secondary_archetype: secondaryArchetype,
+        active_modes: JSON.stringify(activeModeNames),
+        recent_tensions: JSON.stringify(recentTensions),
+        motif_keywords: JSON.stringify(motifKeywords),
+        spotify_energy_profile: JSON.stringify(spotifyEnergyProfile),
+        prompt_used: result.promptUsed,
+        symbolic_description: result.symbolicDescription,
+        palette: JSON.stringify(result.palette),
+        glyph_composition: JSON.stringify(result.glyphComposition),
+        comparison_note: comparisonNote,
+      });
+
+      return res.json(portrait);
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  // GET /api/portraits — List all for user
+  app.get("/api/portraits", async (req, res) => {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+    try {
+      return res.json(storage.getPortraits(userId));
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  // GET /api/portraits/latest — Most recent
+  app.get("/api/portraits/latest", async (req, res) => {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+    try {
+      const portrait = storage.getLatestPortrait(userId);
+      if (!portrait) return res.status(404).json({ error: "No portraits found" });
+      return res.json(portrait);
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  // GET /api/portraits/compare/:id1/:id2 — Compare two portraits
+  app.get("/api/portraits/compare/:id1/:id2", async (req, res) => {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+    try {
+      const p1 = storage.getPortraitById(Number(req.params.id1));
+      const p2 = storage.getPortraitById(Number(req.params.id2));
+      if (!p1 || !p2) return res.status(404).json({ error: "Portrait not found" });
+      if (p1.user_id !== userId || p2.user_id !== userId) return res.status(403).json({ error: "Forbidden" });
+
+      const vec1 = JSON.parse(p1.dimension_vec);
+      const vec2 = JSON.parse(p2.dimension_vec);
+      const dims = ["focus", "calm", "agency", "vitality", "social", "creativity", "exploration", "drive"];
+      const diff: Record<string, number> = {};
+      for (const d of dims) diff[d] = (vec2[d] || 50) - (vec1[d] || 50);
+
+      return res.json({ portrait1: p1, portrait2: p2, dimensionDiff: diff });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  // GET /api/portraits/:id — Single portrait
+  app.get("/api/portraits/:id", async (req, res) => {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+    try {
+      const portrait = storage.getPortraitById(Number(req.params.id));
+      if (!portrait) return res.status(404).json({ error: "Portrait not found" });
+      if (portrait.user_id !== userId) return res.status(403).json({ error: "Forbidden" });
+      return res.json(portrait);
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  // PATCH /api/portraits/:id — Update user reflection
+  app.patch("/api/portraits/:id", async (req, res) => {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+    try {
+      const portrait = storage.getPortraitById(Number(req.params.id));
+      if (!portrait) return res.status(404).json({ error: "Portrait not found" });
+      if (portrait.user_id !== userId) return res.status(403).json({ error: "Forbidden" });
+      const { user_reflection } = req.body;
+      if (typeof user_reflection !== "string") return res.status(400).json({ error: "user_reflection required" });
+      storage.updatePortraitReflection(portrait.id, user_reflection);
+      return res.json({ ...portrait, user_reflection });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  // GET /api/internal/latest-portrait — Internal token auth for Lumen
+  app.get("/api/internal/latest-portrait", async (req, res) => {
+    const internalToken = req.headers["x-internal-token"] || req.query.token;
+    const userId = Number(req.query.userId || req.headers["x-user-id"]);
+    if (!internalToken || !userId) return res.status(401).json({ error: "Unauthorized" });
+    try {
+      const portrait = storage.getLatestPortrait(userId);
+      if (!portrait) return res.status(404).json({ error: "No portraits" });
+      return res.json(portrait);
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
     }
   });
 

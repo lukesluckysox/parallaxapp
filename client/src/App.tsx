@@ -23,6 +23,7 @@ import AuthPage from "./pages/AuthPage";
 import CalibrationPage from "./pages/CalibrationPage";
 import WrappedPage from "./pages/WrappedPage";
 import ProfilePage from "./pages/ProfilePage";
+import PortraitGallery from "./pages/PortraitGallery";
 import LandingPage from "./pages/LandingPage";
 import NotFound from "./pages/not-found";
 import BottomNav from "./components/BottomNav";
@@ -90,6 +91,7 @@ function AppContent() {
         <Route path="/decisions" component={DecisionsPage} />
         <Route path="/about" component={AboutPage} />
         <Route path="/oracle" component={OraclePage} />
+        <Route path="/portraits" component={PortraitGallery} />
         <Route path="/wrapped" component={WrappedPage} />
         <Route path="/profile" component={ProfilePage} />
         <Route component={NotFound} />

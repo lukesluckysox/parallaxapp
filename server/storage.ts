@@ -11,6 +11,7 @@ import {
   type SpotifyWhitelist, type InsertSpotifyWhitelist, spotifyWhitelistQueue,
   type LiminalSession, type InsertLiminalSession, liminalSessions,
   type RecommendationFeedback, type InsertRecommendationFeedback, recommendationFeedback,
+  type Portrait, type InsertPortrait, portraits,
 } from "@shared/schema";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import Database from "better-sqlite3";
@@ -237,6 +238,25 @@ export class DatabaseStorage implements IStorage {
         item_id TEXT NOT NULL,
         feedback_type TEXT NOT NULL,
         created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS portraits (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        generated_at TEXT NOT NULL,
+        dimension_vec TEXT NOT NULL,
+        dominant_archetype TEXT NOT NULL,
+        secondary_archetype TEXT,
+        active_modes TEXT DEFAULT '[]',
+        recent_tensions TEXT DEFAULT '[]',
+        motif_keywords TEXT DEFAULT '[]',
+        spotify_energy_profile TEXT DEFAULT '{}',
+        prompt_used TEXT NOT NULL,
+        image_url TEXT DEFAULT '',
+        symbolic_description TEXT NOT NULL,
+        palette TEXT DEFAULT '[]',
+        glyph_composition TEXT DEFAULT '{}',
+        comparison_note TEXT DEFAULT '',
+        user_reflection TEXT DEFAULT ''
       );
     `);
 
@@ -745,6 +765,35 @@ export class DatabaseStorage implements IStorage {
       .all();
   }
 
+  // ---- Portraits ----
+  getPortraits(userId: number): Portrait[] {
+    return db.select().from(portraits)
+      .where(eq(portraits.user_id, userId))
+      .orderBy(desc(portraits.generated_at))
+      .all();
+  }
+
+  getPortraitById(id: number): Portrait | undefined {
+    return db.select().from(portraits).where(eq(portraits.id, id)).get();
+  }
+
+  getLatestPortrait(userId: number): Portrait | undefined {
+    return db.select().from(portraits)
+      .where(eq(portraits.user_id, userId))
+      .orderBy(desc(portraits.generated_at))
+      .limit(1)
+      .get();
+  }
+
+  createPortrait(data: InsertPortrait): Portrait {
+    const result = db.insert(portraits).values(data).returning().get();
+    return result;
+  }
+
+  updatePortraitReflection(id: number, reflection: string): void {
+    db.update(portraits).set({ user_reflection: reflection }).where(eq(portraits.id, id)).run();
+  }
+
   // ---- Account Deletion ----
   deleteUserAndData(userId: number): void {
     sqlite.exec(`DELETE FROM checkins WHERE user_id = ${userId}`);
@@ -758,6 +807,7 @@ export class DatabaseStorage implements IStorage {
     sqlite.exec(`DELETE FROM variant_history WHERE user_id = ${userId}`);
     sqlite.exec(`DELETE FROM liminal_sessions WHERE user_id = ${userId}`);
     sqlite.exec(`DELETE FROM recommendation_feedback WHERE user_id = ${userId}`);
+    sqlite.exec(`DELETE FROM portraits WHERE user_id = ${userId}`);
     sqlite.exec(`DELETE FROM users WHERE id = ${userId}`);
   }
 }

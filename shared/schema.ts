@@ -147,6 +147,30 @@ export const insertRecommendationFeedbackSchema = createInsertSchema(recommendat
 export type InsertRecommendationFeedback = z.infer<typeof insertRecommendationFeedbackSchema>;
 export type RecommendationFeedback = typeof recommendationFeedback.$inferSelect;
 
+export const portraits = sqliteTable("portraits", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  user_id: integer("user_id").notNull(),
+  generated_at: text("generated_at").notNull(),
+  dimension_vec: text("dimension_vec").notNull(), // JSON: 8 dims
+  dominant_archetype: text("dominant_archetype").notNull(),
+  secondary_archetype: text("secondary_archetype"),
+  active_modes: text("active_modes").default("[]"),
+  recent_tensions: text("recent_tensions").default("[]"),
+  motif_keywords: text("motif_keywords").default("[]"),
+  spotify_energy_profile: text("spotify_energy_profile").default("{}"),
+  prompt_used: text("prompt_used").notNull(),
+  image_url: text("image_url").default(""),
+  symbolic_description: text("symbolic_description").notNull(),
+  palette: text("palette").default("[]"), // JSON hex colors
+  glyph_composition: text("glyph_composition").default("{}"), // JSON for SVG renderer
+  comparison_note: text("comparison_note").default(""),
+  user_reflection: text("user_reflection").default(""),
+});
+
+export const insertPortraitSchema = createInsertSchema(portraits).omit({ id: true });
+export type InsertPortrait = z.infer<typeof insertPortraitSchema>;
+export type Portrait = typeof portraits.$inferSelect;
+
 export const spotifyWhitelistQueue = sqliteTable("spotify_whitelist_queue", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   email: text("email").notNull(),

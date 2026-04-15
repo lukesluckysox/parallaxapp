@@ -1,4 +1,4 @@
-import { Home, Aperture, Layers, Radio, TrendingUp, CircleDot } from "lucide-react";
+import { Home, Aperture, Layers, Radio, TrendingUp, CircleDot, Gem } from "lucide-react";
 import { Link, useLocation } from "wouter";
 
 const LUMEN_HUB_URL = "https://lumen-os.up.railway.app";
@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { href: "/mirrors", icon: Layers, label: "Mirrors" },
   { href: "/signals", icon: Radio, label: "Signals" },
   { href: "/motion", icon: TrendingUp, label: "Motion" },
+  { href: "/portraits", icon: Gem, label: "Portraits" },
 ];
 
 export default function BottomNav() {
