@@ -79,6 +79,7 @@ function ExpandedPortrait({
   const palette: string[] = JSON.parse(portrait.palette || "[]");
   const activeModes: string[] = JSON.parse(portrait.active_modes || "[]");
   const tensions: string[] = JSON.parse(portrait.recent_tensions || "[]");
+  const hasImage = portrait.image_url && portrait.image_url.length > 0;
 
   return (
     <div className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
@@ -103,9 +104,19 @@ function ExpandedPortrait({
           </button>
         </div>
 
-        <div className="w-full max-w-xs mx-auto mb-6">
-          <PortraitSVG glyphComposition={portrait.glyph_composition} />
-        </div>
+        {hasImage ? (
+          <div className="w-full mb-6 rounded-lg overflow-hidden">
+            <img
+              src={portrait.image_url}
+              alt={portrait.symbolic_description}
+              className="w-full aspect-video object-cover"
+            />
+          </div>
+        ) : (
+          <div className="w-full max-w-xs mx-auto mb-6">
+            <PortraitSVG glyphComposition={portrait.glyph_composition} />
+          </div>
+        )}
 
         {palette.length > 0 && (
           <div className="flex gap-1.5 mb-4 justify-center">
@@ -232,28 +243,41 @@ export default function PortraitGallery() {
 
         {!isLoading && portraits.length > 0 && (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            {portraits.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => setExpanded(p)}
-                className="group text-left bg-[#0d1117] border border-border/20 rounded-xl overflow-hidden hover:border-[#FFD166]/30 transition-all"
-              >
-                <div className="aspect-square p-2">
-                  <PortraitSVG glyphComposition={p.glyph_composition} />
-                </div>
-                <div className="px-3 pb-3">
-                  <p className="text-xs font-mono text-[#FFD166]/70 capitalize">
-                    {p.dominant_archetype}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground/30 font-mono">
-                    {formatDate(p.generated_at)}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground/50 mt-1 line-clamp-2">
-                    {p.symbolic_description}
-                  </p>
-                </div>
-              </button>
-            ))}
+            {portraits.map((p) => {
+              const hasImage = p.image_url && p.image_url.length > 0;
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => setExpanded(p)}
+                  className="group text-left bg-[#0d1117] border border-border/20 rounded-xl overflow-hidden hover:border-[#FFD166]/30 transition-all"
+                >
+                  {hasImage ? (
+                    <div className="aspect-video">
+                      <img
+                        src={p.image_url}
+                        alt={p.symbolic_description}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <div className="aspect-square p-2">
+                      <PortraitSVG glyphComposition={p.glyph_composition} />
+                    </div>
+                  )}
+                  <div className="px-3 pb-3 pt-2">
+                    <p className="text-xs font-mono text-[#FFD166]/70 capitalize">
+                      {p.dominant_archetype}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground/30 font-mono">
+                      {formatDate(p.generated_at)}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground/50 mt-1 line-clamp-2">
+                      {p.symbolic_description}
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
           </div>
         )}
       </div>

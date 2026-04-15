@@ -11,6 +11,7 @@ import { randomUUID } from "crypto";
 import type { InsertIdentityMode } from "@shared/schema";
 import { emitLumenEvent, classifyParallaxRecord, emitToPraxis } from "./lumenEmitter";
 import { renderPortrait } from "./portraitRenderer";
+import Replicate from "replicate";
 import { decisions as decisionsTable, checkins as checkinsTable, users as usersTable } from "@shared/schema";
 import { computeMixture, topArchetype } from "@shared/archetype-math";
 import { eq, and } from "drizzle-orm";
@@ -4963,7 +4964,27 @@ Return ONLY valid JSON:
         activeModes: activeModeNames,
         recentTensions,
         motifKeywords,
+        spotifyEnergyProfile: Object.keys(spotifyEnergyProfile).length > 0 ? spotifyEnergyProfile as { energy: number; valence: number } : undefined,
       });
+
+      // Generate image via Replicate Imagen 4 if API key is available
+      let imageUrl = "";
+      if (process.env.REPLICATE_API_TOKEN) {
+        try {
+          const replicate = new Replicate();
+          const output = await replicate.run("google/imagen-4", {
+            input: {
+              prompt: result.imagePrompt,
+              aspect_ratio: "16:9",
+            },
+          });
+          if (typeof output === "string") {
+            imageUrl = output;
+          }
+        } catch (imgErr: any) {
+          console.error("Replicate Imagen 4 generation failed:", imgErr.message);
+        }
+      }
 
       // Compare to previous portrait
       let comparisonNote = "";
@@ -4988,7 +5009,8 @@ Return ONLY valid JSON:
         recent_tensions: JSON.stringify(recentTensions),
         motif_keywords: JSON.stringify(motifKeywords),
         spotify_energy_profile: JSON.stringify(spotifyEnergyProfile),
-        prompt_used: result.promptUsed,
+        prompt_used: result.imagePrompt,
+        image_url: imageUrl,
         symbolic_description: result.symbolicDescription,
         palette: JSON.stringify(result.palette),
         glyph_composition: JSON.stringify(result.glyphComposition),
