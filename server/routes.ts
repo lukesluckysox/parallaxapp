@@ -4956,6 +4956,14 @@ Return ONLY valid JSON:
         }
       } catch {}
 
+      // Fetch previous reflection to feed into next portrait
+      let previousReflection: string | undefined;
+      const allPortraits = storage.getPortraits(userId);
+      const reflectedPortrait = allPortraits.find((p: any) => p.user_reflection && p.user_reflection.trim().length > 0);
+      if (reflectedPortrait) {
+        previousReflection = reflectedPortrait.user_reflection;
+      }
+
       // Run renderer
       const result = renderPortrait({
         dimensionVec,
@@ -4965,6 +4973,7 @@ Return ONLY valid JSON:
         recentTensions,
         motifKeywords,
         spotifyEnergyProfile: Object.keys(spotifyEnergyProfile).length > 0 ? spotifyEnergyProfile as { energy: number; valence: number } : undefined,
+        previousReflection,
       });
 
       // Generate image via Replicate Imagen 4 if API key is available
@@ -5113,6 +5122,21 @@ Return ONLY valid JSON:
       if (typeof user_reflection !== "string") return res.status(400).json({ error: "user_reflection required" });
       storage.updatePortraitReflection(portrait.id, user_reflection);
       return res.json({ ...portrait, user_reflection });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  // DELETE /api/portraits/:id — Delete a portrait
+  app.delete("/api/portraits/:id", async (req, res) => {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) return res.status(400).json({ error: "Invalid ID" });
+      const deleted = storage.deletePortrait(id, userId);
+      if (!deleted) return res.status(404).json({ error: "Portrait not found or not yours" });
+      return res.json({ success: true });
     } catch (err: any) {
       return res.status(500).json({ error: err.message });
     }

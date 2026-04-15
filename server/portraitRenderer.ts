@@ -8,6 +8,7 @@ interface RendererInput {
   recentTensions: string[];
   motifKeywords: string[];
   spotifyEnergyProfile?: { energy: number; valence: number };
+  previousReflection?: string;
 }
 
 interface GlyphElement {
@@ -248,7 +249,7 @@ function getTensionFeature(tensions: string[]): string {
 }
 
 function generateImagePrompt(input: RendererInput): string {
-  const { dimensionVec: vec, dominantArchetype, recentTensions, motifKeywords, spotifyEnergyProfile } = input;
+  const { dimensionVec: vec, dominantArchetype, recentTensions, motifKeywords, spotifyEnergyProfile, previousReflection } = input;
 
   const terrain = ARCHETYPE_TERRAIN[dominantArchetype.toLowerCase()] || ARCHETYPE_TERRAIN.observer;
   const timeOfDay = getTimeOfDay(vec, spotifyEnergyProfile);
@@ -264,12 +265,17 @@ function generateImagePrompt(input: RendererInput): string {
     ? `Subtle textures of ${motifKeywords.slice(0, 3).join(", ")} in the atmosphere.`
     : "";
 
+  const reflectionStr = previousReflection
+    ? `The viewer recently noted: '${previousReflection.slice(0, 200)}'. Let this observation subtly influence the atmosphere and composition.`
+    : "";
+
   const parts = [
     `A vast ${terrain} at ${timeOfDay}.`,
     topAtmosphere ? `${topAtmosphere}.` : "",
     tensionFeature ? `${tensionFeature}.` : "",
     remainingAtmosphere ? `${remainingAtmosphere}.` : "",
     motifStr,
+    reflectionStr,
     "Painterly style, contemplative, no human figures, cinematic composition, 16:9 aspect ratio.",
   ];
 

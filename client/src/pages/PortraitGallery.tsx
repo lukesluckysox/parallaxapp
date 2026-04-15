@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { ArrowLeft, Sparkles, X, Save } from "lucide-react";
+import { ArrowLeft, Sparkles, X, Save, Trash2 } from "lucide-react";
 import { Link } from "wouter";
 import PortraitSVG from "@/components/PortraitSVG";
 
@@ -63,6 +63,7 @@ function ExpandedPortrait({
   const queryClient = useQueryClient();
   const [reflection, setReflection] = useState(portrait.user_reflection || "");
   const [saved, setSaved] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -72,6 +73,16 @@ function ExpandedPortrait({
       queryClient.invalidateQueries({ queryKey: ["/api/portraits"] });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("DELETE", `/api/portraits/${portrait.id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/portraits"] });
+      onClose();
     },
   });
 
@@ -176,6 +187,35 @@ function ExpandedPortrait({
             <Save className="w-3 h-3" />
             {saved ? "saved" : saveMutation.isPending ? "saving..." : "save reflection"}
           </button>
+        </div>
+
+        <div className="border-t border-border/20 pt-4 mt-4 flex items-center justify-end">
+          {confirmDelete ? (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground/50 font-mono">delete this portrait?</span>
+              <button
+                onClick={() => deleteMutation.mutate()}
+                disabled={deleteMutation.isPending}
+                className="text-xs font-mono px-2 py-1 rounded-md bg-red-500/10 text-red-400/70 border border-red-500/20 hover:bg-red-500/20 transition-colors disabled:opacity-50"
+              >
+                {deleteMutation.isPending ? "deleting..." : "yes, delete"}
+              </button>
+              <button
+                onClick={() => setConfirmDelete(false)}
+                className="text-xs font-mono px-2 py-1 rounded-md text-muted-foreground/40 hover:text-foreground transition-colors"
+              >
+                cancel
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setConfirmDelete(true)}
+              className="flex items-center gap-1 text-xs font-mono text-muted-foreground/30 hover:text-red-400/70 transition-colors"
+            >
+              <Trash2 className="w-3 h-3" />
+              delete
+            </button>
+          )}
         </div>
       </div>
     </div>

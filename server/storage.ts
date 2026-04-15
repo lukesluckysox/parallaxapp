@@ -794,6 +794,13 @@ export class DatabaseStorage implements IStorage {
     db.update(portraits).set({ user_reflection: reflection }).where(eq(portraits.id, id)).run();
   }
 
+  deletePortrait(id: number, userId: number): boolean {
+    const portrait = db.select().from(portraits).where(eq(portraits.id, id)).get();
+    if (!portrait || portrait.user_id !== userId) return false;
+    db.delete(portraits).where(eq(portraits.id, id)).run();
+    return true;
+  }
+
   // ---- Account Deletion ----
   deleteUserAndData(userId: number): void {
     sqlite.exec(`DELETE FROM checkins WHERE user_id = ${userId}`);
