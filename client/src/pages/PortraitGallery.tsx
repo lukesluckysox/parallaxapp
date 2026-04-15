@@ -236,7 +236,7 @@ export default function PortraitGallery() {
     queryKey: ["/api/portraits"],
   });
 
-  const { data: promptPreview } = useQuery<{ prompt: string; variantName: string }>({
+  const { data: promptPreview } = useQuery<{ prompt: string; variantName: string; styleName: string }>({
     queryKey: ["/api/portraits/preview-prompt"],
   });
 
@@ -266,6 +266,9 @@ export default function PortraitGallery() {
           <div className="mb-4 border border-border/20 rounded-lg p-3 bg-[#0d1117]/50">
             <div className="flex items-center justify-between mb-1.5">
               <span className="text-[10px] font-mono text-[#FFD166]/60 uppercase tracking-wider">current prompt</span>
+              {promptPreview.styleName && (
+                <span className="text-[10px] font-mono text-muted-foreground/40 capitalize">{promptPreview.styleName} style</span>
+              )}
               {promptPreview.variantName && promptPreview.variantName !== "\u2014" && (
                 <span className="text-[10px] font-mono text-[#FFD166]/40">{promptPreview.variantName} variant</span>
               )}

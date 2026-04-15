@@ -32,6 +32,7 @@ interface RendererOutput {
   glyphComposition: GlyphComposition;
   promptUsed: string;
   imagePrompt: string;
+  styleName: string;
 }
 
 const ARCHETYPE_SHAPES: Record<string, GlyphElement["type"]> = {
@@ -248,11 +249,42 @@ function getTensionFeature(tensions: string[]): string {
   return features;
 }
 
+// Style rotation: cycles through different aesthetic approaches roughly once per day
+const STYLE_ROTATION: { name: string; prompt: string }[] = [
+  {
+    name: "cinematic",
+    prompt: "Cinematic landscape photography style, contemplative, no human figures, wide 16:9 composition with shallow depth of field. Color palette constrained to deep navy (#0d1117), warm gold (#FFD166), muted teal, charcoal, amber, and desaturated earth tones. The overall image should feel dark and warm, as if lit by low golden light against a deep indigo sky. Avoid bright whites, vivid blues, or saturated greens. The mood is intimate and nocturnal.",
+  },
+  {
+    name: "painterly",
+    prompt: "Oil painting style with visible brushstrokes and rich texture, contemplative, no human figures, 16:9 composition. Palette: deep navy (#0d1117), warm gold (#FFD166), burnt sienna, raw umber, and desaturated earth tones. The feeling is of a late Romantic landscape — dramatic but introspective. Avoid bright whites or saturated primaries. Warm and nocturnal mood.",
+  },
+  {
+    name: "ethereal",
+    prompt: "Soft ethereal style with dreamlike atmospheric perspective, contemplative, no human figures, 16:9 composition. Layered fog and light halos. Palette: deep indigo (#0d1117), warm gold (#FFD166), muted amber, dusty rose, cool slate. The image feels like a half-remembered place seen through gauze. Avoid hard edges or bright colors. Quiet and nocturnal.",
+  },
+  {
+    name: "woodblock",
+    prompt: "Japanese woodblock print inspired style (ukiyo-e), contemplative, no human figures, 16:9 composition. Bold linework with flat color fields. Palette constrained to deep navy (#0d1117), warm gold (#FFD166), muted teal, charcoal, and desaturated earth tones. The image should feel like an antique print illuminated by lantern light. Avoid photorealism. Serene and nocturnal.",
+  },
+  {
+    name: "aerial",
+    prompt: "Overhead aerial view, satellite-like perspective looking straight down at the terrain, contemplative, no human figures, 16:9 composition. The landscape reads like an abstract map. Palette: deep navy (#0d1117), warm gold (#FFD166), muted teal, charcoal, amber. The image feels like observing the earth from orbit at twilight. Avoid bright whites. Nocturnal and expansive.",
+  },
+];
+
+function getCurrentStyle(): { name: string; prompt: string } {
+  // Rotates daily based on the date
+  const daysSinceEpoch = Math.floor(Date.now() / (1000 * 60 * 60 * 24));
+  return STYLE_ROTATION[daysSinceEpoch % STYLE_ROTATION.length];
+}
+
 function generateImagePrompt(input: RendererInput): string {
   const { dimensionVec: vec, dominantArchetype, recentTensions, motifKeywords, spotifyEnergyProfile, previousReflection } = input;
 
   const terrain = ARCHETYPE_TERRAIN[dominantArchetype.toLowerCase()] || ARCHETYPE_TERRAIN.observer;
   const timeOfDay = getTimeOfDay(vec, spotifyEnergyProfile);
+  const style = getCurrentStyle();
 
   // Pick top 3 dimension descriptions
   const atmosphere = getDimensionAtmosphere(vec);
@@ -276,10 +308,10 @@ function generateImagePrompt(input: RendererInput): string {
     remainingAtmosphere ? `${remainingAtmosphere}.` : "",
     motifStr,
     reflectionStr,
-    "Painterly style, contemplative, no human figures, cinematic composition, 16:9 aspect ratio. Color palette constrained to deep navy (#0d1117), warm gold (#FFD166), muted teal, charcoal, amber, and desaturated earth tones. The overall image should feel dark and warm, as if lit by low golden light against a deep indigo sky. Avoid bright whites, vivid blues, or saturated greens. The mood is intimate and nocturnal.",
+    style.prompt,
   ];
 
-  return parts.filter(Boolean).join(" ").replace(/\.\./g, ".").replace(/\s+/g, " ").trim();
+  return parts.filter(Boolean).join(" ").replace(/\.\./, ".").replace(/\s+/g, " ").trim();
 }
 
 function generateDescription(input: RendererInput): string {
@@ -345,8 +377,9 @@ export function renderPortrait(input: RendererInput): RendererOutput {
   const glyphComposition: GlyphComposition = { background, elements };
   const symbolicDescription = generateDescription(input);
   const imagePrompt = generateImagePrompt(input);
+  const styleName = getCurrentStyle().name;
 
   const promptUsed = `portrait:${input.dominantArchetype}/${input.secondaryArchetype || "none"}:dims[${Object.values(input.dimensionVec).join(",")}]:modes[${input.activeModes.join(",")}]:tensions[${input.recentTensions.join(",")}]`;
 
-  return { symbolicDescription, palette, glyphComposition, promptUsed, imagePrompt };
+  return { symbolicDescription, palette, glyphComposition, promptUsed, imagePrompt, styleName };
 }

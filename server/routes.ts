@@ -15,8 +15,7 @@ import Replicate from "replicate";
 import { decisions as decisionsTable, checkins as checkinsTable, users as usersTable } from "@shared/schema";
 import { computeMixture, topArchetype } from "@shared/archetype-math";
 import { eq, and } from "drizzle-orm";
-import fs from "fs";
-import path from "path";
+// fs and path removed — images now stored as base64 in DB
 
 const JWT_SECRET = process.env.JWT_SECRET || "parallax-dev-secret-change-in-production";
 
@@ -4956,7 +4955,7 @@ Return ONLY valid JSON:
         spotifyEnergyProfile, previousReflection,
       });
       const variantName = dominantArchetype.charAt(0).toUpperCase() + dominantArchetype.slice(1);
-      return res.json({ prompt: result.imagePrompt, variantName });
+      return res.json({ prompt: result.imagePrompt, variantName, styleName: result.styleName });
     } catch (err: any) {
       return res.status(500).json({ error: err.message });
     }
@@ -5067,25 +5066,22 @@ Return ONLY valid JSON:
           }
           console.log("[Portrait] Resolved image URL:", imageUrl ? imageUrl.slice(0, 100) : "(empty)");
 
-          // Download image and save locally to persist beyond Replicate's temporary URLs
+          // Download image and store as base64 data URI to persist beyond Replicate's temporary URLs
+          // (Railway has ephemeral filesystem — files written at runtime are lost on redeploy)
           if (imageUrl) {
             try {
-              const portraitsDir = path.resolve(process.cwd(), "public", "portraits");
-              fs.mkdirSync(portraitsDir, { recursive: true });
               const imgResponse = await fetch(imageUrl);
               if (imgResponse.ok) {
                 const buffer = Buffer.from(await imgResponse.arrayBuffer());
-                const ext = imgResponse.headers.get("content-type")?.includes("webp") ? "webp" : "png";
-                const filename = `portrait-${Date.now()}.${ext}`;
-                const filePath = path.join(portraitsDir, filename);
-                fs.writeFileSync(filePath, buffer);
-                imageUrl = `/portraits/${filename}`;
-                console.log("[Portrait] Saved image locally:", imageUrl);
+                const contentType = imgResponse.headers.get("content-type") || "image/png";
+                const base64 = buffer.toString("base64");
+                imageUrl = `data:${contentType};base64,${base64}`;
+                console.log("[Portrait] Stored image as base64 data URI (", Math.round(base64.length / 1024), "KB)");
               } else {
                 console.error("[Portrait] Failed to download image:", imgResponse.status);
               }
             } catch (dlErr: any) {
-              console.error("[Portrait] Failed to save image locally:", dlErr.message);
+              console.error("[Portrait] Failed to convert image to base64:", dlErr.message);
             }
           }
         } catch (imgErr: any) {
