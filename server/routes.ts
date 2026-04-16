@@ -5041,44 +5041,61 @@ Return ONLY valid JSON:
       if (process.env.REPLICATE_API_TOKEN) {
         try {
           console.log("[Portrait] Attempting Replicate Imagen 4 generation...");
-          console.log("[Portrait] Prompt:", result.imagePrompt.slice(0, 200));
-          const replicate = new Replicate();
+          console.log("[Portrait] Prompt length:", result.imagePrompt.length);
+          console.log("[Portrait] Prompt preview:", result.imagePrompt.slice(0, 300));
+          // useFileOutput: false returns plain URL strings instead of FileOutput objects
+          // This avoids brittle type-checking of ReadableStream subclasses
+          const replicate = new Replicate({ useFileOutput: false });
           const output = await replicate.run("google/imagen-4", {
             input: {
               prompt: result.imagePrompt,
               aspect_ratio: "16:9",
+              output_format: "jpg",
+              safety_filter_level: "block_only_high",
             },
           });
-          console.log("[Portrait] Replicate output type:", typeof output, Array.isArray(output) ? "array" : "");
-          // Replicate returns FileOutput objects for image models.
-          // FileOutput has a .url() method; it can also be in an array.
+          console.log("[Portrait] Replicate output:", typeof output, Array.isArray(output) ? `array[${(output as any[]).length}]` : "", String(output).slice(0, 200));
+
+          // With useFileOutput: false, output is a plain URL string (for single-output models)
+          // or an array of URL strings (for multi-output models).
+          // Imagen 4 returns a single URI per its schema.
           if (typeof output === "string") {
             imageUrl = output;
-          } else if (output && typeof output === "object" && typeof (output as any).url === "function") {
-            imageUrl = (output as any).url().toString();
           } else if (Array.isArray(output) && output.length > 0) {
+            // Some models wrap single output in an array
             const first = output[0];
-            if (typeof first === "string") {
-              imageUrl = first;
-            } else if (first && typeof first === "object" && typeof (first as any).url === "function") {
-              imageUrl = (first as any).url().toString();
+            imageUrl = typeof first === "string" ? first : String(first);
+          } else if (output && typeof output === "object") {
+            // Fallback: try .url() for FileOutput, then .toString()
+            if (typeof (output as any).url === "function") {
+              imageUrl = (output as any).url().toString();
+            } else {
+              imageUrl = String(output);
             }
           }
-          console.log("[Portrait] Resolved image URL:", imageUrl ? imageUrl.slice(0, 100) : "(empty)");
+
+          // Validate we got a real URL, not "[object Object]" or empty
+          if (imageUrl && !imageUrl.startsWith("http") && !imageUrl.startsWith("data:")) {
+            console.error("[Portrait] Got non-URL output, discarding:", imageUrl.slice(0, 100));
+            imageUrl = "";
+          }
+
+          console.log("[Portrait] Resolved image URL:", imageUrl ? imageUrl.slice(0, 120) : "(empty)");
 
           // Download image and store as base64 data URI to persist beyond Replicate's temporary URLs
           // (Railway has ephemeral filesystem — files written at runtime are lost on redeploy)
-          if (imageUrl) {
+          if (imageUrl && imageUrl.startsWith("http")) {
             try {
               const imgResponse = await fetch(imageUrl);
               if (imgResponse.ok) {
                 const buffer = Buffer.from(await imgResponse.arrayBuffer());
-                const contentType = imgResponse.headers.get("content-type") || "image/png";
+                const contentType = imgResponse.headers.get("content-type") || "image/jpeg";
                 const base64 = buffer.toString("base64");
                 imageUrl = `data:${contentType};base64,${base64}`;
                 console.log("[Portrait] Stored image as base64 data URI (", Math.round(base64.length / 1024), "KB)");
               } else {
-                console.error("[Portrait] Failed to download image:", imgResponse.status);
+                const errText = await imgResponse.text().catch(() => "");
+                console.error("[Portrait] Failed to download image:", imgResponse.status, errText.slice(0, 200));
               }
             } catch (dlErr: any) {
               console.error("[Portrait] Failed to convert image to base64:", dlErr.message);
@@ -5086,10 +5103,10 @@ Return ONLY valid JSON:
           }
         } catch (imgErr: any) {
           console.error("[Portrait] Replicate Imagen 4 generation failed:", imgErr.message);
-          console.error("[Portrait] Full error:", imgErr);
+          console.error("[Portrait] Full error:", JSON.stringify(imgErr, Object.getOwnPropertyNames(imgErr)).slice(0, 500));
         }
       } else {
-        console.log("[Portrait] No REPLICATE_API_TOKEN set, skipping image generation");
+        console.log("[Portrait] No REPLICATE_API_TOKEN set — add it to Railway env vars to enable image generation");
       }
 
       // Compare to previous portrait
