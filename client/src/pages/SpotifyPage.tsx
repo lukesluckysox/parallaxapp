@@ -773,6 +773,22 @@ export default function SpotifyPage() {
               </ProGate>
             )}
 
+            {/* Ghost Profile trigger */}
+            <div className="flex justify-end px-1">
+              <Link
+                href="/ghost"
+                className="group inline-flex items-center gap-1.5 text-muted-foreground/20 hover:text-purple-400/50 transition-colors duration-300"
+                data-testid="link-ghost-profile"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="opacity-60 group-hover:opacity-100 transition-opacity">
+                  <path d="M12 2C7.58 2 4 5.58 4 10v7c0 .55.23 1.08.62 1.45.18.17.42.3.68.38.08.02.16.04.25.05.13.01.26 0 .38-.04.16-.06.3-.15.42-.27L8 17l1.65 1.57c.39.37.99.37 1.38 0L12 17.5l.97.93c.2.19.45.28.69.28s.5-.09.69-.28L16 17l1.65 1.57c.12.12.26.21.42.27.12.04.25.05.38.04.09-.01.17-.03.25-.05.26-.08.5-.21.68-.38.39-.37.62-.9.62-1.45v-7c0-4.42-3.58-8-8-8z" fill="currentColor" fillOpacity="0.15" stroke="currentColor" strokeWidth="1" strokeOpacity="0.5"/>
+                  <circle cx="9" cy="10" r="1.5" fill="currentColor" fillOpacity="0.5"/>
+                  <circle cx="15" cy="10" r="1.5" fill="currentColor" fillOpacity="0.5"/>
+                </svg>
+                <span className="text-[9px] font-mono uppercase tracking-wider">ghost</span>
+              </Link>
+            </div>
+
             {/* Stats Cards */}
             {stats && stats.totalTracks > 0 && (
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2" data-testid="section-stats">

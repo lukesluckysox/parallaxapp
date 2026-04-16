@@ -14,6 +14,7 @@ import { renderPortrait } from "./portraitRenderer";
 import Replicate from "replicate";
 import { decisions as decisionsTable, checkins as checkinsTable, users as usersTable } from "@shared/schema";
 import { computeMixture, topArchetype } from "@shared/archetype-math";
+import { deriveGhostProfile } from "@shared/ghost";
 import { eq, and } from "drizzle-orm";
 // fs and path removed — images now stored as base64 in DB
 
@@ -5250,6 +5251,369 @@ Return ONLY valid JSON:
       return res.json(portrait);
     } catch (err: any) {
       return res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ==================== ARCHETYPE MIXTAPE ====================
+
+  const ARCHETYPE_MUSIC_FLAVORS: Record<string, { genres: string[]; mood: string; texture: string; artists_like: string[] }> = {
+    observer: {
+      genres: ["ambient", "post-rock", "minimalist classical", "downtempo", "drone"],
+      mood: "ambient, minimal, reflective, spacious",
+      texture: "layered pads, long reverb tails, sparse piano, field recordings",
+      artists_like: ["Brian Eno", "Nils Frahm", "Grouper", "Stars of the Lid", "Ryuichi Sakamoto"],
+    },
+    builder: {
+      genres: ["techno", "post-punk", "krautrock", "industrial", "minimal house"],
+      mood: "rhythmic, structured, disciplined, grounded",
+      texture: "mechanical beats, locked grooves, driving basslines, repetitive motifs",
+      artists_like: ["Kraftwerk", "Autechre", "Talking Heads", "LCD Soundsystem", "Burial"],
+    },
+    explorer: {
+      genres: ["world fusion", "psych-rock", "afrobeat", "art pop", "jazz fusion"],
+      mood: "global, textural, surprising, adventurous",
+      texture: "polyrhythms, unusual instruments, genre-blending, unexpected transitions",
+      artists_like: ["Khruangbin", "Mdou Moctar", "Björk", "Flying Lotus", "Tinariwen"],
+    },
+    dissenter: {
+      genres: ["noise rock", "punk", "industrial", "experimental hip-hop", "no wave"],
+      mood: "abrasive, confrontational, raw, disruptive",
+      texture: "distortion, feedback, aggressive drums, dissonance, lo-fi production",
+      artists_like: ["Death Grips", "Swans", "Black Flag", "JPEGMAFIA", "Sonic Youth"],
+    },
+    seeker: {
+      genres: ["spiritual jazz", "neo-soul", "devotional", "shoegaze", "folk"],
+      mood: "spiritual, yearning, transcendent, searching",
+      texture: "swelling strings, choral layers, mantric repetition, warm analog tone",
+      artists_like: ["Alice Coltrane", "Sufjan Stevens", "Cocteau Twins", "Fleet Foxes", "Sigur Rós"],
+    },
+  };
+
+  app.post("/api/mixtape/generate", async (req, res) => {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+    if (!anthropic) {
+      return res.status(503).json({ error: "Mixtape generation is temporarily unavailable." });
+    }
+
+    try {
+      // Get latest check-in for archetype + dimension vector
+      const checkins = storage.getCheckins(userId);
+      if (checkins.length === 0) {
+        return res.status(400).json({ error: "Complete a check-in first to generate your mixtape." });
+      }
+      const latest = checkins[0];
+      const dimensionVec = JSON.parse(latest.self_vec);
+      const dominantArchetype = (latest.self_archetype || "observer").toLowerCase();
+
+      // Get archetype definition
+      const archDef = ARCHETYPE_MAP[dominantArchetype];
+      const flavor = ARCHETYPE_MUSIC_FLAVORS[dominantArchetype] || ARCHETYPE_MUSIC_FLAVORS.observer;
+
+      // Dimension modulation instructions
+      const calm = dimensionVec.calm ?? 50;
+      const vitality = dimensionVec.vitality ?? 50;
+      const creativity = dimensionVec.creativity ?? 50;
+      const exploration = dimensionVec.exploration ?? 50;
+      const drive = dimensionVec.drive ?? 50;
+
+      const modulators: string[] = [];
+      if (calm > 70) modulators.push("Lean toward lower intensity and slower tempos — high calm detected.");
+      if (calm < 30) modulators.push("Allow more tension and urgency — calm is low.");
+      if (vitality > 70) modulators.push("Increase energy and BPM — high vitality.");
+      if (vitality < 30) modulators.push("Keep energy subdued — vitality is low.");
+      if (creativity > 70) modulators.push("Push toward more experimental and unconventional picks.");
+      if (exploration > 70) modulators.push("Favor lesser-known artists and unexpected genre crossings.");
+      if (drive > 70) modulators.push("Include tracks with strong forward momentum and building intensity.");
+
+      const modStr = modulators.length > 0 ? `\n\nDimension modulations:\n${modulators.join("\n")}` : "";
+
+      // Optional: secondary archetype from identity modes
+      let secondaryNote = "";
+      try {
+        const modes = storage.getIdentityModes(userId);
+        if (modes.length > 0) {
+          const otherMode = modes.find((m: any) => m.dominant_archetype.toLowerCase() !== dominantArchetype);
+          if (otherMode) {
+            const secKey = otherMode.dominant_archetype.toLowerCase();
+            const secFlavor = ARCHETYPE_MUSIC_FLAVORS[secKey];
+            if (secFlavor) {
+              secondaryNote = `\n\nSecondary archetype influence (${secKey}): weave in 1-2 tracks that nod toward ${secFlavor.mood} — genres like ${secFlavor.genres.slice(0, 3).join(", ")}.`;
+            }
+          }
+        }
+      } catch {}
+
+      // Optional: recent Spotify listening context
+      let listeningContext = "";
+      try {
+        const listens = storage.getSpotifyListens(userId, 20);
+        if (listens.length > 0) {
+          const recentArtists = [...new Set(listens.map((l: any) => l.artist_name))].slice(0, 8);
+          listeningContext = `\n\nRecent listening context (for reference, not to copy): ${recentArtists.join(", ")}`;
+        }
+      } catch {}
+
+      const message = await anthropic.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 2048,
+        messages: [{
+          role: "user",
+          content: `You are a deeply knowledgeable music curator creating a personalized 10-track mixtape.
+
+Archetype: ${archDef?.name || dominantArchetype} — "${archDef?.coreDrive || ""}"
+Sonic personality: ${flavor.mood}
+Genre palette: ${flavor.genres.join(", ")}
+Texture: ${flavor.texture}
+Reference artists (for vibe, not to copy): ${flavor.artists_like.join(", ")}
+
+Dimension vector: focus=${dimensionVec.focus}, calm=${calm}, agency=${dimensionVec.agency}, vitality=${vitality}, social=${dimensionVec.social}, creativity=${creativity}, exploration=${exploration}, drive=${drive}${modStr}${secondaryNote}${listeningContext}
+
+Create a 10-track mixtape that feels like a cohesive journey. Each track must be a REAL song by a REAL artist. Sequence them intentionally — consider energy arc, emotional flow, and pacing.
+
+For each track include:
+- track name (exact real title)
+- artist name (exact real name)  
+- a brief reason (1 sentence, why this track fits this archetype at this moment)
+
+Also provide:
+- A short mixtape title (2-5 words, evocative, no quotes)
+- A 1-sentence thesis: what this mixtape is about emotionally/philosophically
+
+Respond ONLY with valid JSON:
+{"title":"...","thesis":"...","tracks":[{"name":"...","artist":"...","reason":"..."}]}`
+        }],
+      });
+
+      const responseText = message.content[0].type === "text" ? message.content[0].text : "";
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        return res.status(500).json({ error: "Could not generate mixtape. Please try again." });
+      }
+
+      const parsed = JSON.parse(jsonMatch[0]);
+
+      // Validate structure
+      if (!parsed.title || !parsed.tracks || !Array.isArray(parsed.tracks)) {
+        return res.status(500).json({ error: "Invalid mixtape format. Please try again." });
+      }
+
+      return res.json({
+        title: parsed.title,
+        thesis: parsed.thesis || "",
+        tracks: parsed.tracks.slice(0, 10).map((t: any, i: number) => ({
+          position: i + 1,
+          name: t.name || "Unknown",
+          artist: t.artist || "Unknown",
+          reason: t.reason || "",
+        })),
+        archetype: dominantArchetype,
+        generatedAt: new Date().toISOString(),
+      });
+    } catch (err: any) {
+      console.error("Mixtape generation error:", err.message);
+      return res.status(500).json({ error: "Failed to generate mixtape. Please try again." });
+    }
+  });
+
+  // ==================== GHOST PROFILE ====================
+
+  // GET /api/ghost-profile — Derive ghost (inverted) profile from latest check-in
+  app.get("/api/ghost-profile", async (req, res) => {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+    try {
+      const checkins = storage.getCheckins(userId);
+      if (checkins.length === 0) {
+        return res.status(400).json({ error: "Complete a check-in first to reveal your ghost profile." });
+      }
+      const latest = checkins[0];
+      const currentVec = JSON.parse(latest.self_vec);
+      const currentArchetype = latest.self_archetype || "observer";
+
+      // Derive ghost
+      const ghost = deriveGhostProfile(currentVec);
+
+      // Build terrain description for ghost using portraitRenderer logic
+      const ghostRendererInput = {
+        dimensionVec: ghost.ghostVec,
+        dominantArchetype: ghost.dominantArchetype,
+        secondaryArchetype: ghost.secondaryArchetype,
+        activeModes: [] as string[],
+        recentTensions: [] as string[],
+        motifKeywords: [] as string[],
+      };
+      const ghostPortraitData = renderPortrait(ghostRendererInput);
+
+      // Also build current terrain for comparison
+      const currentRendererInput = {
+        dimensionVec: currentVec,
+        dominantArchetype: currentArchetype,
+        secondaryArchetype: null as string | null,
+        activeModes: [] as string[],
+        recentTensions: [] as string[],
+        motifKeywords: [] as string[],
+      };
+      // Get secondary archetype from modes
+      try {
+        const modes = storage.getIdentityModes(userId);
+        if (modes.length > 0) {
+          const otherMode = modes.find((m: any) => m.dominant_archetype.toLowerCase() !== currentArchetype.toLowerCase());
+          if (otherMode) currentRendererInput.secondaryArchetype = otherMode.dominant_archetype.toLowerCase();
+        }
+      } catch {}
+      const currentPortraitData = renderPortrait(currentRendererInput);
+
+      // Check if a ghost portrait already exists (stored with "ghost:" prefix in comparison_note)
+      const allPortraits = storage.getPortraits(userId);
+      const ghostPortrait = allPortraits.find((p: any) => p.comparison_note && p.comparison_note.startsWith("ghost:"));
+
+      return res.json({
+        current: {
+          vec: currentVec,
+          archetype: currentArchetype,
+          terrain: currentPortraitData.symbolicDescription,
+        },
+        ghost: {
+          vec: ghost.ghostVec,
+          archetype: ghost.dominantArchetype,
+          archetypePct: ghost.dominantPct,
+          secondaryArchetype: ghost.secondaryArchetype,
+          secondaryPct: ghost.secondaryPct,
+          terrain: ghostPortraitData.symbolicDescription,
+          ranked: ghost.ranked,
+        },
+        ghostPortrait: ghostPortrait ? {
+          id: ghostPortrait.id,
+          imageUrl: ghostPortrait.image_url,
+          generatedAt: ghostPortrait.generated_at,
+          styleName: ghostPortrait.style_name,
+          symbolicDescription: ghostPortrait.symbolic_description,
+        } : null,
+      });
+    } catch (err: any) {
+      console.error("Ghost profile error:", err.message);
+      return res.status(500).json({ error: "Failed to derive ghost profile." });
+    }
+  });
+
+  // POST /api/ghost-profile/portrait — Generate a portrait from ghost-derived inputs
+  app.post("/api/ghost-profile/portrait", async (req, res) => {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+    try {
+      const checkins = storage.getCheckins(userId);
+      if (checkins.length === 0) {
+        return res.status(400).json({ error: "Complete a check-in first." });
+      }
+      const latest = checkins[0];
+      const currentVec = JSON.parse(latest.self_vec);
+      const ghost = deriveGhostProfile(currentVec);
+
+      // Build renderer input for ghost
+      const ghostInput = {
+        dimensionVec: ghost.ghostVec,
+        dominantArchetype: ghost.dominantArchetype,
+        secondaryArchetype: ghost.secondaryArchetype,
+        activeModes: [] as string[],
+        recentTensions: [] as string[],
+        motifKeywords: ["shadow", "inversion", "absence"],
+      };
+
+      const result = renderPortrait(ghostInput);
+
+      // Generate image via Replicate if available
+      let imageUrl = "";
+      if (process.env.REPLICATE_API_TOKEN) {
+        try {
+          console.log("[GhostPortrait] Generating via Replicate Imagen 4...");
+          const replicate = new Replicate({ useFileOutput: false });
+          const output = await replicate.run("google/imagen-4", {
+            input: {
+              prompt: result.imagePrompt,
+              aspect_ratio: "16:9",
+              output_format: "jpg",
+              safety_filter_level: "block_only_high",
+            },
+          });
+
+          if (typeof output === "string") {
+            imageUrl = output;
+          } else if (Array.isArray(output) && output.length > 0) {
+            const first = output[0];
+            imageUrl = typeof first === "string" ? first : String(first);
+          } else if (output && typeof output === "object") {
+            if (typeof (output as any).url === "function") {
+              imageUrl = (output as any).url().toString();
+            } else {
+              imageUrl = String(output);
+            }
+          }
+
+          if (imageUrl && !imageUrl.startsWith("http") && !imageUrl.startsWith("data:")) {
+            imageUrl = "";
+          }
+
+          // Convert to base64 for persistence
+          if (imageUrl && imageUrl.startsWith("http")) {
+            try {
+              const imgResponse = await fetch(imageUrl);
+              if (imgResponse.ok) {
+                const buffer = Buffer.from(await imgResponse.arrayBuffer());
+                const contentType = imgResponse.headers.get("content-type") || "image/jpeg";
+                const base64 = buffer.toString("base64");
+                imageUrl = `data:${contentType};base64,${base64}`;
+                console.log("[GhostPortrait] Stored as base64 (", Math.round(base64.length / 1024), "KB)");
+              }
+            } catch (dlErr: any) {
+              console.error("[GhostPortrait] base64 conversion failed:", dlErr.message);
+            }
+          }
+        } catch (imgErr: any) {
+          console.error("[GhostPortrait] Replicate failed:", imgErr.message);
+        }
+      }
+
+      // Delete any previous ghost portrait for this user before saving new one
+      const allPortraits = storage.getPortraits(userId);
+      const oldGhost = allPortraits.find((p: any) => p.comparison_note && p.comparison_note.startsWith("ghost:"));
+      if (oldGhost) {
+        storage.deletePortrait(oldGhost.id, userId);
+      }
+
+      // Save using same portrait system, tagged with ghost prefix in comparison_note
+      const portrait = storage.createPortrait({
+        user_id: userId,
+        generated_at: new Date().toISOString(),
+        dimension_vec: JSON.stringify(ghost.ghostVec),
+        dominant_archetype: ghost.dominantArchetype,
+        secondary_archetype: ghost.secondaryArchetype,
+        active_modes: "[]",
+        recent_tensions: "[]",
+        motif_keywords: JSON.stringify(["shadow", "inversion", "absence"]),
+        spotify_energy_profile: "{}",
+        prompt_used: result.imagePrompt,
+        image_url: imageUrl,
+        symbolic_description: result.symbolicDescription,
+        palette: JSON.stringify(result.palette),
+        glyph_composition: JSON.stringify(result.glyphComposition),
+        comparison_note: `ghost:${new Date().toISOString()}`,
+        style_name: result.styleName,
+      });
+
+      return res.json({
+        id: portrait.id,
+        imageUrl: portrait.image_url,
+        generatedAt: portrait.generated_at,
+        styleName: portrait.style_name,
+        symbolicDescription: portrait.symbolic_description,
+      });
+    } catch (err: any) {
+      console.error("Ghost portrait generation error:", err.message);
+      return res.status(500).json({ error: "Failed to generate ghost portrait." });
     }
   });
 
