@@ -5419,22 +5419,54 @@ Respond ONLY with valid JSON:
 
   // ==================== GHOST PROFILE ====================
 
-  // GET /api/ghost-profile — Derive ghost (inverted) profile from latest check-in
+  // GET /api/ghost-profile — Derive ghost (inverted) profile from recency-weighted selfVec (same as /api/holistic)
   app.get("/api/ghost-profile", async (req, res) => {
     const userId = getUserId(req);
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
     try {
-      const checkins = storage.getCheckins(userId);
-      if (checkins.length === 0) {
+      const allCheckins = storage.getCheckins(userId);
+      if (allCheckins.length === 0) {
         return res.status(400).json({ error: "Complete a check-in first to reveal your ghost profile." });
       }
-      const latest = checkins[0];
-      const currentVec = JSON.parse(latest.self_vec);
-      const currentArchetype = latest.self_archetype || "observer";
+
+      // Recency-weighted selfVec — same logic as /api/holistic
+      const now = new Date();
+      const fiveDaysAgo = new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000).toISOString();
+      const recentWindow = allCheckins.filter((c: any) => {
+        try { return c.timestamp >= fiveDaysAgo; } catch { return false; }
+      });
+      const windowCheckins = recentWindow.length >= 2 ? recentWindow : allCheckins.slice(0, 5);
+
+      const selfDims: Record<string, number> = {};
+      let selfWeight = 0;
+      const decay = 0.75;
+
+      for (let i = 0; i < windowCheckins.length; i++) {
+        const c = windowCheckins[i];
+        const weight = Math.pow(decay, i);
+        if (c.self_vec) {
+          try {
+            const sv = JSON.parse(c.self_vec);
+            for (const dim of DIMENSIONS) {
+              selfDims[dim] = (selfDims[dim] || 0) + (sv[dim] || 50) * weight;
+            }
+            selfWeight += weight;
+          } catch {}
+        }
+      }
+
+      const currentVec: Record<string, number> = {};
+      for (const dim of DIMENSIONS) {
+        currentVec[dim] = selfWeight > 0 ? Math.round((selfDims[dim] || 0) / selfWeight) : 50;
+      }
+
+      // Derive archetype from the weighted vec
+      const currentRanked = topArchetype(currentVec as any);
+      const currentArchetype = currentRanked[0]?.key || "observer";
 
       // Derive ghost
-      const ghost = deriveGhostProfile(currentVec);
+      const ghost = deriveGhostProfile(currentVec as any);
 
       // Build terrain description for ghost using portraitRenderer logic
       const ghostRendererInput = {
@@ -5445,7 +5477,7 @@ Respond ONLY with valid JSON:
         recentTensions: [] as string[],
         motifKeywords: [] as string[],
       };
-      const ghostPortraitData = renderPortrait(ghostRendererInput);
+      const ghostPortraitData = renderPortrait(ghostRendererInput as any);
 
       // Also build current terrain for comparison
       const currentRendererInput = {
@@ -5464,7 +5496,7 @@ Respond ONLY with valid JSON:
           if (otherMode) currentRendererInput.secondaryArchetype = otherMode.dominant_archetype.toLowerCase();
         }
       } catch {}
-      const currentPortraitData = renderPortrait(currentRendererInput);
+      const currentPortraitData = renderPortrait(currentRendererInput as any);
 
       // Check if a ghost portrait already exists (stored with "ghost:" prefix in comparison_note)
       const allPortraits = storage.getPortraits(userId);
@@ -5505,13 +5537,41 @@ Respond ONLY with valid JSON:
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
     try {
-      const checkins = storage.getCheckins(userId);
-      if (checkins.length === 0) {
+      const allCheckins = storage.getCheckins(userId);
+      if (allCheckins.length === 0) {
         return res.status(400).json({ error: "Complete a check-in first." });
       }
-      const latest = checkins[0];
-      const currentVec = JSON.parse(latest.self_vec);
-      const ghost = deriveGhostProfile(currentVec);
+
+      // Recency-weighted selfVec — same as /api/holistic and GET /api/ghost-profile
+      const now = new Date();
+      const fiveDaysAgo = new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000).toISOString();
+      const recentWindow = allCheckins.filter((c: any) => {
+        try { return c.timestamp >= fiveDaysAgo; } catch { return false; }
+      });
+      const windowCheckins = recentWindow.length >= 2 ? recentWindow : allCheckins.slice(0, 5);
+
+      const selfDims: Record<string, number> = {};
+      let selfWeight = 0;
+      const decay = 0.75;
+      for (let i = 0; i < windowCheckins.length; i++) {
+        const c = windowCheckins[i];
+        const weight = Math.pow(decay, i);
+        if (c.self_vec) {
+          try {
+            const sv = JSON.parse(c.self_vec);
+            for (const dim of DIMENSIONS) {
+              selfDims[dim] = (selfDims[dim] || 0) + (sv[dim] || 50) * weight;
+            }
+            selfWeight += weight;
+          } catch {}
+        }
+      }
+      const currentVec: Record<string, number> = {};
+      for (const dim of DIMENSIONS) {
+        currentVec[dim] = selfWeight > 0 ? Math.round((selfDims[dim] || 0) / selfWeight) : 50;
+      }
+
+      const ghost = deriveGhostProfile(currentVec as any);
 
       // Build renderer input for ghost
       const ghostInput = {
