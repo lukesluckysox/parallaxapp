@@ -5,7 +5,7 @@ import { queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth-context";
 import { Link } from "wouter";
 import {
-  ArrowLeft, RefreshCw, Music, Clock, Users, Zap, LinkIcon, Unlink, ChevronRight, Mail, CheckCircle,
+  ArrowLeft, RefreshCw, Music, Clock, Users, Zap, LinkIcon, Unlink, ChevronRight, Mail, CheckCircle, Loader2, Disc3,
 } from "lucide-react";
 import InfoTooltip from "@/components/InfoTooltip";
 import ProGate from "@/components/ProGate";
@@ -394,6 +394,111 @@ function SonicPatternCard({ pattern }: { pattern: ExplorationData["sonicPattern"
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+/** Archetype Mixtape — generates a 10-track playlist from archetype + dimension vector */
+interface MixtapeData {
+  title: string;
+  thesis: string;
+  tracks: Array<{ position: number; name: string; artist: string; reason: string }>;
+  archetype: string;
+  generatedAt: string;
+}
+
+function ArchetypeMixtapePanel() {
+  const [mixtape, setMixtape] = useState<MixtapeData | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const generate = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await apiRequest("POST", "/api/mixtape/generate");
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({ error: "Generation failed" }));
+        throw new Error(body.error || "Generation failed");
+      }
+      const data = await res.json();
+      setMixtape(data);
+    } catch (err: any) {
+      setError(err.message || "Could not generate mixtape.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="rounded-[10px] border border-border/40 bg-card/20 px-3">
+      <CollapsibleSection title="Archetype Mixtape">
+        {mixtape ? (
+          <div className="space-y-3 pb-1">
+            {/* Header */}
+            <div>
+              <p className="text-sm font-semibold text-foreground/80">{mixtape.title}</p>
+              <p className="text-[10px] text-muted-foreground/50 italic mt-0.5">{mixtape.thesis}</p>
+            </div>
+
+            {/* Track list */}
+            <div className="space-y-1">
+              {mixtape.tracks.map((track) => (
+                <div key={track.position} className="flex items-start gap-2.5 py-1.5 border-t border-border/10 first:border-0">
+                  <span className="text-[10px] font-mono text-muted-foreground/25 w-4 text-right pt-0.5 shrink-0">
+                    {track.position}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-foreground/75 truncate">{track.name}</p>
+                    <p className="text-[10px] text-muted-foreground/50 truncate">{track.artist}</p>
+                    <p className="text-[9px] text-muted-foreground/30 leading-relaxed mt-0.5">{track.reason}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Regenerate */}
+            <div className="flex items-center justify-between pt-1">
+              <span className="text-[9px] font-mono text-muted-foreground/20">
+                {mixtape.archetype} · {new Date(mixtape.generatedAt).toLocaleDateString()}
+              </span>
+              <button
+                onClick={generate}
+                disabled={loading}
+                className="text-[10px] text-muted-foreground/30 hover:text-muted-foreground/60 transition-colors"
+              >
+                {loading ? "regenerating..." : "regenerate"}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="text-center py-5 space-y-3">
+            <p className="text-[11px] text-muted-foreground/40 max-w-xs mx-auto">
+              A 10-track playlist curated from your archetype and current dimension vector.
+            </p>
+            <button
+              onClick={generate}
+              disabled={loading}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium bg-card border border-border hover:bg-accent/40 transition-colors"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Disc3 className="w-3 h-3" />
+                  Generate Mixtape
+                </>
+              )}
+            </button>
+            {error && (
+              <p className="text-[10px] text-rose-400/60">{error}</p>
+            )}
+          </div>
+        )}
+      </CollapsibleSection>
     </div>
   );
 }
@@ -854,6 +959,9 @@ export default function SpotifyPage() {
                 </div>
               </div>
             )}
+
+            {/* Archetype Mixtape — Collapsible */}
+            <ArchetypeMixtapePanel />
 
             {/* Listening Patterns — Collapsible */}
             {patterns?.hasData && (
