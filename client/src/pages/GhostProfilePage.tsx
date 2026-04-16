@@ -104,11 +104,11 @@ export default function GhostProfilePage() {
         <header className="pt-2 pb-1">
           <div className="flex items-center justify-between">
             <Link
-              href="/mirrors/sonic"
+              href="/"
               className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
-              Sonic Mirror
+              Home
             </Link>
             <h1 className="text-lg font-bold tracking-tight">Ghost Profile</h1>
             <div />

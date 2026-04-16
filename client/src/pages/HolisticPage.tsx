@@ -1222,10 +1222,10 @@ export default function HolisticPage() {
             )}
 
             {/* ── Ghost Profile trigger ── */}
-            <div className="flex justify-end px-1">
+            <div className="flex justify-center px-1">
               <a
                 href="/#/ghost"
-                className="group inline-flex items-center gap-1.5 text-muted-foreground/20 hover:text-purple-400/50 transition-colors duration-300"
+                className="group inline-flex items-center gap-1.5 text-purple-400/25 hover:text-purple-400/50 transition-colors duration-300"
                 data-testid="link-ghost-profile"
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="opacity-60 group-hover:opacity-100 transition-opacity">
